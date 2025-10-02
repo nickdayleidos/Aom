@@ -1,0 +1,45 @@
+@page "/me"
+@using MyApplication.Components.Service   <!-- matches the namespace in WindowsAuth.cs -->
+@inject UserProfileService ProfileSvc
+
+<h3>Your profile</h3>
+
+@if (_p is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <ul>
+        <li><b>Name:</b> @_p.DisplayName</li>
+        <li><b>UserName:</b> @_p.UserName</li>
+        <li><b>Email:</b> @_p.Email</li>
+        <li><b>UPN:</b> @_p.Upn</li>
+        <li><b>SID:</b> @_p.Sid</li>
+        <li><b>Provider:</b> @_p.IdentityProvider</li>
+        <li><b>Roles:</b> @string.Join(", ", _p.Roles)</li>
+        <li><b>Groups:</b> @string.Join(", ", _p.Groups)</li>
+    </ul>
+
+    <h4>All claims</h4>
+    <table class="table">
+        <thead>
+            <tr><th>Type</th><th>Value(s)</th></tr>
+        </thead>
+        <tbody>
+        @foreach (var kv in _p.AllClaims)
+        {
+            <tr><td>@kv.Key</td><td>@kv.Value</td></tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private UserProfile? _p;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _p = await ProfileSvc.GetAsync();
+    }
+}

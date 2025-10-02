@@ -1,0 +1,339 @@
+﻿@page "/tools/operationalimpact/{id:int}"
+@using System.IO
+@using MudBlazor
+@using MyApplication.Common
+@using MyApplication.Common.Time <!-- ET helper -->
+@using MyApplication.Components.Model.AOM
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Model.AOM.Tools
+@using MyApplication.Components.Service
+@using MyApplication.Components.Services.Email
+@inject AuthenticationStateProvider Auth
+
+@inject IOiLookupRepository Lookups
+@inject IOiEventRepository Repo
+@inject OperationalImpactEmailService OiEmailSvc
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Policy = "OST")]
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6">Operational Impact Details</MudText>
+
+        @if (_loading)
+        {
+            <MudText>Loading...</MudText>
+        }
+        else if (_e is null)
+        {
+            <MudText Color="Color.Error">Event not found.</MudText>
+        }
+        else
+        {
+            <MudGrid Spacing="2" Class="mt-2">
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" Label="Summary"
+                                  Value="_e.Summary" ValueChanged="v => _e.Summary = v" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string" Label="Services Affected"
+                                  Value="_e.ServicesAffected" ValueChanged="v => _e.ServicesAffected = v" />
+                </MudItem>
+
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string" Label="Ticket Number"
+                                  Value="_e.TicketNumber" ValueChanged="v => _e.TicketNumber = v" />
+                </MudItem>
+
+                <MudItem xs="12" md="3">
+                    <MudSelect T="int" Label="Category" Value="_e.CategoryId" ValueChanged="v => _e.CategoryId = v">
+                        @foreach (var c in _categories)
+                        {
+                            <MudSelectItem T="int" Value="@c.Id">@c.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="3">
+                    <MudSelect T="int" Label="Severity" Value="_e.SeverityId" ValueChanged="v => _e.SeverityId = v">
+                        @foreach (var s in _severities)
+                        {
+                            <MudSelectItem T="int" Value="@s.Id">@s.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="3">
+                    <MudSelect T="int" Label="Site" Value="_e.SiteId" ValueChanged="v => _e.SiteId = v">
+                        @foreach (var s in _sites)
+                        {
+                            <MudSelectItem T="int" Value="@s.Id">@s.SiteCode</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="3">
+                    <MudNumericField T="int" Label="# Affected"
+                                     Value="_e.UsersAffected"
+                                     ValueChanged="v => _e!.UsersAffected = v" />
+                </MudItem>
+
+                <MudItem xs="12" md="3">
+                    <MudTextField T="string" Label="ETR"
+                                  Value="_e.EstimatedTimeToResolve" ValueChanged="v => _e.EstimatedTimeToResolve = v" />
+                </MudItem>
+
+                <!-- Posted -->
+                <MudItem xs="12" md="3">
+                    <MudDatePicker T="DateTime?" Label="Posted Date"
+                                   Value="PostedDate" ValueChanged="d => PostedDate = d" />
+                    <MudTimePicker Label="Posted Time" AmPm="true"
+                                   Time="PostedTimeOfDay" TimeChanged="t => PostedTimeOfDay = t" />
+                </MudItem>
+
+                <!-- Start -->
+                <MudItem xs="12" md="3">
+                    <MudDatePicker T="DateTime?" Label="Start Date"
+                                   Value="StartDate" ValueChanged="d => StartDate = d" />
+                    <MudTimePicker Label="Start Time" AmPm="true"
+                                   Time="StartTimeOfDay" TimeChanged="t => StartTimeOfDay = t" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Description" Lines="3"
+                                  Value="_e.Description" ValueChanged="v => _e.Description = v" />
+                </MudItem>
+
+                <!-- Resolution -->
+                <MudItem xs="12" md="3">
+                    <MudDatePicker T="DateTime?"
+                                   Label="Resolution Date"
+                                   Date="ResolutionDate"
+                                   DateChanged="(DateTime? d) => ResolutionDate = d" />
+                    <MudTimePicker Label="Resolution Time"
+                                   AmPm="true"
+                                   Time="ResolutionTimeOfDay"
+                                   TimeChanged="(TimeSpan? t) => ResolutionTimeOfDay = t" />
+                </MudItem>
+
+                <MudItem xs="12" class="d-flex gap-2">
+                    <MudButton OnClick="@SaveAsync" StartIcon="@Icons.Material.Filled.Save">Save</MudButton>
+                </MudItem>
+            </MudGrid>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6">Add Update</MudText>
+
+        <MudTextField T="string"
+                      Value="_newUpdate"
+                      ValueChanged="v => _newUpdate = v"
+                      Lines="2"
+                      Label="Summary" />
+
+        <div class="mt-2 d-flex gap-2 align-center">
+            <MudSwitch T="bool"
+                       Value="_allClear"
+                       ValueChanged="v => _allClear = v"
+                       Color="Color.Success"
+                       Label="All Clear" />
+
+            <MudButton OnClick="@SaveUpdateAndEmailAsync"
+                       StartIcon="@Icons.Material.Filled.Email"
+                       Disabled="@string.IsNullOrWhiteSpace(_newUpdate)">
+                Save Update & Email
+            </MudButton>
+        </div>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6">History</MudText>
+        <MudList T="object">
+            @foreach (var u in _updates)
+            {
+                <MudListItem>
+                    <MudText Typo="Typo.caption">@u.UpdateTime</MudText>
+                    <MudText>@u.Summary</MudText>
+                </MudListItem>
+            }
+        </MudList>
+    </MudPaper>
+</MudStack>
+
+@code {
+    [Parameter] public int id { get; set; }
+
+    private bool _loading = true;
+    private OiEvent? _e;
+    private List<OiEventUpdate> _updates = new();
+    private List<OiCategory> _categories = new();
+    private List<OiSeverity> _severities = new();
+    private List<Site> _sites = new();
+    private string _newUpdate = string.Empty;
+    private bool _allClear = false;
+
+    // -- Resolution helpers map to _e.ResolutionTime --
+    private DateTime? ResolutionDate
+    {
+        get => _e?.ResolutionTime;
+        set
+        {
+            if (_e is null) return;
+            if (value.HasValue)
+            {
+                var time = _e.ResolutionTime?.TimeOfDay ?? TimeSpan.Zero;
+                _e.ResolutionTime = value.Value.Date + time;
+            }
+            else
+            {
+                _e.ResolutionTime = null;
+            }
+        }
+    }
+
+    private TimeSpan? ResolutionTimeOfDay
+    {
+        get => _e?.ResolutionTime?.TimeOfDay;
+        set
+        {
+            if (_e is null) return;
+            var date = (_e.ResolutionTime ?? Et.Now).Date; // default to ET today
+            _e.ResolutionTime = value.HasValue ? date + value.Value : date;
+        }
+    }
+
+    // ----- Date/Time adapters (null-safe) -----
+    private DateTime? PostedDate
+    {
+        get => _e?.PostedTime;
+        set
+        {
+            if (value.HasValue && _e is not null)
+                _e.PostedTime = value.Value.Date + (_e.PostedTime.TimeOfDay);
+        }
+    }
+    private TimeSpan? PostedTimeOfDay
+    {
+        get => _e?.PostedTime.TimeOfDay;
+        set
+        {
+            if (value.HasValue && _e is not null)
+                _e.PostedTime = _e.PostedTime.Date + value.Value;
+        }
+    }
+    private DateTime? StartDate
+    {
+        get => _e?.StartTime;
+        set
+        {
+            if (value.HasValue && _e is not null)
+                _e.StartTime = value.Value.Date + (_e.StartTime.TimeOfDay);
+        }
+    }
+    private TimeSpan? StartTimeOfDay
+    {
+        get => _e?.StartTime.TimeOfDay;
+        set
+        {
+            if (value.HasValue && _e is not null)
+                _e.StartTime = _e.StartTime.Date + value.Value;
+        }
+    }
+
+    // Load when route parameter changes
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+
+        // Load lookups
+        var catsTask = Lookups.GetCategoriesAsync();
+        var sevsTask = Lookups.GetSeveritiesAsync();
+        var sitesTask = Lookups.GetSitesAsync();
+
+        // Load event & updates
+        _e = await Repo.GetAsync(id);
+        _updates = (await Repo.ListUpdatesAsync(id)).ToList();
+
+        _categories = (await catsTask).ToList();
+        _severities = (await sevsTask).ToList();
+        _sites = (await sitesTask).ToList();
+
+        if (_e is null)
+            Snackbar.Add($"Event #{id} not found.", Severity.Warning);
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_e is null) return;
+        await Repo.UpdateAsync(_e);
+        Snackbar.Add("Saved.", Severity.Success);
+    }
+
+    private async Task SaveUpdateAndEmailAsync()
+    {
+        var summary = _newUpdate?.Trim();
+        if (string.IsNullOrEmpty(summary))
+        {
+            Snackbar.Add("Enter a summary first.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            // If this is an ALL CLEAR and ResolutionTime is not set, set it to current ET and save.
+            if (_allClear && _e is not null && !_e.ResolutionTime.HasValue)
+            {
+                _e.ResolutionTime = Et.Now;
+                await Repo.UpdateAsync(_e);
+            }
+
+            var (subject, html, to, cc, from) =
+                await OiEmailSvc.ComposeUpdateAsync(id, summary, allClear: _allClear);
+
+            var bannerTitle = _allClear ? "Operational Impact – ALL CLEAR"
+                                        : "Operational Impact Update";
+
+            var authState = await Auth.GetAuthenticationStateAsync();
+            var preparedBy = IdentityHelpers.GetSamAccount(authState.User) ?? "Unknown";
+
+            // Use resolution ET if this is ALL CLEAR and resolution exists; otherwise current ET
+            var generatedEt = (_allClear && _e?.ResolutionTime is DateTime rt) ? rt : Et.Now;
+
+            var draft = new EmailDraft
+            {
+                Subject = subject,
+                HtmlBody = html,
+                From = from,
+                To = to,
+                Cc = cc,
+                OpenAsDraft = true,
+                IncludeCui = true
+            }
+            .WithCuiBanner(bannerTitle, preparedBy, generatedEt: generatedEt); // ET-aware banner
+
+            var bytes = EmailDraftBuilder.BuildEmlBytes(draft);
+            var safe = string.Concat(subject.Split(Path.GetInvalidFileNameChars(),
+                                                    StringSplitOptions.RemoveEmptyEntries)).Trim();
+            if (string.IsNullOrWhiteSpace(safe)) safe = "OperationalImpactUpdate";
+
+            var b64 = Convert.ToBase64String(bytes);
+            await JS.InvokeVoidAsync("downloadFileFromBase64", $"{safe}.eml", "message/rfc822", b64);
+
+            _updates = (await Repo.ListUpdatesAsync(id)).ToList();
+            _newUpdate = string.Empty;
+            _allClear = false;
+
+            Snackbar.Add("Update saved and email draft generated.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to add update/send: {ex.Message}", Severity.Error);
+        }
+    }
+}

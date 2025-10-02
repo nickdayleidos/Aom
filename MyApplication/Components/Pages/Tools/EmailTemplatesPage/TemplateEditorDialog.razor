@@ -1,0 +1,78 @@
+﻿@using MudBlazor
+@using Microsoft.AspNetCore.Components.Forms
+@using Dapper
+@using Microsoft.Data.SqlClient
+@using MyApplication.Components.Pages.Tools <!-- for TemplateEditModel -->
+@attribute [Authorize(Policy = "Admin")]
+
+<MudDialog>
+    <DialogContent>
+        <EditForm EditContext="_edit" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <!-- fields: bind to Model.* -->
+            <MudTextField Label="Template Name" @bind-Value="Model.TemplateName" Required="true" />
+            <MudTextField Label="Subject" @bind-Value="Model.Subject" Required="true" />
+            <MudTextField Label="To Addresses" @bind-Value="Model.ToAddresses" />
+            <MudTextField Label="Cc Addresses" @bind-Value="Model.CcAddresses" />
+            <MudTextField Label="Send From" @bind-Value="Model.SendFromAddress" />
+            <MudSwitch T="bool" @bind-value="Model.IsActive" CheckedChanged="v => Model.IsActive = v" />
+            <MudTextField Label="Body" Lines="18" @bind-Value="Model.Body" />
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="CancelDialog">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public EmailTemplatesPage.TemplateEditModel Model { get; set; } = new();
+
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    private EditContext _edit = default!;
+
+    [Inject] private IConfiguration Config { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    protected override void OnInitialized() => _edit = new EditContext(Model);
+
+    private string AomConn => Config.GetConnectionString("AOM") ?? "";
+
+    private async Task SaveAsync()
+    {
+        if (!_edit.Validate()) return;
+
+        try
+        {
+            using var c = new SqlConnection(AomConn);
+            if (Model.Id == 0)
+            {
+                const string ins = @"INSERT Tools.EmailTemplates
+                  (TemplateName, Subject, ToAddresses, CcAddresses, SendFromAddress, Body, IsActive)
+                  VALUES(@TemplateName, @Subject, @ToAddresses, @CcAddresses, @SendFromAddress, @Body, @IsActive)";
+                await c.ExecuteAsync(ins, Model);
+                Snackbar.Add("Template created.", Severity.Success);
+            }
+            else
+            {
+                const string upd = @"UPDATE Tools.EmailTemplates SET
+                  TemplateName=@TemplateName, Subject=@Subject, ToAddresses=@ToAddresses, CcAddresses=@CcAddresses,
+                  SendFromAddress=@SendFromAddress, Body=@Body, IsActive=@IsActive
+                  WHERE Id=@Id";
+                await c.ExecuteAsync(upd, Model);
+                Snackbar.Add("Template updated.", Severity.Success);
+            }
+            Dialog.Close(DialogResult.Ok(true));
+        }
+        catch (SqlException ex) when (ex.Number is 2601 or 2627)
+        {
+            Snackbar.Add("A template with that name already exists.", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Save failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void CancelDialog() => Dialog.Cancel();
+}

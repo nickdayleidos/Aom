@@ -1,0 +1,72 @@
+﻿@using MudBlazor
+@using MyApplication.Components.Model
+@using MyApplication.Components.Model.AOM
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service
+
+@inject IEmployeeService EmployeeService
+@inject ISnackbar Snackbar
+
+
+
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Edit Employee</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="form" Model="@model">
+            <MudTextField T="string"  Variant="Variant.Filled" @bind-Value="model.FirstName" Label="First Name" Required="true"
+                RequiredError="First Name is required!" />
+            <MudTextField T="string"  Variant="Variant.Filled" @bind-Value="model.MiddleInitial" Label="Middle Initial" Required="false"/>
+            <MudTextField T="string"  Variant="Variant.Filled" @bind-Value="model.LastName" Label="Last Name" Required="true"
+                RequiredError="Last Name is required!" />
+            <MudNumericField @bind-Value="model.SiteId"  Variant="Variant.Filled" Label="Site" Required="true"
+             RequiredError="Site is required!"/>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Update</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance? Dialog { get; set; }
+
+    [Parameter] public EmployeeDetailsDto? Employee { get; set; }
+    [Parameter] public string? Title { get; set; }
+
+
+    private MudForm? form;
+    private UpdateEmployeeDto model = new();
+
+    protected override void OnInitialized()
+    {
+        model.Id = Employee.Id;
+        model.LastName = Employee.LastName;
+        model.FirstName = Employee.FirstName;
+        model.MiddleInitial = Employee.MiddleInitial;
+        model.SiteId = Employee.SiteId;
+    }
+
+    private void Cancel() => Dialog.Cancel();
+
+    private async Task Submit()
+    {
+        await form.Validate();
+        if (form.IsValid)
+        {
+            try
+            {
+                await EmployeeService.EditEmployeeAsync(model);
+                Snackbar.Add("Employee updated successfully", Severity.Success);
+                Dialog.Close(DialogResult.Ok(true));
+            }
+            catch (Exception)
+            {
+                Snackbar.Add("Error updating employee", Severity.Error);
+            }
+        }
+    }
+}

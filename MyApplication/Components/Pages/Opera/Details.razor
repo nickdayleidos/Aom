@@ -1,0 +1,154 @@
+﻿@page "/opera/{id:int}"
+@using MyApplication.Components.Model.AOM.Employee
+@using MudBlazor
+@using Microsoft.EntityFrameworkCore
+@inject IOperaRepository Repo
+@inject AomDbContext Db
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-3" Outlined="true">
+        <MudText Typo="Typo.h6">Opera Request @id</MudText>
+
+        @if (_req is null)
+        {
+            <MudText>Loading...</MudText>
+        }
+        else
+        {
+            <MudGrid Spacing="2">
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_req.SubmitterComments" Label="Submitter Comments" Lines="3" />
+                </MudItem>
+
+                <MudItem xs="12" md="3">
+                    <MudDatePicker @bind-Date="_startDateEt" Label="Start Date (ET)" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTimePicker @bind-Time="_startTimeEt" Label="Start Time (ET)" />
+                </MudItem>
+
+                <MudItem xs="12" md="3">
+                    <MudDatePicker @bind-Date="_endDateEt" Label="End Date (ET)" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTimePicker @bind-Time="_endTimeEt" Label="End Time (ET)" />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudSelect @bind-Value="_req.OperaTypeId" Label="Type">
+                        @foreach (var t in _types)
+                        {
+                            <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect @bind-Value="_req.OperaSubTypeId" Label="SubType">
+                        @foreach (var t in _subTypes.Where(s => s.OperaTypeId == _req.OperaTypeId))
+                        {
+                            <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect @bind-Value="_req.OperaSubClassId" Label="SubClass" Clearable="true">
+                        @foreach (var t in _subClasses.Where(s => s.OperaSubTypeId == _req.OperaSubTypeId))
+                        {
+                            <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="12" Class="d-flex gap-2">
+                    <MudButton Variant="Variant.Outlined" OnClick="Save" Disabled="@_busy">Save</MudButton>
+                    <MudButton Color="Color.Success" OnClick="@(() => SetStatus(2))" Disabled="@_busy">Approve</MudButton>
+                    <MudButton Color="Color.Error" OnClick="@(() => SetStatus(3))" Disabled="@_busy">Reject</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="@(() => Nav.NavigateTo("/tools/opera"))">Back</MudButton>
+                </MudItem>
+            </MudGrid>
+        }
+    </MudPaper>
+</MudStack>
+
+@code {
+    [Parameter] public int id { get; set; }
+
+    private OperaRequest? _req;
+    private bool _busy;
+
+    private List<OperaType> _types = new();
+    private List<OperaSubType> _subTypes = new();
+    private List<OperaSubClass> _subClasses = new();
+
+    // ET date+time fields for binding
+    private DateTime? _startDateEt;
+    private TimeSpan? _startTimeEt;
+    private DateTime? _endDateEt;
+    private TimeSpan? _endTimeEt;
+
+
+    private static readonly TimeZoneInfo EtTz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _req = await Repo.GetAsync(id);
+        if (_req == null) return;
+
+        _types = await Db.OperaType.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+        _subTypes = await Db.OperaSubType.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+        _subClasses = await Db.OperaSubClass.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+
+        // Convert stored UTC to ET for editing
+        var startEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(_req.StartTime, DateTimeKind.Utc), EtTz);
+        var endEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(_req.EndTime, DateTimeKind.Utc), EtTz);
+
+        _startDateEt = startEt.Date;
+        _startTimeEt = startEt.TimeOfDay;
+        _endDateEt = endEt.Date;
+        _endTimeEt = endEt.TimeOfDay;
+    }
+
+    private async Task Save()
+    {
+        if (_req is null) return;
+        if (!_startDateEt.HasValue || !_startTimeEt.HasValue || !_endDateEt.HasValue || !_endTimeEt.HasValue)
+        {
+            Snackbar.Add("Provide start and end date/time.", Severity.Warning);
+            return;
+        }
+
+        // Back to UTC for persistence
+        var startEt = _startDateEt.Value.Date + _startTimeEt.Value;
+        var endEt = _endDateEt.Value.Date + _endTimeEt.Value;
+        if (endEt <= startEt)
+        {
+            Snackbar.Add("End must be after start.", Severity.Warning);
+            return;
+        }
+        _req.StartTime = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(startEt, DateTimeKind.Unspecified), EtTz);
+        _req.EndTime = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(endEt, DateTimeKind.Unspecified), EtTz);
+
+        _busy = true;
+        try
+        {
+            await Repo.UpdateAsync(_req);
+            Snackbar.Add("Saved.", Severity.Success);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task SetStatus(int statusId)
+    {
+        if (_req is null) return;
+        _busy = true;
+        try
+        {
+            await Repo.SetStatusAsync(_req.RequestId, statusId, "actor"); // TODO: current user
+            Snackbar.Add(statusId == 2 ? "Approved." : "Rejected.", Severity.Success);
+            Nav.NavigateTo("/tools/opera");
+        }
+        finally { _busy = false; }
+    }
+}

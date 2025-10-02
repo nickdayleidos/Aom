@@ -1,0 +1,19 @@
+﻿@namespace MyApplication.Components.Pages.Interval
+@using MudBlazor
+<MudStack Row Spacing="1">
+    <MudButton Variant="Variant.Filled" OnClick="OnPopulate">Populate</MudButton>
+    <MudButton Variant="Variant.Outlined" OnClick="OnCopyStats">Copy Stats</MudButton>
+    <MudButton Variant="Variant.Outlined" OnClick="OnGenerateEmail">Generate Email</MudButton>
+    <MudButton Color="Color.Warning" Variant="Variant.Outlined" OnClick="OnClear">Clear</MudButton>
+    <MudButton Variant="Variant.Text" OnClick="OnOutage">Outage</MudButton>
+    <MudButton Variant="Variant.Text" OnClick="OnOperationalImpact">Operational Impact</MudButton>
+</MudStack>
+
+@code {
+    [Parameter] public EventCallback OnPopulate { get; set; }
+    [Parameter] public EventCallback OnCopyStats { get; set; }
+    [Parameter] public EventCallback OnGenerateEmail { get; set; }
+    [Parameter] public EventCallback OnClear { get; set; }
+    [Parameter] public EventCallback OnOutage { get; set; }
+    [Parameter] public EventCallback OnOperationalImpact { get; set; }
+}

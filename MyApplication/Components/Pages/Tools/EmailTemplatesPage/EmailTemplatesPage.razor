@@ -1,0 +1,246 @@
+﻿@page "/tools/emailtemplates"
+@attribute [Authorize(Policy = "Admin")]
+@using System.ComponentModel.DataAnnotations
+@using Dapper
+@using Microsoft.Data.SqlClient
+@using MudBlazor
+@using MyApplication.Components.Model.AOM
+@using MyApplication.Components.Model.AOM.Tools
+
+@inject IConfiguration Config
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+<MudStack Spacing="2">
+    <!-- Toolbar -->
+    <MudPaper Class="pa-3 d-flex gap-2 align-center" Outlined="true">
+        <MudText Typo="Typo.h6">Email Templates</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="_search"
+                      Placeholder="Search…"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" />
+        <MudButton Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   Color="Color.Primary"
+                   OnClick="@(async () => await OpenAddAsync())">
+            New Template
+        </MudButton>
+        <MudButton Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.Refresh"
+                   Disabled="@_loading"
+                   OnClick="@(async () => await LoadAsync())">
+            Refresh
+        </MudButton>
+    </MudPaper>
+
+    <!-- Grid -->
+    <MudPaper Class="pa-0" Outlined="true">
+        <MudTable Items="_rowsFiltered"
+          Dense="true"
+          Hover="true"
+          Bordered="true"
+                  RowClick="@(async (TableRowClickEventArgs<EmailTemplates> e) => await OpenEditAsync(e.Item))">
+
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Subject</MudTh>
+                <MudTh>To</MudTh>
+                <MudTh>Cc</MudTh>
+                <MudTh>Active</MudTh>
+                <MudTh class="text-right">Actions</MudTh>
+            </HeaderContent>
+
+            <RowTemplate Context="context">
+                <MudTd @key="context.Id" DataLabel="Name">@context.TemplateName</MudTd>
+                <MudTd  DataLabel="Subject">@context.Subject</MudTd>
+                <MudTd  DataLabel="To">@context.ToAddresses</MudTd>
+                <MudTd  DataLabel="Cc">@context.CcAddresses</MudTd>
+                <MudTd DataLabel="Active">
+                    <div @onclick:stopPropagation="true">
+                        <!-- keep row click from swallowing the toggle -->
+                        <MudSwitch T="bool"
+                                   Value="context.IsActive"
+                                   ValueChanged="@(async (bool v) => await ToggleActiveAsync(context, v))"
+                                   Immediate="true"
+                                   Color="Color.Primary" />
+                    </div>
+                </MudTd>
+
+                
+
+                <MudTd Class="text-right">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                   Size="Size.Small"
+                                   Color="Color.Primary"
+                                   Title="Edit"
+                                   OnClick="@(() => OpenEditAsync(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                   Size="Size.Small"
+                                   Title="Copy"
+                                   OnClick="@(() => OpenCopyAsync(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Size="Size.Small"
+                                   Color="Color.Error"
+                                   Title="Delete"
+                                   OnClick="@(() => ConfirmDeleteAsync(context))" />
+                </MudTd>
+            </RowTemplate>
+
+            <NoRecordsContent>
+                <MudText Class="pa-4">No templates yet. Click <b>New Template</b>.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private bool _loading;
+    private string _search = string.Empty;
+
+    private List<EmailTemplates> _rows = new();
+
+    private IEnumerable<EmailTemplates> _rowsFiltered =>
+        string.IsNullOrWhiteSpace(_search)
+            ? _rows
+            : _rows.Where(r =>
+                (r.TemplateName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (r.Subject?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private string AomConn => Config.GetConnectionString("AOM") ?? Config["ConnectionStrings:AOM"] ?? "";
+
+    private async Task LoadAsync()
+    {
+        if (_loading) return;
+        _loading = true;
+        try
+        {
+            using var c = new SqlConnection(AomConn);
+            // Select explicit columns so Id is guaranteed to hydrate
+            var sql = @"SELECT Id, TemplateName, Subject, ToAddresses, CcAddresses, SendFromAddress, Body, IsActive
+                    FROM Tools.EmailTemplates
+                    ORDER BY TemplateName";
+            var rows = await c.QueryAsync<EmailTemplates>(sql);
+            _rows = rows.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Load failed: {ex.Message}", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+
+    private async Task ToggleActiveAsync(EmailTemplates row, bool value)
+    {
+        var prev = row.IsActive;
+        row.IsActive = value; // keep UI in sync immediately
+
+        try
+        {
+            await using var c = new SqlConnection(AomConn);
+            var affected = await c.ExecuteAsync(
+                @"UPDATE Tools.EmailTemplates
+              SET IsActive = @IsActive
+              WHERE Id = @Id",
+                new { IsActive = value, row.Id });
+
+            if (affected == 0)
+            {
+                row.IsActive = prev; // revert UI
+                Snackbar.Add($"No rows updated (Id={row.Id}). Check that Id is loaded.", Severity.Warning);
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                Snackbar.Add($"{row.TemplateName} is now {(value ? "active" : "inactive")}.", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            row.IsActive = prev; // revert UI on error
+            await InvokeAsync(StateHasChanged);
+            Snackbar.Add($"Update failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+
+
+
+    private async Task OpenAddAsync() => await OpenEditorAsync(new TemplateEditModel(), "New Template");
+
+    private async Task OpenEditAsync(EmailTemplates row)
+        => await OpenEditorAsync(TemplateEditModel.From(row), $"Edit: {row.TemplateName}");
+
+    private async Task OpenCopyAsync(EmailTemplates row)
+    {
+        var clone = TemplateEditModel.From(row);
+        clone.Id = 0;
+        clone.TemplateName = $"{row.TemplateName}-Copy";
+        await OpenEditorAsync(clone, "Copy Template");
+    }
+
+    private async Task ConfirmDeleteAsync(EmailTemplates row)
+    {
+        bool? confirm = await Dialogs.ShowMessageBox(
+            "Delete Template",
+            (MarkupString)$"Are you sure you want to delete <b>{row.TemplateName}</b>?",
+            yesText: "Delete", cancelText: "Cancel",
+            options: new DialogOptions { CloseOnEscapeKey = true });
+
+        if (confirm == true)
+        {
+            try
+            {
+                using var c = new SqlConnection(AomConn);
+                await c.ExecuteAsync("DELETE FROM Tools.EmailTemplates WHERE Id = @Id", new { row.Id });
+                _rows.Remove(row);
+                Snackbar.Add("Template deleted.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Delete failed: {ex.Message}", Severity.Error);
+                await LoadAsync();
+            }
+        }
+    }
+
+    private async Task OpenEditorAsync(TemplateEditModel vm, string title)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true };
+        var parameters = new DialogParameters { { nameof(TemplateEditorDialog.Model), vm } };
+        var dlg = await Dialogs.ShowAsync<TemplateEditorDialog>(title, parameters, options);
+        var res = await dlg.Result;
+        if (!res.Canceled) await LoadAsync();
+    }
+
+    public class TemplateEditModel
+    {
+        public int Id { get; set; }
+        [Required] public string TemplateName { get; set; } = string.Empty;
+        [Required] public string Subject { get; set; } = string.Empty;
+        public string ToAddresses { get; set; } = string.Empty;
+        public string CcAddresses { get; set; } = string.Empty;
+        public string SendFromAddress { get; set; } = string.Empty;
+
+        // Body is OPTIONAL
+        public string? Body { get; set; }
+
+        public bool IsActive { get; set; } = true;
+
+        public static TemplateEditModel From(EmailTemplates e) => new()
+        {
+            Id = e.Id,
+            TemplateName = e.TemplateName,
+            Subject = e.Subject,
+            ToAddresses = e.ToAddresses,
+            CcAddresses = e.CcAddresses,
+            SendFromAddress = e.SendFromAddress,
+            Body = e.Body,
+            IsActive = e.IsActive
+        };
+    }
+}

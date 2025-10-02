@@ -1,0 +1,103 @@
+﻿@page "/opera"
+@using MyApplication.Components.Model.AOM.Employee
+@inject IOperaRepository Repo
+@inject NavigationManager Nav
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-3" Outlined="true">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_filterText" Label="Search (name, EmployeeId, OperaId)" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect @bind-Value="_statusId" Label="Status" Clearable="true">
+                    <MudSelectItem Value="@((int?)null)">All</MudSelectItem>
+                    @foreach (var s in _statuses)
+                    {
+                        <MudSelectItem Value="@((int?)s.Id)">@s.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudDateRangePicker @bind-DateRange="_range" Label="Date filter (ET)" />
+            </MudItem>
+            <MudItem xs="12" md="1" Class="d-flex align-center">
+                <MudButton Variant="Variant.Filled" OnClick="Reload">Search</MudButton>
+            </MudItem>
+            <MudItem xs="12" md="2" Class="d-flex align-center justify-end">
+                <MudButton Variant="Variant.Outlined" OnClick="GoSubmit">New Requests</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="pa-0" Outlined="true">
+        <MudTable Items="_items" Hover="true" Dense="true">
+            <HeaderContent>
+                <MudTh>OperaId</MudTh>
+                <MudTh>Employee</MudTh>
+                <MudTh>Start (ET)</MudTh>
+                <MudTh>End (ET)</MudTh>
+                <MudTh>Type / Subtype / Subclass</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="OperaId">@context.RequestId</MudTd>
+                <MudTd DataLabel="Employee">@($"{context.Employees?.LastName}, {context.Employees?.FirstName} (#{context.EmployeeId})")</MudTd>
+                <MudTd DataLabel="Start">@ToEt(context.StartTime).ToString("yyyy-MM-dd HH:mm")</MudTd>
+                <MudTd DataLabel="End">@ToEt(context.EndTime).ToString("yyyy-MM-dd HH:mm")</MudTd>
+                <MudTd DataLabel="Type">@context.OperaType?.Name / @context.OperaSubType?.Name / @context.OperaSubClass?.Name</MudTd>
+                <MudTd DataLabel="Status">@_statuses.FirstOrDefault(s => s.Id == GetStatusId(context))?.Name</MudTd>
+                <MudTd>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Nav.NavigateTo($"/tools/opera/{context.RequestId}"))">Open</MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private List<OperaRequest> _items = new();
+    private List<OperaStatus> _statuses = new();
+    private string? _filterText;
+    private int? _statusId;
+    private DateRange? _range;
+
+    private static readonly TimeZoneInfo EtTz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+    protected override async Task OnInitializedAsync()
+    {
+        _statuses = (await Repo.GetStatusesAsync()).ToList();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        // Convert ET date range to UTC for querying
+        DateTime? fromUtc = null, toUtc = null;
+        if (_range?.Start is DateTime s) fromUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(s.Date, DateTimeKind.Unspecified), EtTz);
+        if (_range?.End is DateTime e) toUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(e.Date.AddDays(1), DateTimeKind.Unspecified), EtTz);
+
+        var q = new OperaQuery
+        {
+            NameOrId = _filterText,
+            StatusId = _statusId,
+            FromUtc = fromUtc,
+            ToUtc = toUtc,
+            Take = 1000
+        };
+
+        var (items, _) = await Repo.SearchAsync(q);
+        _items = items.ToList();
+    }
+
+    private Task Reload() => LoadAsync();
+    private void GoSubmit() => Nav.NavigateTo("/opera/submit");
+
+    private static DateTime ToEt(DateTime utc)
+        => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), EtTz);
+
+    // If you add OperaStatusId to OperaRequest, replace this helper with r.OperaStatusId
+    private static int GetStatusId(OperaRequest r)
+        => (int)(r.GetType().GetProperty("OperaStatusId")?.GetValue(r) ?? 1);
+}

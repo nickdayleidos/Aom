@@ -1,0 +1,29 @@
+﻿@* Routes.razor *@
+@using Microsoft.AspNetCore.Components.Authorization
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly" PreferExactMatches="true">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData"
+                                DefaultLayout="@typeof(MyApplication.Components.Layout.MainLayout)">
+                <NotAuthorized>
+                    <MudPaper Class="pa-6">
+                        <MudText Typo="Typo.h5">Not authorized</MudText>
+                        <MudText>You don’t have access to this page.</MudText>
+                    </MudPaper>
+                </NotAuthorized>
+                <Authorizing>
+                    <MudProgressCircular Indeterminate="true" />
+                </Authorizing>
+            </AuthorizeRouteView>
+        </Found>
+
+        <NotFound>
+            <LayoutView Layout="@typeof(MyApplication.Components.Layout.MainLayout)">
+                <MudPaper Class="pa-6">
+                    <MudText Typo="Typo.h5">Page not found</MudText>
+                </MudPaper>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

@@ -1,0 +1,149 @@
+﻿@page "/tools/proactive"
+@using MyApplication.Common
+@using MyApplication.Components.Service
+@using MyApplication.Components.Services.Email
+@using MyApplication.Components.Model.AOM
+@inject IProactiveRepository Repo
+@inject IEmailComposer Composer
+@inject ISnackbar Snackbar
+@inject Microsoft.JSInterop.IJSRuntime JS
+@using AomModel = MyApplication.Components.Model.AOM.Tools
+@attribute [Authorize(Policy = "OST")]
+@inject AuthenticationStateProvider Auth
+
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-3 d-flex gap-2 align-center" Outlined="true">
+        <MudText Typo="Typo.h5">Proactive Announcements</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadLatestAsync" StartIcon="@Icons.Material.Filled.Refresh">
+            Load Latest
+        </MudButton>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudGrid Spacing="2">
+            <MudItem xs="12">
+                <MudTextField T="string" Label="USN Injection Announcement" Variant="Variant.Filled" Lines="6" @bind-Value="_inj" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" Label="USN Site Announcement" Variant="Variant.Filled" Lines="6" @bind-Value="_site" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" Label="USN Status Announcement" Variant="Variant.Filled" Lines="6" @bind-Value="_status" />
+            </MudItem>
+
+            <MudItem xs="12" class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SubmitAsync" StartIcon="@Icons.Material.Filled.Download">
+                    Save & Download Draft
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ClearInputs" StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private string _inj = "";
+    private string _site = "";
+    private string _status = "";
+
+    protected override async Task OnInitializedAsync() => await LoadLatestAsync();
+
+    private async Task LoadLatestAsync()
+    {
+        try
+        {
+            var latest = await Repo.GetLatestAsync();
+            if (latest is not null)
+            {
+                _inj = latest.UsnInjectionAnnouncement;
+                _site = latest.UsnSiteAnnouncement;
+                _status = latest.UsnStatusAnnouncement;
+                Snackbar.Add("Loaded latest proactive data.", Severity.Info);
+            }
+            else Snackbar.Add("No proactive entries yet.", Severity.Normal);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading latest: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ClearInputs() { _inj = _site = _status = ""; }
+
+    private static DateTime GetEtNow()
+    {
+        try { return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time")); }
+        catch { return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("America/New_York")); }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_inj) && string.IsNullOrWhiteSpace(_site) && string.IsNullOrWhiteSpace(_status))
+        {
+            Snackbar.Add("Please enter at least one announcement.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            // 1) Save to DB (repo will stamp ET)
+            var entity = new AomModel.ProactiveAnnouncement
+            {
+                UsnInjectionAnnouncement = _inj.Trim(),
+                UsnSiteAnnouncement = _site.Trim(),
+                UsnStatusAnnouncement = _status.Trim()
+            };
+            var id = await Repo.InsertAsync(entity);
+
+            // 2) Compose from template, then build final subject/html (FOUO) and EML draft
+            var ctx = new ProactiveEmailContext
+            {
+                ProactiveTime = entity.ProactiveTime,   // stamped by repo
+                UsnInjectionAnnouncement = entity.UsnInjectionAnnouncement,
+                UsnSiteAnnouncement = entity.UsnSiteAnnouncement,
+                UsnStatusAnnouncement = entity.UsnStatusAnnouncement
+            };
+
+            var (tplSubject, tplBody, to, cc, from) = await Composer.ComposeAsync("ProactiveAnnouncement", ctx);
+            var (subject, html) = ProactiveEmailBuilder.Build(tplSubject, tplBody, ctx);
+            var authState = await Auth.GetAuthenticationStateAsync();
+            var preparedBy = IdentityHelpers.GetSamAccount(authState.User) ?? "Unknown";
+
+            var draft = new EmailDraft
+            {
+                Subject = subject,
+                HtmlBody = html,
+                From = from,
+                To = to,
+                Cc = cc,
+                OpenAsDraft = true,
+                IncludeCui = false,      // FOUO, not CUI
+            }
+            .WithFouoBanner("Proactive Announcement", preparedBy); // banner + “Prepared by”
+
+            
+            var emlBytes = EmailDraftBuilder.BuildEmlBytes(draft);
+            var fileName = $"Proactive_{entity.ProactiveTime:yyyyMMdd_HHmm}_ET.eml";
+
+            // 3) Download the .eml draft
+            await DownloadAsync(fileName, "message/rfc822", emlBytes);
+
+            Snackbar.Add("Saved and prepared email draft.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Submit failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // Generic file download (use your existing one if you already have it)
+    private async Task DownloadAsync(string fileName, string contentType, byte[] bytes)
+    {
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, contentType, base64);
+    }
+
+
+}

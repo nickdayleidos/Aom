@@ -1,0 +1,285 @@
+﻿@page "/tools/operationalimpact"
+@using System.IO
+@using MudBlazor
+@using MyApplication.Common
+@using MyApplication.Common.Time <!-- ET helper -->
+@using MyApplication.Components.Model.AOM
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Model.AOM.Tools
+@using MyApplication.Components.Service
+@using MyApplication.Components.Services.Email
+@inject IOiLookupRepository Lookups
+@inject IOiEventRepository Repo
+@inject OperationalImpactEmailService OiEmailSvc
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Nav
+@using Microsoft.JSInterop;
+@attribute [Authorize(Policy = "OST")]
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-3 d-flex gap-2 align-center" Outlined="true">
+        <MudButton OnClick="@LoadAsync" StartIcon="@Icons.Material.Filled.Refresh">Refresh</MudButton>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6">New Operational Impact</MudText>
+        <MudGrid Spacing="2" Class="mt-2">
+            <MudItem xs="12" md="6">
+                <MudTextField T="string"
+                              Value="_new.Summary"
+                              ValueChanged="(string v) => _new.Summary = v"
+                              Label="Summary" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudTextField T="string"
+                              Value="_new.ServicesAffected"
+                              ValueChanged="(string v) => _new.ServicesAffected = v"
+                              Label="Services Affected" />
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudTextField T="string"
+                              Value="_new.TicketNumber"
+                              ValueChanged="(string v) => _new.TicketNumber = v"
+                              Label="Ticket Number" />
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudSelect T="int" Label="Category"
+                           Value="_new.CategoryId"
+                           ValueChanged="(int v) => _new.CategoryId = v"
+                           Required="true">
+                    @foreach (var c in _categories)
+                    {
+                        <MudSelectItem T="int" Value="@c.Id">@c.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudSelect T="int" Label="Severity"
+                           Value="_new.SeverityId"
+                           ValueChanged="(int v) => _new.SeverityId = v"
+                           Required="true">
+                    @foreach (var s in _severities)
+                    {
+                        <MudSelectItem T="int" Value="@s.Id">@s.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudSelect T="int" Label="Site"
+                           Value="_new.SiteId"
+                           ValueChanged="(int v) => _new.SiteId = v">
+                    @foreach (var s in _sites)
+                    {
+                        <MudSelectItem T="int" Value="@s.Id">@s.SiteCode</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudNumericField T="int"
+                                 Value="_new.UsersAffected"
+                                 ValueChanged="(int v) => _new.UsersAffected = v"
+                                 Label="# Affected" />
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudTextField T="string"
+                              Value="_new.EstimatedTimeToResolve"
+                              ValueChanged="(string v) => _new.EstimatedTimeToResolve = v"
+                              Label="ETR" />
+            </MudItem>
+
+            <!-- Start -->
+            <MudItem xs="12" md="3">
+                <MudDatePicker T="DateTime?"
+                               Label="Start Date"
+                               Value="StartDate"
+                               ValueChanged="(DateTime? d) => StartDate = d" />
+                <MudTimePicker Label="Start Time"
+                               AmPm="true"
+                               Time="StartTimeOfDay"
+                               TimeChanged="(TimeSpan? t) => StartTimeOfDay = t" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudTextField T="string"
+                              Value="_new.Description"
+                              ValueChanged="(string v) => _new.Description = v"
+                              Label="Description"
+                              Lines="3" />
+            </MudItem>
+
+            <MudItem xs="12" class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.Email"
+                           OnClick="@PostAndSendAsync">
+                    Post OI and Send Email
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <style>
+        .row-clickable {
+            cursor: pointer;
+        }</style>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6">Existing Operational Impact</MudText>
+
+        <MudTable T="OiEvent"
+                  Items="_rows"
+                  Dense="true"
+                  Hover="true"
+                  Bordered="true"
+                  Clickable="true"
+                  RowClick="OnRowClick"
+                  RowClassFunc="@((OiEvent _, int __) => "row-clickable")">
+
+            <HeaderContent>
+                <MudTh>Posted</MudTh>
+                <MudTh>Category</MudTh>
+                <MudTh>Severity</MudTh>
+                <MudTh>Site</MudTh>
+                <MudTh>Summary</MudTh>
+                <MudTh>Ticket</MudTh>
+                <MudTh>Resolution</MudTh>
+            </HeaderContent>
+
+            <RowTemplate>
+                <MudTd DataLabel="Posted" @onclick="@(() => GoTo(context.Id))">
+                    @context.PostedTime.ToString("MM/dd/yyyy h:mm tt") @(" ET")
+                </MudTd>
+                <MudTd DataLabel="Category" @onclick="@(() => GoTo(context.Id))">
+                    @_categories.FirstOrDefault(x => x.Id == context.CategoryId)?.Name
+                </MudTd>
+                <MudTd DataLabel="Severity" @onclick="@(() => GoTo(context.Id))">
+                    @_severities.FirstOrDefault(x => x.Id == context.SeverityId)?.Name
+                </MudTd>
+                <MudTd DataLabel="Site" @onclick="@(() => GoTo(context.Id))">
+                    @_sites.FirstOrDefault(x => x.Id == context.SiteId)?.SiteCode
+                </MudTd>
+                <MudTd DataLabel="Summary" @onclick="@(() => GoTo(context.Id))">@context.Summary</MudTd>
+                <MudTd DataLabel="Ticket" @onclick="@(() => GoTo(context.Id))">@context.TicketNumber</MudTd>
+                <MudTd DataLabel="Resolution" @onclick="@(() => GoTo(context.Id))">
+                    @(context.ResolutionTime is { } rt ? rt.ToString("MM/dd/yyyy h:mm tt") + " ET" : string.Empty)
+                </MudTd>
+            </RowTemplate>
+
+            <NoRecordsContent>
+                <MudText Class="px-2">No events.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private List<OiCategory> _categories = new();
+    private List<OiSeverity> _severities = new();
+    private List<Site> _sites = new();
+    private List<OiEvent> _rows = new();
+    private readonly CancellationTokenSource _cts = new();
+
+    private void GoTo(int id) => Nav.NavigateTo($"/tools/operationalimpact/{id}");
+
+    private void OnRowClick(TableRowClickEventArgs<OiEvent> e)
+    {
+        var id = e.Item?.Id;
+        if (id.HasValue)
+            Nav.NavigateTo($"/tools/operationalimpact/{id.Value}");
+    }
+
+    // Posted (ET adapters)
+    private DateTime? PostedDate
+    {
+        get => _new.PostedTime;
+        set { if (value.HasValue) _new.PostedTime = value.Value.Date + _new.PostedTime.TimeOfDay; }
+    }
+    private TimeSpan? PostedTimeOfDay
+    {
+        get => _new.PostedTime.TimeOfDay;
+        set { if (value.HasValue) _new.PostedTime = _new.PostedTime.Date + value.Value; }
+    }
+
+    // Start (ET adapters)
+    private DateTime? StartDate
+    {
+        get => _new.StartTime;
+        set { if (value.HasValue) _new.StartTime = value.Value.Date + _new.StartTime.TimeOfDay; }
+    }
+    private TimeSpan? StartTimeOfDay
+    {
+        get => _new.StartTime.TimeOfDay;
+        set { if (value.HasValue) _new.StartTime = _new.StartTime.Date + value.Value; }
+    }
+
+    // NEW event defaults: Eastern Time
+    private OiEvent _new = new()
+    {
+        PostedTime = Et.Now,
+        StartTime = Et.Now
+    };
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _categories = (await Lookups.GetCategoriesAsync()).ToList();
+        _severities = (await Lookups.GetSeveritiesAsync()).ToList();
+        _sites = (await Lookups.GetSitesAsync()).ToList();
+        _rows = (await Repo.ListAsync(null, null)).ToList();
+        StateHasChanged();
+    }
+
+    private async Task PostAndSendAsync()
+    {
+        try
+        {
+            // Create + compose
+            var (subject, html, to, cc, from, id) =
+                await OiEmailSvc.CreateEventAndComposeAsync(_new, _cts.Token);
+
+            var authState = await Auth.GetAuthenticationStateAsync();
+            var preparedBy = IdentityHelpers.GetSamAccount(authState.User) ?? "Unknown";
+
+            // Use the event's PostedTime (ET) for the banner "Generated (ET)"
+            var generatedEt = _new.PostedTime;
+
+            var draft = new EmailDraft
+            {
+                Subject = subject,
+                HtmlBody = html,
+                From = from,
+                To = to,
+                Cc = cc,
+                OpenAsDraft = true,
+                IncludeCui = true
+            }
+            .WithCuiBanner("Operational Impact", preparedBy, generatedEt: generatedEt);
+
+            var bytes = EmailDraftBuilder.BuildEmlBytes(draft);
+            var safeName = string.Concat(subject.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).Trim();
+            if (string.IsNullOrWhiteSpace(safeName)) safeName = "OperationalImpact";
+
+            var base64 = Convert.ToBase64String(bytes);
+            await JS.InvokeVoidAsync("downloadFileFromBase64", $"{safeName}.eml", "message/rfc822", base64);
+
+            Snackbar.Add($"Operational Impact created (ID {id}).", Severity.Success);
+
+            // Reset form with ET
+            _new = new OiEvent { PostedTime = Et.Now, StartTime = Et.Now };
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to post/send: {ex.Message}", Severity.Error);
+        }
+    }
+}

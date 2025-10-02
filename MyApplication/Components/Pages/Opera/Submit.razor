@@ -1,0 +1,292 @@
+﻿@page "/opera/submit"
+
+@using System.Linq
+@using Microsoft.EntityFrameworkCore
+@using MudBlazor
+@using MyApplication.Components.Model.AOM.Employee
+@inject IOperaRepository Repo
+@inject AomDbContext Db
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-3" Outlined="true">
+        <MudText Typo="Typo.h6">New Opera Requests</MudText>
+
+        <MudGrid Spacing="2" Class="mt-2">
+
+            <!-- Employees (multi-select with external search) -->
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_empQuery"
+                              @bind-Value:after="OnEmpQueryChanged"
+                              Label="Search employees (name or ID)"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true"
+                              DebounceInterval="300" />
+
+                <MudSelect T="int"
+                           Label="Employees"
+                           MultiSelection="true"
+                           SelectedValues="_selectedEmployeeIds"
+                           SelectedValuesChanged="OnSelectedEmployeesChanged"
+                           Dense="true"
+                           Clearable="true"
+                           CloseMenuOnSelection="false"
+                           MaxHeight="400"
+                           ToStringFunc="@EmployeeLabel">
+                    @foreach (var o in _employeeOptions)
+                    {
+                        <MudSelectItem T="int" Value="@o.Id">@o.Label</MudSelectItem>
+                    }
+                </MudSelect>
+
+            </MudItem>
+
+            <!-- Start/End (ET) -->
+            <MudItem xs="12" md="3">
+                <MudDatePicker @bind-Date="_startDateEt" Label="Start Date (ET)" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTimePicker @bind-Time="_startTimeEt" Label="Start Time (ET)" />
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudDatePicker @bind-Date="_endDateEt" Label="End Date (ET)" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTimePicker @bind-Time="_endTimeEt" Label="End Time (ET)" />
+            </MudItem>
+
+            <!-- Type / SubType / SubClass -->
+            <MudItem xs="12" md="4">
+                <MudSelect T="int?" @bind-Value="_typeId" Label="Type" Clearable="true">
+                    @foreach (var t in _types)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudSelect T="int?" @bind-Value="_subTypeId" Label="SubType" Disabled="@(_typeId is null)" Clearable="true">
+                    @foreach (var st in _subTypes.Where(s => s.OperaTypeId == (_typeId ?? -1)))
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)st.Id)">@st.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudSelect T="int?" @bind-Value="_subClassId" Label="SubClass" Disabled="@(_subTypeId is null)" Clearable="true">
+                    @foreach (var sc in _subClasses.Where(c => c.OperaSubTypeId == (_subTypeId ?? -1)))
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)sc.Id)">@sc.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <!-- Submitter comments -->
+            <MudItem xs="12" md="12">
+                <MudTextField @bind-Value="_comments" Label="Submitter Comments" Lines="3" />
+            </MudItem>
+
+            <!-- Actions -->
+            <MudItem xs="12" md="12" Class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="@_busy">Submit</MudButton>
+                <MudButton Variant="Variant.Outlined" OnClick="@(() => Nav.NavigateTo("/tools/opera"))">Cancel</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudStack>
+
+@code {
+    // ---------- Employee multi-select (IDs) ----------
+    private HashSet<int> _selectedEmployeeIds = new();
+    private string _empQuery = string.Empty;
+    private List<EmployeeOption> _employeeOptions = new();
+    private readonly Dictionary<int, string> _labelCache = new();
+    private CancellationTokenSource? _empCts;
+    private bool _disposed;
+
+    private sealed record EmployeeOption(int Id, string Label);
+
+    // ---------- Lookups ----------
+    private List<OperaType> _types = new();
+    private List<OperaSubType> _subTypes = new();
+    private List<OperaSubClass> _subClasses = new();
+
+    // Selections (nullable → no default 0) asdfadsf
+    private int? _typeId;
+    private int? _subTypeId;
+    private int? _subClassId;
+
+    // ET date/time for UI
+    private DateTime? _startDateEt;
+    private TimeSpan? _startTimeEt;
+    private DateTime? _endDateEt;
+    private TimeSpan? _endTimeEt;
+
+    // Other
+    private string? _comments;
+    private bool _busy;
+
+    private static readonly TimeZoneInfo EtTz =
+        TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Defaults: current ET
+        var nowEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EtTz);
+        _startDateEt = nowEt.Date;
+        _startTimeEt = nowEt.TimeOfDay;
+        _endDateEt = nowEt.Date;
+        _endTimeEt = nowEt.TimeOfDay.Add(TimeSpan.FromHours(1));
+
+        // Load lookups using the injected scoped DbContext
+        try
+        {
+            _types = await Db.OperaType.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+            _subTypes = await Db.OperaSubType.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+            _subClasses = await Db.OperaSubClass.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+
+            _typeId = _types.FirstOrDefault()?.Id;
+            _subTypeId = _subTypes.Where(s => s.OperaTypeId == _typeId)
+                                   .Select(s => (int?)s.Id).FirstOrDefault();
+            _subClassId = null;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load lookups: {ex.Message}", Severity.Error);
+            _types = new(); _subTypes = new(); _subClasses = new();
+        }
+
+        await LoadEmployeeOptionsAsync(""); // initial options
+    }
+
+    // Runs after _empQuery is updated by @bind
+    private Task OnEmpQueryChanged() => LoadEmployeeOptionsAsync(_empQuery);
+
+    private async Task LoadEmployeeOptionsAsync(string query)
+    {
+        _empCts?.Cancel();
+        _empCts?.Dispose();
+        _empCts = new CancellationTokenSource();
+
+        try
+        {
+            // Repo must return non-null; guard just in case
+            IReadOnlyList<Employees> list =
+                await Repo.SearchEmployeesAsync(query ?? "", 50, _empCts.Token)
+                ?? Array.Empty<Employees>();
+
+            // Cache labels for ToStringFunc
+            foreach (var e in list)
+                _labelCache[e.Id] = $"{e.LastName}, {e.FirstName} (#{e.Id})";
+
+            var options = list.Select(e => new EmployeeOption(e.Id, _labelCache[e.Id])).ToList();
+
+            // Keep already-selected IDs visible even if filtered out
+            foreach (var id in _selectedEmployeeIds)
+                if (!options.Any(o => o.Id == id) && _labelCache.TryGetValue(id, out var lbl))
+                    options.Insert(0, new EmployeeOption(id, lbl));
+
+            _employeeOptions = options;
+
+            if (!_disposed)
+                await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // user typed again or navigated; ignore
+        }
+        catch (ObjectDisposedException)
+        {
+            // component disposed during navigation; ignore
+        }
+        catch (Exception ex)
+        {
+            _employeeOptions = new();
+            if (!_disposed)
+                Snackbar.Add($"Employee search failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // Label used by MudSelect.ToStringFunc
+    private string EmployeeLabel(int id) =>
+        _labelCache.TryGetValue(id, out var s) ? s : $"#{id}";
+
+    // Wire-up for SelectedValuesChanged (MudSelect expects IEnumerable<int>)
+    private void OnSelectedEmployeesChanged(IEnumerable<int> values) =>
+        _selectedEmployeeIds = values?.ToHashSet() ?? new();
+
+    private static DateTime ToUtcFromEt(DateTime dateEt, TimeSpan timeEt)
+    {
+        var local = DateTime.SpecifyKind(dateEt.Date + timeEt, DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(local, EtTz);
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_selectedEmployeeIds.Count == 0)
+        {
+            Snackbar.Add("Select at least one employee.", Severity.Warning);
+            return;
+        }
+        if (!_startDateEt.HasValue || !_startTimeEt.HasValue || !_endDateEt.HasValue || !_endTimeEt.HasValue)
+        {
+            Snackbar.Add("Provide start and end date/time.", Severity.Warning);
+            return;
+        }
+        if (_typeId is null || _subTypeId is null)
+        {
+            Snackbar.Add("Select Type and SubType.", Severity.Warning);
+            return;
+        }
+
+        var startUtc = ToUtcFromEt(_startDateEt.Value, _startTimeEt.Value);
+        var endUtc = ToUtcFromEt(_endDateEt.Value, _endTimeEt.Value);
+        if (endUtc <= startUtc)
+        {
+            Snackbar.Add("End must be after start.", Severity.Warning);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var nowUtc = DateTime.UtcNow;
+            var batch = _selectedEmployeeIds.Select(id => new OperaRequest
+            {
+                EmployeeId = id,
+                StartTime = startUtc,
+                EndTime = endUtc,
+                SubmittedBy = "system", // TODO: current user
+                OperaTypeId = _typeId.Value,
+                OperaSubTypeId = _subTypeId.Value,
+                OperaSubClassId = _subClassId,
+                SubmitterComments = _comments,
+                SubmitTime = nowUtc
+            });
+
+            await Repo.CreateManyAsync(batch);
+            Snackbar.Add($"Created {_selectedEmployeeIds.Count} request(s).", Severity.Success);
+            Nav.NavigateTo("/tools/opera");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // Clean up CTS to avoid TaskCanceled/JS disconnect noise
+    public void Dispose()
+    {
+        _disposed = true;
+        _empCts?.Cancel();
+        _empCts?.Dispose();
+    }
+}
+
+
+}
