@@ -1,9 +1,9 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using MyApplication.Components.Data;
-using MyApplication.Components.Model.AOM;
 using MyApplication.Components.Model.AOM.Tools;
 
 namespace MyApplication.Components.Service
@@ -13,22 +13,33 @@ namespace MyApplication.Components.Service
         private readonly AomDbContext _db;
         public ProactiveRepository(AomDbContext db) => _db = db;
 
-        public async Task<ProactiveAnnouncement?> GetLatestAsync(CancellationToken ct = default)
-            => await _db.ProactiveAnnouncements.AsNoTracking().OrderByDescending(x => x.ProactiveTime).FirstOrDefaultAsync(ct);
+        public Task<ProactiveAnnouncement?> GetLatestAsync(CancellationToken ct = default)
+            => _db.ProactiveAnnouncements
+                  .AsNoTracking()
+                  .OrderByDescending(x => x.ProactiveTime)
+                  .FirstOrDefaultAsync(ct);
 
         public async Task<ProactiveAnnouncement> InsertAsync(ProactiveAnnouncement entity, CancellationToken ct = default)
         {
-            entity.ProactiveTime = GetEasternNow();  // stamp ET
+            // Stamp ET here (or let DB default do it)
+            entity.ProactiveTime = GetEasternNow();
             _db.ProactiveAnnouncements.Add(entity);
-            await _db.SaveChangesAsync(ct);
-            return entity;   // FIX: return the entity, not an int
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            return entity; // return the materialized entity with Id/ProactiveTime populated
         }
-
 
         private static DateTime GetEasternNow()
         {
-            try { return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time")); }
-            catch { return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("America/New_York")); }
+            try
+            {
+                return TimeZoneInfo.ConvertTimeFromUtc(
+                    DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"));
+            }
+            catch
+            {
+                return TimeZoneInfo.ConvertTimeFromUtc(
+                    DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("America/New_York"));
+            }
         }
     }
 }

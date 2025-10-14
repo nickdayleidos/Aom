@@ -1,13 +1,13 @@
 ﻿#nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using MyApplication.Components.Data;
+using MyApplication.Components.Model.AOM;
 using MyApplication.Components.Model.AOM.Tools;
-using MyApplication.Components.Services.Email;
-using AomModel = MyApplication.Components.Model.AOM;
 
 namespace MyApplication.Components.Services.Email
 {
@@ -16,31 +16,35 @@ namespace MyApplication.Components.Services.Email
         private readonly AomDbContext _db;
         public EmailComposer(AomDbContext db) => _db = db;
 
-        // Interval
-        public async Task<(string Subject, string BodyHtml, string To, string Cc, string From)> ComposeAsync(
-            string templateName, IntervalEmailContext ctx, CancellationToken ct = default)
+        // -------- Interval --------
+        public async Task<(string Subject, string BodyHtml, string To, string Cc, string From)>
+            ComposeAsync(string templateName, IntervalEmailContext ctx, CancellationToken ct = default)
         {
-            var tpl = await GetTemplateAsync(templateName, ct);
+            var tpl = await GetTemplateAsync(templateName, ct).ConfigureAwait(false);
             var (subject, bodyHtml) = IntervalEmailBuilder.Build(tpl, ctx);
-            var to = NormalizeRecipients(tpl.ToAddresses);
-            var cc = NormalizeRecipients(tpl.CcAddresses);
-            var from = (tpl.SendFromAddress ?? string.Empty).Trim();
-            return (subject, bodyHtml, to, cc, from);
+
+            return (subject,
+                    bodyHtml,
+                    NormalizeRecipients(tpl.ToAddresses),
+                    NormalizeRecipients(tpl.CcAddresses),
+                    (tpl.SendFromAddress ?? string.Empty).Trim());
         }
 
-        // Operational Impact
-        public async Task<(string Subject, string BodyHtml, string To, string Cc, string From)> ComposeAsync(
-            string templateName, OiEventContext ctx, CancellationToken ct = default)
+        // -------- Operational Impact --------
+        public async Task<(string Subject, string BodyHtml, string To, string Cc, string From)>
+            ComposeAsync(string templateName, OiEventContext ctx, CancellationToken ct = default)
         {
-            var tpl = await GetTemplateAsync(templateName, ct);
+            var tpl = await GetTemplateAsync(templateName, ct).ConfigureAwait(false);
             var (subject, bodyHtml) = OiEmailBuilder.Build(tpl, ctx);
-            var to = NormalizeRecipients(tpl.ToAddresses);
-            var cc = NormalizeRecipients(tpl.CcAddresses);
-            var from = (tpl.SendFromAddress ?? string.Empty).Trim();
-            return (subject, bodyHtml, to, cc, from);
+
+            return (subject,
+                    bodyHtml,
+                    NormalizeRecipients(tpl.ToAddresses),
+                    NormalizeRecipients(tpl.CcAddresses),
+                    (tpl.SendFromAddress ?? string.Empty).Trim());
         }
 
-        // Proactive (FIXED: call the builder)
+        // -------- Proactive --------
         public async Task<(string Subject, string BodyHtml, string To, string Cc, string From)>
             ComposeAsync(string templateName, ProactiveEmailContext ctx, CancellationToken ct = default)
         {
@@ -51,18 +55,19 @@ namespace MyApplication.Components.Services.Email
                 tpl.Body,
                 ctx);
 
-            var to = NormalizeRecipients(tpl.ToAddresses);
-            var cc = NormalizeRecipients(tpl.CcAddresses);
-            var from = (tpl.SendFromAddress ?? string.Empty).Trim();
-
-            return (subject, bodyHtml, to, cc, from);
+            return (subject,
+                    bodyHtml,
+                    NormalizeRecipients(tpl.ToAddresses),
+                    NormalizeRecipients(tpl.CcAddresses),
+                    (tpl.SendFromAddress ?? string.Empty).Trim());
         }
 
-        // helpers (unchanged) ...
+        // ---------- helpers ----------
         private static string NormalizeRecipients(string? s)
         {
             if (string.IsNullOrWhiteSpace(s)) return string.Empty;
 
+            // allow ',', ';', or newlines; de-dupe; trim entries
             var parts = s.Replace(',', ';')
                          .Replace('\n', ';')
                          .Replace('\r', ';')
@@ -78,10 +83,16 @@ namespace MyApplication.Components.Services.Email
             return string.Join(';', set);
         }
 
-        private async Task<EmailTemplates> GetTemplateAsync(string templateName, CancellationToken ct) =>
-            await _db.EmailTemplates.AsNoTracking()
-                   .Where(t => t.TemplateName == templateName && t.IsActive)
-                   .SingleOrDefaultAsync(ct)
-            ?? throw new InvalidOperationException($"Email template '{templateName}' not found or inactive.");
+        private async Task<EmailTemplates> GetTemplateAsync(string templateName, CancellationToken ct)
+        {
+            var tpl = await _db.EmailTemplates
+                               .AsNoTracking()
+                               .Where(t => t.TemplateName == templateName && t.IsActive)
+                               .SingleOrDefaultAsync(ct)
+                               .ConfigureAwait(false);
+
+            return tpl ?? throw new InvalidOperationException(
+                $"Email template '{templateName}' not found or inactive.");
+        }
     }
 }

@@ -1,0 +1,172 @@
+﻿@page "/tools/acr/new"
+@using MudBlazor
+@using MyApplication.Components.Pages.Acr.Forms
+@using MyApplication.Components.Service.Acr
+@using MyApplication.Components.Model.AOM.Employee
+@inject IAcrService Acr
+@inject IAcrQueryService Query
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<MudStack Spacing="2">
+    <MudPaper Outlined="true" Class="pa-4">
+        <MudText Typo="Typo.h6">Create ACR</MudText>
+
+        <MudGrid Class="mt-2">
+            <MudItem xs="12" md="4">
+                <!-- TYPE selection only -->
+                <MudAutocomplete T="KeyValuePair<int,string>"
+                                 Label="Type"
+                                 Dense Clearable
+                                 ResetValueOnEmptyText="true" CoerceText="true"
+                                 ToStringFunc="kv => kv.Value"
+                                 SearchFunc="@((string v, CancellationToken ct) => SearchTypes(v, ct))"
+                                 @bind-Value="SelectedType" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @switch (GetTypeKind(_selectedTypeId))
+    {
+        case TypeKind.OrgChange:
+            <OrgForm Employees="_employees"
+                     ManagerEmployees="_managers"
+                     SupervisorEmployees="_supervisors"
+                     Organizations="_organizations"
+                     SubOrganizations="_subOrganizations"
+                     Sites="_sites"
+                     Employers="_employers"
+                     OnSubmit="SubmitOrg" />
+            break;
+
+        case TypeKind.ScheduleChange:
+            <ScheduleForm Employees="_employees" OnSubmit="SubmitSchedule" />
+            break;
+
+        case TypeKind.NewHire:
+            <NewHireForm OnSubmit="SubmitNewHire" />
+            break;
+
+        case TypeKind.Separation:
+            <SeparationForm Employees="_employees" OnSubmit="SubmitSeparation" />
+            break;
+
+        case TypeKind.OrgAndSchedule:
+            <OrgScheduleForm Employees="_employees"
+                             ManagerEmployees="_managers"
+                             SupervisorEmployees="_supervisors"
+                             Organizations="_organizations"
+                             SubOrganizations="_subOrganizations"
+                             Employers="_employers"
+                             Sites="_sites"
+                             OnSubmit="SubmitOrgSchedule" />
+            break;
+
+        default:
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                Pick a Type to continue.
+            </MudAlert>
+            break;
+    }
+</MudStack>
+
+@code {
+    // lookups
+    private Dictionary<int, string> _types = new();
+    private List<Employees> _employees = new();
+    private List<Site> _sites = new();
+    private List<Employees> _managers = new();
+    private List<Employees> _supervisors = new();
+    private List<Organization> _organizations = new();
+    private List<SubOrganization> _subOrganizations = new();
+    private List<Employer> _employers = new();
+
+    // selection state
+    private KeyValuePair<int, string> _selType;
+    private int _selectedTypeId => _selType.Key;
+
+    private enum TypeKind { Unknown, OrgChange, ScheduleChange, NewHire, Separation, OrgAndSchedule }
+
+    private TypeKind GetTypeKind(int typeId)
+    {
+        if (typeId == 0 || !_types.TryGetValue(typeId, out var raw) || string.IsNullOrWhiteSpace(raw))
+            return TypeKind.Unknown;
+
+        var name = raw.Trim().ToLowerInvariant();
+        if (name.Contains("organization and schedule")) return TypeKind.OrgAndSchedule;
+        if (name.Contains("organization") && name.Contains("change")) return TypeKind.OrgChange;
+        if (name.Contains("schedule") && name.Contains("change")) return TypeKind.ScheduleChange;
+        if (name.Contains("new") && name.Contains("hire")) return TypeKind.NewHire;
+        if (name.Contains("separ")) return TypeKind.Separation; // Separation/Seperation spelling guard
+        return TypeKind.Unknown;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _types = await Query.GetTypesAsync();
+        _employees = await Query.GetEmployeesLookupAsync();
+        _managers = await Query.GetManagerEmployeesAsync();
+        _supervisors = await Query.GetSupervisorEmployeesAsync();
+        _organizations = await Query.GetOrganizationsAsync();
+        _subOrganizations = await Query.GetSubOrganizationsAsync();
+        _sites = await Query.GetSitesAsync();
+        _employers = await Query.GetEmployersAsync();
+    }
+
+    // ---- Type autocomplete plumbing ----
+    private Task<IEnumerable<KeyValuePair<int, string>>> SearchTypes(string value, CancellationToken ct)
+    {
+        var q = (value ?? string.Empty).Trim();
+        IEnumerable<KeyValuePair<int, string>> data = _types;
+        if (!string.IsNullOrWhiteSpace(q))
+            data = data.Where(kv => kv.Value.Contains(q, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(data);
+    }
+
+    private KeyValuePair<int, string> SelectedType
+    {
+        get => _selType;
+        set { _selType = value; StateHasChanged(); }
+    }
+
+    // ---------- Submit handlers ----------
+    private async Task SubmitOrg(OrganizationChangeDto dto)
+    {
+        // EmployeeId comes from the OrgForm now
+        var id = await Acr.CreateOrganizationChangeAsync(dto);
+        Snackbar.Add($"Created ACR #{id} (Organization).", Severity.Success);
+        Nav.NavigateTo($"/tools/acr/{id}");
+    }
+
+    private async Task SubmitSchedule(ScheduleChangeDto dto)
+    {
+        // EmployeeId comes from the ScheduleForm now
+        var id = await Acr.CreateScheduleChangeAsync(dto);
+        Snackbar.Add($"Created ACR #{id} (Schedule).", Severity.Success);
+        Nav.NavigateTo($"/tools/acr/{id}");
+    }
+
+    private async Task SubmitNewHire(NewHireDto dto)
+    {
+        // Service creates Employee, then ACR; returns ACR Id
+        var id = await Acr.CreateNewHireAsync(dto);
+        Snackbar.Add($"Created ACR #{id} (New Hire).", Severity.Success);
+        Nav.NavigateTo($"/tools/acr/{id}");
+    }
+
+    private async Task SubmitSeparation(SeparationDto dto)
+    {
+        // EmployeeId comes from the SeparationForm now
+        var id = await Acr.CreateSeparationAsync(dto);
+        Snackbar.Add($"Created ACR #{id} (Separation).", Severity.Success);
+        Nav.NavigateTo($"/tools/acr/{id}");
+    }
+
+    private async Task SubmitOrgSchedule((OrganizationChangeDto Org, ScheduleChangeDto Sch) payload)
+    {
+        // Both DTOs already include EmployeeId from OrgScheduleForm
+        var id = await Acr.CreateOrgScheduleAsync(payload.Org, payload.Sch);
+        Snackbar.Add($"Created ACR #{id} (Org + Schedule).", Severity.Success);
+        Nav.NavigateTo($"/tools/acr/{id}");
+    }
+}

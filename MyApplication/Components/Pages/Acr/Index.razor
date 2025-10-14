@@ -1,0 +1,122 @@
+﻿@page "/tools/acr"
+@using MyApplication.Components.Service.Acr
+@using MyApplication.Common.Time
+@inject IAcrQueryService Query
+@inject NavigationManager Nav
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-3" Outlined="true">
+        <MudGrid>
+            <MudItem xs="12" md="2">
+                <MudSelect T="int?" @bind-Value="_typeId" Label="Type" Clearable="true" Dense="true">
+                    @foreach (var kv in _types)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="2">
+                <MudSelect T="int?" @bind-Value="_statusId" Label="Status" Clearable="true" Dense="true">
+                    @foreach (var kv in _statuses)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_empSearch" Label="Employee (Id or name)" Dense="true" />
+            </MudItem>
+
+            <MudItem xs="6" md="2">
+                <MudDatePicker @bind-Date="_from" Label="Effective from" Dense="true" />
+            </MudItem>
+            <MudItem xs="6" md="2">
+                <MudDatePicker @bind-Date="_to" Label="Effective to" Dense="true" />
+            </MudItem>
+
+            <MudItem xs="12" md="1" Class="d-flex align-center">
+                <MudButton OnClick="Load" Variant="Variant.Filled">Filter</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Outlined="true">
+        <MudTable Items="_rows" Hover="true" Dense="true">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Employee</MudTh>
+                <MudTh>Type</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Effective</MudTh>
+                <MudTh>Submitted (ET)</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Id">@context.Id</MudTd>
+                <MudTd>@context.EmployeeName (@context.EmployeeId)</MudTd>
+                <MudTd>@context.AcrType</MudTd>
+                <MudTd>@context.AcrStatus</MudTd>
+                <MudTd>@context.EffectiveDate.ToString("yyyy-MM-dd")</MudTd>
+                <MudTd>@FormatEt(context.SubmitTime)</MudTd>
+                <MudTd>
+                    <MudButton Size="Size.Small" OnClick="@(() => Nav.NavigateTo($"/tools/acr/{context.Id}"))">
+                        Details
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+
+    <MudPaper Class="pa-3" Outlined="true">
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => Nav.NavigateTo("/tools/acr/new"))">
+            New ACR
+        </MudButton>
+    </MudPaper>
+</MudStack>
+
+@code {
+    Dictionary<int, string> _types = new();
+    Dictionary<int, string> _statuses = new();
+
+    int? _typeId;          // nullable for “All”
+    int? _statusId;        // nullable for “All”
+    string? _empSearch;
+    DateTime? _from;
+    DateTime? _to;
+
+    List<AcrRequestListItem> _rows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _types = await Query.GetTypesAsync();
+        _statuses = await Query.GetStatusesAsync();
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        var f = new AcrIndexFilter(
+            _typeId,
+            _statusId,
+            _empSearch,
+            _from is null ? null : DateOnly.FromDateTime(_from.Value),
+            _to is null ? null : DateOnly.FromDateTime(_to.Value)
+        );
+
+        _rows = await Query.QueryAsync(f);
+    }
+
+    // Show times in Eastern: handle old rows (UTC) and new rows (already ET)
+    private static string? FormatEt(DateTime? dt)
+    {
+        if (dt is null) return null;
+
+        // If historical data was saved as UTC, convert to ET.
+        // If we already saved Et.Now (Kind=Unspecified/Local), just print it.
+        return dt.Value.Kind == DateTimeKind.Utc
+            ? Et.FromUtc(dt.Value).ToString("g")
+            : dt.Value.ToString("g");
+    }
+}

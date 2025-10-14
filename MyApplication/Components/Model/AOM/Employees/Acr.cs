@@ -1,78 +1,82 @@
-﻿using MudBlazor;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MyApplication.Components.Model.AOM.Employee
 {
+    [Table("AcrType", Schema = "Employee")]
     public class AcrType
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        // Key by convention; fluent config will set HasKey in DbContext
         public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public ICollection<AcrType> AcrTypes { get; set; } = new List<AcrType>();
+        public string Name { get; set; } = string.Empty;
     }
 
-        public class AcrStatus
+    [Table("AcrStatus", Schema = "Employee")]
+    public class AcrStatus
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public ICollection<AcrStatus> AcrStatuses { get; set; } = new List<AcrStatus>();
-        }
+        public string Name { get; set; } = string.Empty;
+    }
 
-    public class AcrRequest 
+    [Table("AcrRequest", Schema = "Employee")]
+    public class AcrRequest
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
+
         public int EmployeeId { get; set; }
-        public int AcrTypeId { get; set; }
-        public string? SubmitterCommment { get; set; }
-        public string? WfmComment { get; set; }
-        public int? AcrStatusId { get; set; }
+        public Employees? Employee { get; set; }        // ✅ rename to Employee (not Employees)
+
+        public int? AcrTypeId { get; set; }
+        public AcrType? AcrType { get; set; }
+
+        public int AcrStatusId { get; set; }
         public AcrStatus? AcrStatus { get; set; }
+
+        public string? SubmitterComment { get; set; }
+        public string? WfmComment { get; set; }
         public DateOnly EffectiveDate { get; set; }
         public DateTime? SubmitTime { get; set; }
         public DateTime? LastUpdateTime { get; set; }
-        public ICollection<AcrRequest> AcrRequests { get; set; } = new List<AcrRequest>();
-
     }
+
+    [Table("AcrOrganization", Schema = "Employee")]
     public class AcrOrganization
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
+
         public int AcrRequestId { get; set; }
         public AcrRequest? AcrRequest { get; set; }
+
         public int? ManagerId { get; set; }
         public Manager? Manager { get; set; }
+
         public int? SupervisorId { get; set; }
         public Supervisor? Supervisor { get; set; }
+
         public int? OrganizationId { get; set; }
         public Organization? Organization { get; set; }
+
         public int? SubOrganizationId { get; set; }
         public SubOrganization? SubOrganization { get; set; }
+
         public int? EmployerId { get; set; }
         public Employer? Employer { get; set; }
+        public int? SiteId { get; set; }
+        public Site? Site { get; set; }
         public bool? IsActive { get; set; }
         public bool? IsLoa { get; set; }
         public bool? IsIntLoa { get; set; }
         public bool? IsRemote { get; set; }
-        
     }
 
+    [Table("AcrSchedule", Schema = "Employee")]
     public class AcrSchedule
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public int AcrRequestId { get; set; }
         public AcrRequest? AcrRequest { get; set; }
         public bool? IsSplitSchedule { get; set; }
-        public bool? ShiftNumber { get; set; }
+        // You updated to int: 1 = first block, 2 = second block
+        public int? ShiftNumber { get; set; }
         public TimeOnly? MondayStart { get; set; }
         public TimeOnly? MondayEnd { get; set; }
         public TimeOnly? TuesdayStart { get; set; }
@@ -90,6 +94,5 @@ namespace MyApplication.Components.Model.AOM.Employee
         public int? BreakTime { get; set; }
         public int? Breaks { get; set; }
         public int? LunchTime { get; set; }
-      
     }
 }

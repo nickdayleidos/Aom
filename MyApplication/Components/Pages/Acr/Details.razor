@@ -1,0 +1,499 @@
+﻿@page "/tools/acr/{Id:int}"
+@using Microsoft.EntityFrameworkCore
+@using MyApplication.Common.Time
+@using MyApplication.Components.Data
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Pages.Acr.Forms
+@using MyApplication.Components.Service.Acr
+@inject IAcrQueryService Query
+@inject ISnackbar Snackbar
+@inject IDbContextFactory<AomDbContext> DbFactory
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6">ACR #@Id — @TypeLabel (@StatusLabel)</MudText>
+        <MudDivider Class="my-2" />
+        <MudButton Variant="Variant.Filled" OnClick="@(() => _editing = !_editing)">
+            @(_editing ? "Cancel" : "Edit")
+        </MudButton>
+    </MudPaper>
+
+    @if (!_loaded)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_req is null)
+    {
+        <MudAlert Severity="Severity.Error">ACR not found.</MudAlert>
+    }
+    else
+    {
+        @if (!_editing)
+        {
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudStack>
+                    <MudText Typo="Typo.subtitle2">Type: @TypeLabel</MudText>
+                    <MudText Typo="Typo.subtitle2">Status: @StatusLabel</MudText>
+                    <MudText Typo="Typo.subtitle2">Employee Id: @_req.EmployeeId</MudText>
+                    <MudText Typo="Typo.subtitle2">Effective: @_req.EffectiveDate.ToString("yyyy-MM-dd")</MudText>
+                    <MudText Typo="Typo.subtitle2">Submitted: @_req.SubmitTime?.ToLocalTime()</MudText>
+                    <MudText Typo="Typo.subtitle2">Last Update: @_req.LastUpdateTime?.ToLocalTime()</MudText>
+
+                    @if (_org is not null)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.subtitle1">Organization Information</MudText>
+
+                        <MudText>Manager: @(_managerName ?? "N/A") </MudText>
+                        <MudText> Supervisor: @(_supervisorName ?? "N/A") </MudText>
+                        <MudText> Organization: @(_orgName ?? "N/A") </MudText> 
+                        <MudText> Sub - Organization: @(_subOrgName ?? "N/A") </MudText>
+                        <MudText> Employer: @(_employerName ?? "N/A") </MudText> 
+                        <MudText> Site: @(_siteLabel ?? "N/A") </MudText>
+
+                        <MudText> Active: @BoolNA(_org?.IsActive) </MudText>
+                        <MudText> LOA: @BoolNA(_org?.IsLoa) </MudText>
+                        <MudText>  Int LOA: @BoolNA(_org?.IsIntLoa) </MudText>
+                        <MudText> Remote: @BoolNA(_org?.IsRemote) </MudText>
+                    }
+
+                    @if (_sch1 is not null)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.subtitle1">Schedule Information</MudText>
+                        <MudText>Split Schedule: @IsSplit</MudText>
+
+                        <MudSimpleTable Class="mt-2">
+                            <thead><tr><th>Day</th><th>Start</th><th>End</th></tr></thead>
+                            <tbody>
+                                <tr><td>Monday</td><td>@Fmt(_sch1.MondayStart)</td><td>@Fmt(_sch1.MondayEnd)</td></tr>
+                                <tr><td>Tuesday</td><td>@Fmt(_sch1.TuesdayStart)</td><td>@Fmt(_sch1.TuesdayEnd)</td></tr>
+                                <tr><td>Wednesday</td><td>@Fmt(_sch1.WednesdayStart)</td><td>@Fmt(_sch1.WednesdayEnd)</td></tr>
+                                <tr><td>Thursday</td><td>@Fmt(_sch1.ThursdayStart)</td><td>@Fmt(_sch1.ThursdayEnd)</td></tr>
+                                <tr><td>Friday</td><td>@Fmt(_sch1.FridayStart)</td><td>@Fmt(_sch1.FridayEnd)</td></tr>
+                                <tr><td>Saturday</td><td>@Fmt(_sch1.SaturdayStart)</td><td>@Fmt(_sch1.SaturdayEnd)</td></tr>
+                                <tr><td>Sunday</td><td>@Fmt(_sch1.SundayStart)</td><td>@Fmt(_sch1.SundayEnd)</td></tr>
+                            </tbody>
+                        </MudSimpleTable>
+
+                        <MudText Class="mt-2">
+                            Break Time: @_sch1.BreakTime&nbsp;min,
+                            Breaks: @_sch1.Breaks,
+                            Lunch: @_sch1.LunchTime&nbsp;min
+                        </MudText>
+
+                        @if (_sch2 is not null)
+                        {
+                            <MudDivider Class="my-2" />
+                            <MudText Typo="Typo.subtitle2">Segment 2</MudText>
+                            <MudSimpleTable Class="mt-2">
+                                <thead><tr><th>Day</th><th>Start</th><th>End</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Monday</td><td>@Fmt(_sch2.MondayStart)</td><td>@Fmt(_sch2.MondayEnd)</td></tr>
+                                    <tr><td>Tuesday</td><td>@Fmt(_sch2.TuesdayStart)</td><td>@Fmt(_sch2.TuesdayEnd)</td></tr>
+                                    <tr><td>Wednesday</td><td>@Fmt(_sch2.WednesdayStart)</td><td>@Fmt(_sch2.WednesdayEnd)</td></tr>
+                                    <tr><td>Thursday</td><td>@Fmt(_sch2.ThursdayStart)</td><td>@Fmt(_sch2.ThursdayEnd)</td></tr>
+                                    <tr><td>Friday</td><td>@Fmt(_sch2.FridayStart)</td><td>@Fmt(_sch2.FridayEnd)</td></tr>
+                                    <tr><td>Saturday</td><td>@Fmt(_sch2.SaturdayStart)</td><td>@Fmt(_sch2.SaturdayEnd)</td></tr>
+                                    <tr><td>Sunday</td><td>@Fmt(_sch2.SundayStart)</td><td>@Fmt(_sch2.SundayEnd)</td></tr>
+                                </tbody>
+                            </MudSimpleTable>
+                        }
+                    }
+                </MudStack>
+            </MudPaper>
+        }
+        else
+        {
+            @switch (ResolveKind())
+            {
+                case TypeKind.OrgChange:
+                    <OrgForm Employees="_employees"
+                             ManagerEmployees="_managers"
+                             SupervisorEmployees="_supervisors"
+                             Organizations="_orgs"
+                             SubOrganizations="_subs"
+                             Sites="_sites"
+                             Employers="_employers"
+                             Initial="_orgInitial"
+                             SubmitLabel="Save Organization"
+                             OnSubmit="SaveOrgFromDto" />
+                    break;
+
+                case TypeKind.ScheduleChange:
+                    <ScheduleForm Employees="_employees"
+                                  Initial="_schInitial"
+                                  SubmitLabel="Save Schedule"
+                                  OnSubmit="SaveScheduleFromDto" />
+                    break;
+
+                case TypeKind.OrgAndSchedule:
+                    <OrgScheduleForm Employees="_employees"
+                                     ManagerEmployees="_managers"
+                                     SupervisorEmployees="_supervisors"
+                                     Organizations="_orgs"
+                                     SubOrganizations="_subs"
+                                     Employers="_employers"
+                                     Sites="_sites"
+                                     OrgInitial="_orgInitial"
+                                     SchInitial="_schInitial"
+                                     SubmitLabel="Save Org + Schedule"
+                                     OnSubmit="SaveOrgScheduleFromDtos" />
+                    break;
+
+                case TypeKind.Separation:
+                    <OrgForm Employees="_employees"
+                             Organizations="_orgs"
+                             SubOrganizations="_subs"
+                             Sites="_sites"
+                             Employers="_employers"
+                             Initial="_orgInitial"
+                             SubmitLabel="Save Separation"
+                             OnSubmit="SaveOrgFromDto" />
+                    break;
+
+                case TypeKind.NewHire:
+                default:
+                    <MudAlert Severity="Severity.Info">This request type has no editor here.</MudAlert>
+                    break;
+            }
+        }
+    }
+</MudStack>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private bool IsSplit => (_sch2 is not null) || (_sch1?.IsSplitSchedule == true);
+
+    private bool _loaded;
+    private bool _editing;
+
+    private AcrRequest? _req;
+    private AcrOrganization? _org;
+    private AcrSchedule? _sch1;
+    private AcrSchedule? _sch2;
+    private string? _typeName;
+    private string? _statusName;
+    private string? _managerName, _supervisorName, _orgName, _subOrgName, _employerName, _siteLabel;
+
+    private static string EmpLabel(Employees e) => $"{e.LastName}, {e.FirstName}";
+    private static string BoolNA(bool? v) => v.HasValue ? (v.Value ? "True" : "False") : "N/A";
+    private static string SiteLabel(Site s) => $"{s.SiteCode} - {s.Location}";
+
+    // lookups
+    private List<Employees> _employees = new();
+    private List<Employees> _managers = new();
+    private List<Employees> _supervisors = new();
+    private List<Organization> _orgs = new();
+    private List<SubOrganization> _subs = new();
+    private List<Employer> _employers = new();
+    private List<Site> _sites = new();
+
+
+
+    // editor initials
+    private OrganizationChangeDto? _orgInitial;
+    private ScheduleChangeDto? _schInitial;
+
+    private enum TypeKind { Unknown, OrgChange, ScheduleChange, NewHire, Separation, OrgAndSchedule }
+
+    private string TypeLabel => string.IsNullOrWhiteSpace(_typeName) ? "Unknown" : _typeName!;
+    private string StatusLabel => string.IsNullOrWhiteSpace(_statusName) ? "Unknown" : _statusName!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loaded = false;
+
+        // Use a fresh context for all read operations
+        await using var ctx = await DbFactory.CreateDbContextAsync();
+
+        // parent
+        _req = await ctx.Set<AcrRequest>()
+                        .Include(r => r.AcrType)
+                        .Include(r => r.AcrStatus)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.Id == Id);
+
+        if (_req is not null)
+        {
+            _typeName = _req.AcrType?.Name;
+            _statusName = _req.AcrStatus?.Name;
+
+            // children
+            _org = await ctx.Set<AcrOrganization>()
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(o => o.AcrRequestId == Id);
+
+            var schAll = await ctx.Set<AcrSchedule>()
+                                  .Where(s => s.AcrRequestId == Id)
+                                  .OrderBy(s => s.ShiftNumber)
+                                  .AsNoTracking()
+                                  .ToListAsync();
+
+            _sch1 = schAll.FirstOrDefault(s => s.ShiftNumber == null || s.ShiftNumber == 0 || s.ShiftNumber == 1);
+            _sch2 = schAll.FirstOrDefault(s => s.ShiftNumber == 2);
+
+            // lookups (materialize, no DB in forms)
+            _employees = await Query.GetEmployeesLookupAsync();
+            _managers = await Query.GetManagerEmployeesAsync();
+            _supervisors = await Query.GetSupervisorEmployeesAsync();
+            _orgs = await Query.GetOrganizationsAsync();
+            _subs = await Query.GetSubOrganizationsAsync();
+            _sites = await Query.GetSitesAsync();
+            _employers = await Query.GetEmployersAsync();
+            _managerName = null;
+            _supervisorName = null;
+            _orgName = _orgs.FirstOrDefault(o => o.Id == _org?.OrganizationId)?.Name;
+            _subOrgName = _subs.FirstOrDefault(s => s.Id == _org?.SubOrganizationId)?.Name;
+            _employerName = _employers.FirstOrDefault(e => e.Id == _org?.EmployerId)?.Name;
+            _siteLabel = _sites.FirstOrDefault(s => s.Id == _org?.SiteId) is Site site ? SiteLabel(site) : null;
+
+            if (_org?.ManagerId is int mid)
+            {
+                // map Manager.Id -> EmployeeId, then lookup employee name in preloaded list
+                var mgrEmpId = await ctx.Managers.AsNoTracking()
+                    .Where(m => m.Id == mid)
+                    .Select(m => (int?)m.EmployeeId)
+                    .FirstOrDefaultAsync();
+                _managerName = _employees.FirstOrDefault(e => e.Id == mgrEmpId) is { } me ? EmpLabel(me) : null;
+            }
+
+            if (_org?.SupervisorId is int sid)
+            {
+                var supEmpId = await ctx.Supervisors.AsNoTracking()
+                    .Where(s => s.Id == sid)
+                    .Select(s => (int?)s.EmployeeId)
+                    .FirstOrDefaultAsync();
+                _supervisorName = _employees.FirstOrDefault(e => e.Id == supEmpId) is { } se ? EmpLabel(se) : null;
+            }
+
+            // build INITIALS here (no queries in render)
+            _orgInitial = BuildOrgInitialFromMemory(ctx);
+            _schInitial = BuildSchInitialFromMemory();
+        }
+
+        _loaded = true;
+    }
+
+    private static TypeKind FromName(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return TypeKind.Unknown;
+        var name = raw.Trim().ToLowerInvariant();
+        if (name.Contains("organization and schedule")) return TypeKind.OrgAndSchedule;
+        if (name.Contains("organization") && name.Contains("change")) return TypeKind.OrgChange;
+        if (name.Contains("schedule") && name.Contains("change")) return TypeKind.ScheduleChange;
+        if (name.Contains("new") && name.Contains("hire")) return TypeKind.NewHire;
+        if (name.Contains("separ")) return TypeKind.Separation;
+        return TypeKind.Unknown;
+    }
+
+    private TypeKind ResolveKind()
+    {
+        var byName = FromName(_typeName);
+        if (byName != TypeKind.Unknown) return byName;
+
+        var hasOrg = _org is not null;
+        var hasSch = _sch1 is not null || _sch2 is not null;
+        if (hasOrg && hasSch) return TypeKind.OrgAndSchedule;
+        if (hasOrg) return TypeKind.OrgChange;
+        if (hasSch) return TypeKind.ScheduleChange;
+
+        return (_req?.AcrTypeId is null) ? TypeKind.Unknown : TypeKind.NewHire;
+    }
+
+    // ---------- Build Initials (no DB calls during render) ----------
+    private OrganizationChangeDto? BuildOrgInitialFromMemory(AomDbContext ctx)
+    {
+        if (_req is null || _org is null) return null;
+
+        int? mgrEmpId = _org.ManagerId is null
+            ? null
+            : ctx.Managers.AsNoTracking()
+                .Where(m => m.Id == _org.ManagerId)
+                .Select(m => (int?)m.EmployeeId)
+                .FirstOrDefault();
+
+        int? supEmpId = _org.SupervisorId is null
+            ? null
+            : ctx.Supervisors.AsNoTracking()
+                .Where(s => s.Id == _org.SupervisorId)
+                .Select(s => (int?)s.EmployeeId)
+                .FirstOrDefault();
+
+        return new OrganizationChangeDto(
+            EmployeeId: _req.EmployeeId,
+            EffectiveDate: _req.EffectiveDate,
+            SubmitterComment: _req.SubmitterComment,
+            ManagerId: mgrEmpId,
+            SupervisorId: supEmpId,
+            OrganizationId: _org.OrganizationId,
+            SubOrganizationId: _org.SubOrganizationId,
+            EmployerId: _org.EmployerId,
+            SiteId: _org.SiteId,
+            IsActive: _org.IsActive,
+            IsLoa: _org.IsLoa,
+            IsIntLoa: _org.IsIntLoa,
+            IsRemote: _org.IsRemote
+        );
+    }
+
+    private ScheduleChangeDto? BuildSchInitialFromMemory()
+    {
+        if (_req is null) return null;
+
+        return new ScheduleChangeDto(
+            EmployeeId: _req.EmployeeId,
+            EffectiveDate: _req.EffectiveDate,
+            SubmitterComment: _req.SubmitterComment,
+            IsSplitSchedule: _sch2 is not null,
+
+            MondayStart: _sch1?.MondayStart, MondayEnd: _sch1?.MondayEnd,
+            TuesdayStart: _sch1?.TuesdayStart, TuesdayEnd: _sch1?.TuesdayEnd,
+            WednesdayStart: _sch1?.WednesdayStart, WednesdayEnd: _sch1?.WednesdayEnd,
+            ThursdayStart: _sch1?.ThursdayStart, ThursdayEnd: _sch1?.ThursdayEnd,
+            FridayStart: _sch1?.FridayStart, FridayEnd: _sch1?.FridayEnd,
+            SaturdayStart: _sch1?.SaturdayStart, SaturdayEnd: _sch1?.SaturdayEnd,
+            SundayStart: _sch1?.SundayStart, SundayEnd: _sch1?.SundayEnd,
+
+            MondayStart2: _sch2?.MondayStart, MondayEnd2: _sch2?.MondayEnd,
+            TuesdayStart2: _sch2?.TuesdayStart, TuesdayEnd2: _sch2?.TuesdayEnd,
+            WednesdayStart2: _sch2?.WednesdayStart, WednesdayEnd2: _sch2?.WednesdayEnd,
+            ThursdayStart2: _sch2?.ThursdayStart, ThursdayEnd2: _sch2?.ThursdayEnd,
+            FridayStart2: _sch2?.FridayStart, FridayEnd2: _sch2?.FridayEnd,
+            SaturdayStart2: _sch2?.SaturdayStart, SaturdayEnd2: _sch2?.SaturdayEnd,
+            SundayStart2: _sch2?.SundayStart, SundayEnd2: _sch2?.SundayEnd,
+
+            BreakTime: _sch1?.BreakTime, Breaks: _sch1?.Breaks, LunchTime: _sch1?.LunchTime
+        );
+    }
+
+    // ---------- Save helpers (fresh context per op) ----------
+    private async Task<int?> EnsureManagerIdAsync(int? maybeEmpOrMgrId)
+    {
+        if (maybeEmpOrMgrId is null) return null;
+        await using var ctx = await DbFactory.CreateDbContextAsync();
+
+        var id = maybeEmpOrMgrId.Value;
+        if (await ctx.Managers.AnyAsync(m => m.Id == id)) return id;
+
+        return await ctx.Managers
+                        .Where(m => m.EmployeeId == id && m.IsActive)
+                        .Select(m => (int?)m.Id)
+                        .FirstOrDefaultAsync();
+    }
+
+    private async Task<int?> EnsureSupervisorIdAsync(int? maybeEmpOrSupId)
+    {
+        if (maybeEmpOrSupId is null) return null;
+        await using var ctx = await DbFactory.CreateDbContextAsync();
+
+        var id = maybeEmpOrSupId.Value;
+        if (await ctx.Supervisors.AnyAsync(s => s.Id == id)) return id;
+
+        return await ctx.Supervisors
+                        .Where(s => s.EmployeeId == id && s.IsActive)
+                        .Select(s => (int?)s.Id)
+                        .FirstOrDefaultAsync();
+    }
+
+    // ---------- Save handlers (load, modify, save in a brand-new context) ----------
+    private async Task SaveOrgFromDto(OrganizationChangeDto dto)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var req = await db.Set<AcrRequest>().FirstOrDefaultAsync(r => r.Id == Id);
+        var org = await db.Set<AcrOrganization>().FirstOrDefaultAsync(o => o.AcrRequestId == Id);
+        if (req is null || org is null) return;
+
+        req.EffectiveDate = dto.EffectiveDate;
+        req.SubmitterComment = dto.SubmitterComment;
+        req.LastUpdateTime = Et.Now;
+
+        org.ManagerId = await EnsureManagerIdAsync(dto.ManagerId);
+        org.SupervisorId = await EnsureSupervisorIdAsync(dto.SupervisorId);
+        org.OrganizationId = dto.OrganizationId;
+        org.SubOrganizationId = dto.SubOrganizationId;
+        org.EmployerId = dto.EmployerId;
+        org.SiteId = dto.SiteId;
+        org.IsActive = dto.IsActive;
+        org.IsLoa = dto.IsLoa;
+        org.IsIntLoa = dto.IsIntLoa;
+        org.IsRemote = dto.IsRemote;
+
+        await db.SaveChangesAsync();
+        Snackbar.Add("Organization saved.", Severity.Success);
+
+        // Refresh in-memory snapshot
+        await OnParametersSetAsync();
+    }
+
+    private async Task SaveScheduleFromDto(ScheduleChangeDto dto)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var req = await db.Set<AcrRequest>().FirstOrDefaultAsync(r => r.Id == Id);
+        if (req is null) return;
+
+        var schs = await db.Set<AcrSchedule>()
+                           .Where(s => s.AcrRequestId == Id)
+                           .OrderBy(s => s.ShiftNumber)
+                           .ToListAsync();
+
+        var sch1 = schs.FirstOrDefault(s => s.ShiftNumber == null || s.ShiftNumber == 0 || s.ShiftNumber == 1)
+                ?? new AcrSchedule { AcrRequestId = Id, ShiftNumber = 1 };
+        if (sch1.Id == 0) db.Add(sch1);
+
+        req.EffectiveDate = dto.EffectiveDate;
+        req.SubmitterComment = dto.SubmitterComment;
+        req.LastUpdateTime = Et.Now;
+
+        void SetSeg1(AcrSchedule s)
+        {
+            s.IsSplitSchedule = dto.IsSplitSchedule;
+            s.MondayStart = dto.MondayStart; s.MondayEnd = dto.MondayEnd;
+            s.TuesdayStart = dto.TuesdayStart; s.TuesdayEnd = dto.TuesdayEnd;
+            s.WednesdayStart = dto.WednesdayStart; s.WednesdayEnd = dto.WednesdayEnd;
+            s.ThursdayStart = dto.ThursdayStart; s.ThursdayEnd = dto.ThursdayEnd;
+            s.FridayStart = dto.FridayStart; s.FridayEnd = dto.FridayEnd;
+            s.SaturdayStart = dto.SaturdayStart; s.SaturdayEnd = dto.SaturdayEnd;
+            s.SundayStart = dto.SundayStart; s.SundayEnd = dto.SundayEnd;
+            s.BreakTime = dto.BreakTime; s.Breaks = dto.Breaks; s.LunchTime = dto.LunchTime;
+        }
+        SetSeg1(sch1);
+
+        var sch2 = schs.FirstOrDefault(s => s.ShiftNumber == 2);
+        if (dto.IsSplitSchedule)
+        {
+            sch2 ??= new AcrSchedule { AcrRequestId = Id, ShiftNumber = 2 };
+            if (sch2.Id == 0) db.Add(sch2);
+
+            sch2.MondayStart = dto.MondayStart2; sch2.MondayEnd = dto.MondayEnd2;
+            sch2.TuesdayStart = dto.TuesdayStart2; sch2.TuesdayEnd = dto.TuesdayEnd2;
+            sch2.WednesdayStart = dto.WednesdayStart2; sch2.WednesdayEnd = dto.WednesdayEnd2;
+            sch2.ThursdayStart = dto.ThursdayStart2; sch2.ThursdayEnd = dto.ThursdayEnd2;
+            sch2.FridayStart = dto.FridayStart2; sch2.FridayEnd = dto.FridayEnd2;
+            sch2.SaturdayStart = dto.SaturdayStart2; sch2.SaturdayEnd = dto.SaturdayEnd2;
+            sch2.SundayStart = dto.SundayStart2; sch2.SundayEnd = dto.SundayEnd2;
+        }
+        else if (sch2 is not null)
+        {
+            db.Remove(sch2);
+        }
+
+        await db.SaveChangesAsync();
+        Snackbar.Add("Schedule saved.", Severity.Success);
+
+        // Refresh in-memory snapshot
+        await OnParametersSetAsync();
+    }
+
+    private async Task SaveOrgScheduleFromDtos((OrganizationChangeDto Org, ScheduleChangeDto Sch) p)
+    {
+        await SaveOrgFromDto(p.Org);
+        await SaveScheduleFromDto(p.Sch);
+        Snackbar.Add("Org + Schedule saved.", Severity.Success);
+    }
+
+    // display helper
+    private static string Fmt(TimeOnly? t) => t.HasValue ? t.Value.ToString("HH:mm") : "-";
+}

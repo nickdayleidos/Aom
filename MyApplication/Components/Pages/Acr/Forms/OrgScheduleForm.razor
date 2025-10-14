@@ -1,0 +1,289 @@
+﻿@using System.Linq
+@using System.Threading
+@using MudBlazor
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Acr
+
+@if (!_lookupsReady)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudForm @ref="_form">
+        <MudGrid>
+            <!-- EMPLOYEE -->
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="Employees"
+                                 @key="_vm.Employee"
+                                 Label="Employee"
+                                 Dense="true" Clearable="true"
+                                 Required="true" RequiredError="Employee is required"
+                                 @bind-Value="_vm.Employee"
+                                 ToStringFunc="EmpLabel"
+                                 SearchFunc="SearchEmployees" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudDatePicker Label="Effective Date" @bind-Date="_vm.EffectiveDateDt" Required="true" RequiredError="Effective date is required" />
+            </MudItem>
+
+            <MudItem xs="12"><MudDivider Class="my-2" /></MudItem>
+            <MudItem xs="12"><MudText Typo="Typo.h6">Organization</MudText></MudItem>
+
+            <!-- OPTIONAL lookups -->
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="Employees" @key="_vm.Manager" Label="Manager" Dense="true" Clearable="true"
+                                 @bind-Value="_vm.Manager" ToStringFunc="EmpLabel"
+                                 SearchFunc="@((string v, CancellationToken ct) => SearchManagers(v, ct))" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="Employees" @key="_vm.Supervisor" Label="Supervisor" Dense="true" Clearable="true"
+                                 @bind-Value="_vm.Supervisor" ToStringFunc="EmpLabel"
+                                 SearchFunc="@((string v, CancellationToken ct) => SearchSupervisors(v, ct))" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="Organization" @key="_vm.Organization" Label="Organization" Dense="true" Clearable="true"
+                                 @bind-Value="_vm.Organization" ToStringFunc="OrgLabel"
+                                 SearchFunc="@((string v, CancellationToken ct) => SearchOrganizations(v, ct))" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="SubOrganization" @key="_vm.SubOrganization" Label="Sub-Organization" Dense="true" Clearable="true"
+                                 @bind-Value="_vm.SubOrganization" ToStringFunc="SubOrgLabel"
+                                 SearchFunc="@((string v, CancellationToken ct) => SearchSubOrganizations(v, ct))" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="Employer" @key="_vm.Employer" Label="Employer" Dense="true" Clearable="true"
+                                 @bind-Value="_vm.Employer" ToStringFunc="EmployerLabel"
+                                 SearchFunc="SearchEmployers" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="Site" @key="_vm.Site" Label="Site" Dense="true" Clearable="true"
+                                 @bind-Value="_vm.Site" ToStringFunc="SiteLabel"
+                                 SearchFunc="SearchSites" />
+            </MudItem>
+
+            <!-- Flags -->
+            <MudItem xs="12" md="3"><MudCheckBox T="bool?" @bind-Value="_vm.IsActive" Label="Active" /></MudItem>
+            <MudItem xs="12" md="3"><MudCheckBox T="bool?" @bind-Value="_vm.IsLoa" Label="LOA" /></MudItem>
+            <MudItem xs="12" md="3"><MudCheckBox T="bool?" @bind-Value="_vm.IsIntLoa" Label="Intermittent LOA" /></MudItem>
+            <MudItem xs="12" md="3"><MudCheckBox T="bool?" @bind-Value="_vm.IsRemote" Label="Remote" /></MudItem>
+
+            <MudItem xs="12"><MudDivider Class="my-2" /></MudItem>
+            <MudItem xs="12"><MudText Typo="Typo.h6">Schedule</MudText></MudItem>
+
+            <MudItem xs="12" md="3"><MudCheckBox T="bool" @bind-Value="_vm.IsSplitSchedule" Label="Split Schedule" /></MudItem>
+
+            @foreach (var d in _days)
+            {
+                <MudItem xs="12" md="3"><MudTimePicker Label="@($"{d} Start")" @bind-Time="_vm.Times1[d].Start" /></MudItem>
+                <MudItem xs="12" md="3"><MudTimePicker Label="@($"{d} End")" @bind-Time="_vm.Times1[d].End" /></MudItem>
+            }
+
+            @if (_vm.IsSplitSchedule)
+            {
+                <MudItem xs="12"><MudDivider Class="my-2" /></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.subtitle2">Segment 2</MudText></MudItem>
+                @foreach (var d in _days)
+                {
+                    <MudItem xs="12" md="3"><MudTimePicker Label="@($"{d} Start 2")" @bind-Time="_vm.Times2[d].Start" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTimePicker Label="@($"{d} End 2")" @bind-Time="_vm.Times2[d].End" /></MudItem>
+                }
+            }
+
+            <MudItem xs="12" md="2"><MudTextField T="int?" Label="Break Time (min)" @bind-Value="_vm.BreakTime" Immediate="true" /></MudItem>
+            <MudItem xs="12" md="2"><MudTextField T="int?" Label="Breaks" @bind-Value="_vm.Breaks" Immediate="true" /></MudItem>
+            <MudItem xs="12" md="2"><MudTextField T="int?" Label="Lunch (min)" @bind-Value="_vm.LunchTime" Immediate="true" /></MudItem>
+
+            <MudItem xs="12">
+                <MudTextField Label="Submitter Comment" @bind-Value="_vm.SubmitterComment" Lines="3" Immediate="true" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudButton OnClick="SubmitClicked" Color="Color.Primary" Variant="Variant.Filled">@SubmitLabel</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudForm>
+}
+
+@code {
+    [Parameter] public IEnumerable<Employees> Employees { get; set; } = Enumerable.Empty<Employees>();
+    [Parameter] public IEnumerable<Employees> ManagerEmployees { get; set; } = Enumerable.Empty<Employees>();
+    [Parameter] public IEnumerable<Employees> SupervisorEmployees { get; set; } = Enumerable.Empty<Employees>();
+    [Parameter] public IEnumerable<Organization> Organizations { get; set; } = Enumerable.Empty<Organization>();
+    [Parameter] public IEnumerable<SubOrganization> SubOrganizations { get; set; } = Enumerable.Empty<SubOrganization>();
+    [Parameter] public IEnumerable<Employer> Employers { get; set; } = Enumerable.Empty<Employer>();
+    [Parameter] public IEnumerable<Site> Sites { get; set; } = Enumerable.Empty<Site>();
+    [Parameter] public OrganizationChangeDto? OrgInitial { get; set; }
+    [Parameter] public ScheduleChangeDto? SchInitial { get; set; }
+    [Parameter] public string SubmitLabel { get; set; } = "Save Org + Schedule";
+    [Parameter] public EventCallback<(OrganizationChangeDto Org, ScheduleChangeDto Sch)> OnSubmit { get; set; }
+
+    private MudForm? _form;
+    private bool _prefilled;
+    private bool _lookupsReady;
+    private static readonly string[] _days = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+
+    private sealed class DaySpan { public TimeSpan? Start { get; set; } public TimeSpan? End { get; set; } }
+    private sealed class Vm
+    {
+        public Employees? Employee { get; set; }
+        public DateTime? EffectiveDateDt { get; set; }
+        public string? SubmitterComment { get; set; }
+        public Employees? Manager { get; set; }
+        public Employees? Supervisor { get; set; }
+        public Organization? Organization { get; set; }
+        public SubOrganization? SubOrganization { get; set; }
+        public Employer? Employer { get; set; }
+        public Site? Site { get; set; }
+        public bool? IsActive { get; set; }
+        public bool? IsLoa { get; set; }
+        public bool? IsIntLoa { get; set; }
+        public bool? IsRemote { get; set; }
+        public bool IsSplitSchedule { get; set; }
+        public Dictionary<string, DaySpan> Times1 { get; } = _days.ToDictionary(d => d, _ => new DaySpan());
+        public Dictionary<string, DaySpan> Times2 { get; } = _days.ToDictionary(d => d, _ => new DaySpan());
+        public int? BreakTime { get; set; }
+        public int? Breaks { get; set; }
+        public int? LunchTime { get; set; }
+    }
+    private readonly Vm _vm = new();
+
+    protected override void OnParametersSet()
+    {
+        _lookupsReady =
+            Employees.Any() && ManagerEmployees.Any() && SupervisorEmployees.Any() &&
+            Organizations.Any() && Employers.Any() && Sites.Any();
+
+        if (!_lookupsReady || _prefilled || (OrgInitial is null && SchInitial is null)) return;
+
+        // Org prefill
+        if (OrgInitial is not null)
+        {
+            _vm.Employee = Employees.FirstOrDefault(e => e.Id == OrgInitial.EmployeeId);
+            _vm.EffectiveDateDt = OrgInitial.EffectiveDate.ToDateTime(TimeOnly.MinValue);
+            _vm.SubmitterComment = OrgInitial.SubmitterComment;
+
+            if (OrgInitial.ManagerId is int mid) _vm.Manager = ManagerEmployees.FirstOrDefault(e => e.Id == mid);
+            if (OrgInitial.SupervisorId is int sid) _vm.Supervisor = SupervisorEmployees.FirstOrDefault(e => e.Id == sid);
+            _vm.Organization = Organizations.FirstOrDefault(o => o.Id == OrgInitial.OrganizationId);
+            _vm.SubOrganization = SubOrganizations.FirstOrDefault(o => o.Id == OrgInitial.SubOrganizationId);
+            _vm.Employer = Employers.FirstOrDefault(o => o.Id == OrgInitial.EmployerId);
+            _vm.Site = Sites.FirstOrDefault(s => s.Id == OrgInitial.SiteId);
+
+            _vm.IsActive = OrgInitial.IsActive;
+            _vm.IsLoa = OrgInitial.IsLoa;
+            _vm.IsIntLoa = OrgInitial.IsIntLoa;
+            _vm.IsRemote = OrgInitial.IsRemote;
+        }
+
+        // Schedule prefill
+        if (SchInitial is not null)
+        {
+            _vm.Employee ??= Employees.FirstOrDefault(e => e.Id == SchInitial.EmployeeId);
+            _vm.EffectiveDateDt ??= SchInitial.EffectiveDate.ToDateTime(TimeOnly.MinValue);
+            _vm.SubmitterComment ??= SchInitial.SubmitterComment;
+            _vm.IsSplitSchedule = SchInitial.IsSplitSchedule;
+
+            void F(Dictionary<string, DaySpan> bag, string day, TimeOnly? s, TimeOnly? e)
+            { bag[day].Start = s?.ToTimeSpan(); bag[day].End = e?.ToTimeSpan(); }
+
+            F(_vm.Times1, "Monday", SchInitial.MondayStart, SchInitial.MondayEnd);
+            F(_vm.Times1, "Tuesday", SchInitial.TuesdayStart, SchInitial.TuesdayEnd);
+            F(_vm.Times1, "Wednesday", SchInitial.WednesdayStart, SchInitial.WednesdayEnd);
+            F(_vm.Times1, "Thursday", SchInitial.ThursdayStart, SchInitial.ThursdayEnd);
+            F(_vm.Times1, "Friday", SchInitial.FridayStart, SchInitial.FridayEnd);
+            F(_vm.Times1, "Saturday", SchInitial.SaturdayStart, SchInitial.SaturdayEnd);
+            F(_vm.Times1, "Sunday", SchInitial.SundayStart, SchInitial.SundayEnd);
+
+            if (_vm.IsSplitSchedule)
+            {
+                F(_vm.Times2, "Monday", SchInitial.MondayStart2, SchInitial.MondayEnd2);
+                F(_vm.Times2, "Tuesday", SchInitial.TuesdayStart2, SchInitial.TuesdayEnd2);
+                F(_vm.Times2, "Wednesday", SchInitial.WednesdayStart2, SchInitial.WednesdayEnd2);
+                F(_vm.Times2, "Thursday", SchInitial.ThursdayStart2, SchInitial.ThursdayEnd2);
+                F(_vm.Times2, "Friday", SchInitial.FridayStart2, SchInitial.FridayEnd2);
+                F(_vm.Times2, "Saturday", SchInitial.SaturdayStart2, SchInitial.SaturdayEnd2);
+                F(_vm.Times2, "Sunday", SchInitial.SundayStart2, SchInitial.SundayEnd2);
+            }
+
+            _vm.BreakTime = SchInitial.BreakTime;
+            _vm.Breaks = SchInitial.Breaks;
+            _vm.LunchTime = SchInitial.LunchTime;
+        }
+
+        _prefilled = true;
+    }
+
+    // Labels & Searches
+    private static string EmpLabel(Employees? e) => e is null ? "" : $"{e.LastName}, {e.FirstName}";
+    private static string OrgLabel(Organization? o) => o?.Name ?? "";
+    private static string SubOrgLabel(SubOrganization? so) => so?.Name ?? "";
+    private static string EmployerLabel(Employer? e) => e?.Name ?? "";
+    private static string SiteLabel(Site? s) => s is null ? "" : $"{s.SiteCode} - {s.Location}";
+
+    private Task<IEnumerable<Employees>> SearchEmployees(string v, CancellationToken _)
+        => Task.FromResult(Employees.Where(e => EmpLabel(e).Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
+    private Task<IEnumerable<Employees>> SearchManagers(string v, CancellationToken _)
+        => Task.FromResult(ManagerEmployees.Where(e => EmpLabel(e).Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
+    private Task<IEnumerable<Employees>> SearchSupervisors(string v, CancellationToken _)
+        => Task.FromResult(SupervisorEmployees.Where(e => EmpLabel(e).Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
+    private Task<IEnumerable<Organization>> SearchOrganizations(string v, CancellationToken _)
+        => Task.FromResult(Organizations.Where(o => (o.Name ?? "").Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
+    private Task<IEnumerable<SubOrganization>> SearchSubOrganizations(string v, CancellationToken _)
+        => Task.FromResult(SubOrganizations.Where(so => (so.Name ?? "").Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
+    private Task<IEnumerable<Employer>> SearchEmployers(string v, CancellationToken _)
+        => Task.FromResult(Employers.Where(e => (e.Name ?? "").Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
+    private Task<IEnumerable<Site>> SearchSites(string v, CancellationToken _)
+        => Task.FromResult(Sites.Where(s =>
+            (s.SiteCode ?? "").Contains(v ?? "", StringComparison.OrdinalIgnoreCase) ||
+            (s.Location ?? "").Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
+
+    private static TimeOnly? T(TimeSpan? ts) => ts.HasValue ? TimeOnly.FromTimeSpan(ts.Value) : (TimeOnly?)null;
+
+    private async Task SubmitClicked()
+    {
+        if (_form is not null) { await _form.Validate(); if (!_form.IsValid) return; }
+        if (_vm.EffectiveDateDt is null || _vm.Employee is null) return;
+
+        var eff = DateOnly.FromDateTime(_vm.EffectiveDateDt.Value);
+
+        var org = new OrganizationChangeDto(
+          EmployeeId: _vm.Employee.Id,
+          EffectiveDate: eff,
+          SubmitterComment: string.IsNullOrWhiteSpace(_vm.SubmitterComment) ? null : _vm.SubmitterComment!.Trim(),
+          ManagerId: _vm.Manager?.Id, SupervisorId: _vm.Supervisor?.Id,
+          OrganizationId: _vm.Organization?.Id, SubOrganizationId: _vm.SubOrganization?.Id,
+          EmployerId: _vm.Employer?.Id, SiteId: _vm.Site?.Id,
+          IsActive: _vm.IsActive, IsLoa: _vm.IsLoa, IsIntLoa: _vm.IsIntLoa, IsRemote: _vm.IsRemote
+        );
+
+        var sch = new ScheduleChangeDto(
+          EmployeeId: _vm.Employee.Id, EffectiveDate: eff,
+          SubmitterComment: string.IsNullOrWhiteSpace(_vm.SubmitterComment) ? null : _vm.SubmitterComment!.Trim(),
+          IsSplitSchedule: _vm.IsSplitSchedule,
+
+          MondayStart: T(_vm.Times1["Monday"].Start), MondayEnd: T(_vm.Times1["Monday"].End),
+          TuesdayStart: T(_vm.Times1["Tuesday"].Start), TuesdayEnd: T(_vm.Times1["Tuesday"].End),
+          WednesdayStart: T(_vm.Times1["Wednesday"].Start), WednesdayEnd: T(_vm.Times1["Wednesday"].End),
+          ThursdayStart: T(_vm.Times1["Thursday"].Start), ThursdayEnd: T(_vm.Times1["Thursday"].End),
+          FridayStart: T(_vm.Times1["Friday"].Start), FridayEnd: T(_vm.Times1["Friday"].End),
+          SaturdayStart: T(_vm.Times1["Saturday"].Start), SaturdayEnd: T(_vm.Times1["Saturday"].End),
+          SundayStart: T(_vm.Times1["Sunday"].Start), SundayEnd: T(_vm.Times1["Sunday"].End),
+
+          MondayStart2: T(_vm.Times2["Monday"].Start), MondayEnd2: T(_vm.Times2["Monday"].End),
+          TuesdayStart2: T(_vm.Times2["Tuesday"].Start), TuesdayEnd2: T(_vm.Times2["Tuesday"].End),
+          WednesdayStart2: T(_vm.Times2["Wednesday"].Start), WednesdayEnd2: T(_vm.Times2["Wednesday"].End),
+          ThursdayStart2: T(_vm.Times2["Thursday"].Start), ThursdayEnd2: T(_vm.Times2["Thursday"].End),
+          FridayStart2: T(_vm.Times2["Friday"].Start), FridayEnd2: T(_vm.Times2["Friday"].End),
+          SaturdayStart2: T(_vm.Times2["Saturday"].Start), SaturdayEnd2: T(_vm.Times2["Saturday"].End),
+          SundayStart2: T(_vm.Times2["Sunday"].Start), SundayEnd2: T(_vm.Times2["Sunday"].End),
+
+          BreakTime: _vm.BreakTime, Breaks: _vm.Breaks, LunchTime: _vm.LunchTime
+        );
+
+        await OnSubmit.InvokeAsync((org, sch));
+    }
+}

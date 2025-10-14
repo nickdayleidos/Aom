@@ -1,0 +1,143 @@
+﻿@using System
+@using System.Linq
+@using System.Threading
+@using MudBlazor
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Acr
+
+@if (!_lookupsReady)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudForm @ref="_form">
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudTextField Label="First Name" @bind-Value="_vm.FirstName" Required="true" RequiredError="First name is required" Immediate="true" />
+                <MudTextField Label="Last Name" @bind-Value="_vm.LastName" Required="true" RequiredError="Last name is required" Immediate="true" />
+            </MudItem>
+
+            <MudItem xs="12" md="4"><MudTextField Label="Middle Initial" @bind-Value="_vm.MiddleInitial" MaxLength="1" Immediate="true" /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField Label="Corporate Id" @bind-Value="_vm.CorporateId" Immediate="true" /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField Label="Domain Login" @bind-Value="_vm.DomainLoginName" Immediate="true" /></MudItem>
+
+            <MudItem xs="12" md="4"><MudTextField Label="NMCI Email" @bind-Value="_vm.NmciEmail" Immediate="true" InputType="InputType.Email" /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField Label="Flankspeed Email" @bind-Value="_vm.FlankspeedEmail" Immediate="true" InputType="InputType.Email" /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField Label="Corporate Email" @bind-Value="_vm.CorporateEmail" Immediate="true" InputType="InputType.Email" /></MudItem>
+
+            <MudItem xs="12" md="4"><MudTextField Label="USN Operator Id" @bind-Value="_vm.UsnOperatorId" Immediate="true" /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField Label="USN Admin Id" @bind-Value="_vm.UsnAdminId" Immediate="true" /></MudItem>
+
+            <!-- Site lookup -->
+            <MudItem xs="12" md="4">
+                <MudAutocomplete T="Site"
+                                 @key="_vm.Site"
+                                 Label="Site"
+                                 Dense="true" Clearable="true"
+                                 @bind-Value="_vm.Site"
+                                 ToStringFunc="SiteLabel"
+                                 SearchFunc="SearchSites" />
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudDatePicker Label="Effective Date" @bind-Date="_vm.EffectiveDateDt" Required="true" RequiredError="Effective date is required" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudTextField Label="Submitter Comment" @bind-Value="_vm.SubmitterComment" Lines="3" Immediate="true" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudButton OnClick="SubmitClicked" Color="Color.Primary" Variant="Variant.Filled">@SubmitLabel</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudForm>
+}
+
+@code {
+    [Parameter] public IEnumerable<Site> Sites { get; set; } = Enumerable.Empty<Site>();
+    [Parameter] public EventCallback<NewHireDto> OnSubmit { get; set; }
+    [Parameter] public string SubmitLabel { get; set; } = "Submit New Hire";
+    [Parameter] public NewHireDto? Initial { get; set; }
+
+    private MudForm? _form;
+    private bool _prefilled;
+    private bool _lookupsReady;
+
+    private sealed class Vm
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string? MiddleInitial { get; set; }
+        public Site? Site { get; set; }
+        public string? NmciEmail { get; set; }
+        public string? UsnOperatorId { get; set; }
+        public string? UsnAdminId { get; set; }
+        public string? FlankspeedEmail { get; set; }
+        public string? CorporateEmail { get; set; }
+        public string? CorporateId { get; set; }
+        public string? DomainLoginName { get; set; }
+        public DateTime? EffectiveDateDt { get; set; }
+        public string? SubmitterComment { get; set; }
+    }
+    private readonly Vm _vm = new();
+
+    protected override void OnParametersSet()
+    {
+        _lookupsReady = Sites.Any();
+
+        if (!_lookupsReady || _prefilled || Initial is null) return;
+
+        _vm.FirstName = Initial.FirstName ?? "";
+        _vm.LastName = Initial.LastName ?? "";
+        _vm.MiddleInitial = Initial.MiddleInitial;
+        _vm.NmciEmail = Initial.NmciEmail;
+        _vm.UsnOperatorId = Initial.UsnOperatorId;
+        _vm.UsnAdminId = Initial.UsnAdminId;
+        _vm.FlankspeedEmail = Initial.FlankspeedEmail;
+        _vm.CorporateEmail = Initial.CorporateEmail;
+        _vm.CorporateId = Initial.CorporateId;
+        _vm.DomainLoginName = Initial.DomainLoginName;
+        _vm.EffectiveDateDt = Initial.EffectiveDate.ToDateTime(TimeOnly.MinValue);
+        _vm.SubmitterComment = Initial.SubmitterComment;
+        if (Initial.SiteId is int sid) _vm.Site = Sites.FirstOrDefault(s => s.Id == sid);
+
+        _prefilled = true;
+    }
+
+    private static string SiteLabel(Site? s) => s is null ? "" : $"{s.SiteCode} - {s.Location}";
+    private Task<IEnumerable<Site>> SearchSites(string v, CancellationToken _)
+        => Task.FromResult(Sites.Where(s =>
+            (s.SiteCode ?? "").Contains(v ?? "", StringComparison.OrdinalIgnoreCase) ||
+            (s.Location ?? "").Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
+
+    private static string? NormalizeEmail(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    private static string? Nz(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    private static string? Middle(string? s)
+        => string.IsNullOrWhiteSpace(s) ? null : s.Trim()[..1].ToUpperInvariant();
+
+    private async Task SubmitClicked()
+    {
+        if (_form is not null) { await _form.Validate(); if (!_form.IsValid) return; }
+        if (_vm.EffectiveDateDt is null) return;
+
+        var dto = new NewHireDto(
+            FirstName: _vm.FirstName.Trim(),
+            LastName: _vm.LastName.Trim(),
+            MiddleInitial: Middle(_vm.MiddleInitial),
+            SiteId: _vm.Site?.Id,
+            NmciEmail: NormalizeEmail(_vm.NmciEmail),
+            UsnOperatorId: Nz(_vm.UsnOperatorId),
+            UsnAdminId: Nz(_vm.UsnAdminId),
+            FlankspeedEmail: NormalizeEmail(_vm.FlankspeedEmail),
+            CorporateEmail: NormalizeEmail(_vm.CorporateEmail),
+            CorporateId: Nz(_vm.CorporateId),
+            DomainLoginName: Nz(_vm.DomainLoginName),
+            EffectiveDate: DateOnly.FromDateTime(_vm.EffectiveDateDt.Value),
+            SubmitterComment: Nz(_vm.SubmitterComment)
+        );
+
+        await OnSubmit.InvokeAsync(dto);
+    }
+}

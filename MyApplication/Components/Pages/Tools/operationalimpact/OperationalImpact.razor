@@ -256,20 +256,31 @@
             {
                 Subject = subject,
                 HtmlBody = html,
-                From = from,
-                To = to,
-                Cc = cc,
+                From = from?.Trim(),
+                To = to ?? string.Empty,
+                Cc = cc ?? string.Empty,
                 OpenAsDraft = true,
                 IncludeCui = true
             }
             .WithCuiBanner("Operational Impact", preparedBy, generatedEt: generatedEt);
 
-            var bytes = EmailDraftBuilder.BuildEmlBytes(draft);
-            var safeName = string.Concat(subject.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).Trim();
-            if (string.IsNullOrWhiteSpace(safeName)) safeName = "OperationalImpact";
+            // Build message payload
+            var bytes = EmailDraftBuilder.SaveMsgDraft_SendAs(draft);
 
+            // Sanitize subject for filename
+            var safeName = string.Concat(
+                (subject ?? "OperationalImpact")
+                .Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)
+            ).Trim();
+
+            if (string.IsNullOrWhiteSpace(safeName))
+                safeName = "OperationalImpact";
+
+            var fileName = $"{safeName}.oft";
+
+            // Download as Outlook draft template
             var base64 = Convert.ToBase64String(bytes);
-            await JS.InvokeVoidAsync("downloadFileFromBase64", $"{safeName}.eml", "message/rfc822", base64);
+            await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, "application/vnd.ms-outlook", base64);
 
             Snackbar.Add($"Operational Impact created (ID {id}).", Severity.Success);
 
@@ -277,9 +288,14 @@
             _new = new OiEvent { PostedTime = Et.Now, StartTime = Et.Now };
             await LoadAsync();
         }
+        catch (JSDisconnectedException)
+        {
+            // ignore navigation race
+        }
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to post/send: {ex.Message}", Severity.Error);
         }
     }
+
 }

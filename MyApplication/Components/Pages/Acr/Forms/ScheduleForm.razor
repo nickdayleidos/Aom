@@ -1,0 +1,166 @@
+﻿@using System.Linq
+@using System.Threading
+@using MudBlazor
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Acr
+
+@if (!_lookupsReady)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudForm @ref="_form">
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudAutocomplete T="Employees"
+                                 @key="_vm.Employee"
+                                 Label="Employee"
+                                 Dense="true" Clearable="true"
+                                 Required="true" RequiredError="Employee is required"
+                                 @bind-Value="_vm.Employee"
+                                 ToStringFunc="EmpLabel"
+                                 SearchFunc="SearchEmployees" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudDatePicker Label="Effective Date" @bind-Date="_vm.EffectiveDateDt" Required="true" RequiredError="Effective date is required" />
+            </MudItem>
+
+            <MudItem xs="12" md="3"><MudCheckBox T="bool" @bind-Value="_vm.IsSplitSchedule" Label="Split Schedule" /></MudItem>
+
+            <MudItem xs="12"><MudDivider Class="my-2" /></MudItem>
+            <MudItem xs="12"><MudText Typo="Typo.subtitle2">Segment 1</MudText></MudItem>
+
+            @foreach (var d in _days)
+            {
+                <MudItem xs="12" md="3"><MudTimePicker Label="@($"{d} Start")" @bind-Time="_vm.Times1[d].Start" /></MudItem>
+                <MudItem xs="12" md="3"><MudTimePicker Label="@($"{d} End")" @bind-Time="_vm.Times1[d].End" /></MudItem>
+            }
+
+            @if (_vm.IsSplitSchedule)
+            {
+                <MudItem xs="12"><MudDivider Class="my-2" /></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.subtitle2">Segment 2</MudText></MudItem>
+                @foreach (var d in _days)
+                {
+                    <MudItem xs="12" md="3"><MudTimePicker Label="@($"{d} Start 2")" @bind-Time="_vm.Times2[d].Start" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTimePicker Label="@($"{d} End 2")" @bind-Time="_vm.Times2[d].End" /></MudItem>
+                }
+            }
+
+            <MudItem xs="12" md="2"><MudTextField T="int?" Label="Break Time (min)" @bind-Value="_vm.BreakTime" Immediate="true" /></MudItem>
+            <MudItem xs="12" md="2"><MudTextField T="int?" Label="Breaks" @bind-Value="_vm.Breaks" Immediate="true" /></MudItem>
+            <MudItem xs="12" md="2"><MudTextField T="int?" Label="Lunch (min)" @bind-Value="_vm.LunchTime" Immediate="true" /></MudItem>
+
+            <MudItem xs="12"><MudTextField Label="Submitter Comment" @bind-Value="_vm.SubmitterComment" Lines="3" Immediate="true" /></MudItem>
+
+            <MudItem xs="12"><MudButton OnClick="SubmitClicked" Color="Color.Primary" Variant="Variant.Filled">@SubmitLabel</MudButton></MudItem>
+        </MudGrid>
+    </MudForm>
+}
+
+@code {
+    [Parameter] public IEnumerable<Employees> Employees { get; set; } = Enumerable.Empty<Employees>();
+    [Parameter] public EventCallback<ScheduleChangeDto> OnSubmit { get; set; }
+    [Parameter] public ScheduleChangeDto? Initial { get; set; }
+    [Parameter] public string SubmitLabel { get; set; } = "Submit Schedule Change";
+
+    private MudForm? _form;
+    private bool _prefilled;
+    private bool _lookupsReady;
+
+    private static readonly string[] _days = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+    private sealed class DaySpan { public TimeSpan? Start { get; set; } public TimeSpan? End { get; set; } }
+    private sealed class Vm
+    {
+        public Employees? Employee { get; set; }
+        public DateTime? EffectiveDateDt { get; set; }
+        public string? SubmitterComment { get; set; }
+        public bool IsSplitSchedule { get; set; }
+        public Dictionary<string, DaySpan> Times1 { get; } = _days.ToDictionary(d => d, _ => new DaySpan());
+        public Dictionary<string, DaySpan> Times2 { get; } = _days.ToDictionary(d => d, _ => new DaySpan());
+        public int? BreakTime { get; set; }
+        public int? Breaks { get; set; }
+        public int? LunchTime { get; set; }
+    }
+    private readonly Vm _vm = new();
+
+    protected override void OnParametersSet()
+    {
+        _lookupsReady = Employees.Any();
+        if (!_lookupsReady || _prefilled || Initial is null) return;
+
+        _vm.Employee = Employees.FirstOrDefault(e => e.Id == Initial.EmployeeId);
+        _vm.EffectiveDateDt = Initial.EffectiveDate.ToDateTime(TimeOnly.MinValue);
+        _vm.SubmitterComment = Initial.SubmitterComment;
+        _vm.IsSplitSchedule = Initial.IsSplitSchedule;
+
+        void F(Dictionary<string, DaySpan> bag, string day, TimeOnly? s, TimeOnly? e)
+        { bag[day].Start = s?.ToTimeSpan(); bag[day].End = e?.ToTimeSpan(); }
+
+        F(_vm.Times1, "Monday", Initial.MondayStart, Initial.MondayEnd);
+        F(_vm.Times1, "Tuesday", Initial.TuesdayStart, Initial.TuesdayEnd);
+        F(_vm.Times1, "Wednesday", Initial.WednesdayStart, Initial.WednesdayEnd);
+        F(_vm.Times1, "Thursday", Initial.ThursdayStart, Initial.ThursdayEnd);
+        F(_vm.Times1, "Friday", Initial.FridayStart, Initial.FridayEnd);
+        F(_vm.Times1, "Saturday", Initial.SaturdayStart, Initial.SaturdayEnd);
+        F(_vm.Times1, "Sunday", Initial.SundayStart, Initial.SundayEnd);
+
+        if (_vm.IsSplitSchedule)
+        {
+            F(_vm.Times2, "Monday", Initial.MondayStart2, Initial.MondayEnd2);
+            F(_vm.Times2, "Tuesday", Initial.TuesdayStart2, Initial.TuesdayEnd2);
+            F(_vm.Times2, "Wednesday", Initial.WednesdayStart2, Initial.WednesdayEnd2);
+            F(_vm.Times2, "Thursday", Initial.ThursdayStart2, Initial.ThursdayEnd2);
+            F(_vm.Times2, "Friday", Initial.FridayStart2, Initial.FridayEnd2);
+            F(_vm.Times2, "Saturday", Initial.SaturdayStart2, Initial.SaturdayEnd2);
+            F(_vm.Times2, "Sunday", Initial.SundayStart2, Initial.SundayEnd2);
+        }
+
+        _vm.BreakTime = Initial.BreakTime;
+        _vm.Breaks = Initial.Breaks;
+        _vm.LunchTime = Initial.LunchTime;
+
+        _prefilled = true;
+    }
+
+    private static string EmpLabel(Employees? e) => e is null ? "" : $"{e.LastName}, {e.FirstName}";
+    private Task<IEnumerable<Employees>> SearchEmployees(string v, CancellationToken _)
+        => Task.FromResult(Employees.Where(e => EmpLabel(e).Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
+
+    private static TimeOnly? T(TimeSpan? ts) => ts.HasValue ? TimeOnly.FromTimeSpan(ts.Value) : (TimeOnly?)null;
+
+    private async Task SubmitClicked()
+    {
+        if (_form is not null) { await _form.Validate(); if (!_form.IsValid) return; }
+        if (_vm.EffectiveDateDt is null || _vm.Employee is null) return;
+
+        var dto = new ScheduleChangeDto(
+          EmployeeId: _vm.Employee.Id,
+          EffectiveDate: DateOnly.FromDateTime(_vm.EffectiveDateDt.Value),
+          SubmitterComment: string.IsNullOrWhiteSpace(_vm.SubmitterComment) ? null : _vm.SubmitterComment!.Trim(),
+          IsSplitSchedule: _vm.IsSplitSchedule,
+
+          MondayStart: T(_vm.Times1["Monday"].Start), MondayEnd: T(_vm.Times1["Monday"].End),
+          TuesdayStart: T(_vm.Times1["Tuesday"].Start), TuesdayEnd: T(_vm.Times1["Tuesday"].End),
+          WednesdayStart: T(_vm.Times1["Wednesday"].Start), WednesdayEnd: T(_vm.Times1["Wednesday"].End),
+          ThursdayStart: T(_vm.Times1["Thursday"].Start), ThursdayEnd: T(_vm.Times1["Thursday"].End),
+          FridayStart: T(_vm.Times1["Friday"].Start), FridayEnd: T(_vm.Times1["Friday"].End),
+          SaturdayStart: T(_vm.Times1["Saturday"].Start), SaturdayEnd: T(_vm.Times1["Saturday"].End),
+          SundayStart: T(_vm.Times1["Sunday"].Start), SundayEnd: T(_vm.Times1["Sunday"].End),
+
+          MondayStart2: T(_vm.Times2["Monday"].Start), MondayEnd2: T(_vm.Times2["Monday"].End),
+          TuesdayStart2: T(_vm.Times2["Tuesday"].Start), TuesdayEnd2: T(_vm.Times2["Tuesday"].End),
+          WednesdayStart2: T(_vm.Times2["Wednesday"].Start), WednesdayEnd2: T(_vm.Times2["Wednesday"].End),
+          ThursdayStart2: T(_vm.Times2["Thursday"].Start), ThursdayEnd2: T(_vm.Times2["Thursday"].End),
+          FridayStart2: T(_vm.Times2["Friday"].Start), FridayEnd2: T(_vm.Times2["Friday"].End),
+          SaturdayStart2: T(_vm.Times2["Saturday"].Start), SaturdayEnd2: T(_vm.Times2["Saturday"].End),
+          SundayStart2: T(_vm.Times2["Sunday"].Start), SundayEnd2: T(_vm.Times2["Sunday"].End),
+
+          BreakTime: _vm.BreakTime, Breaks: _vm.Breaks, LunchTime: _vm.LunchTime
+        );
+
+        await OnSubmit.InvokeAsync(dto);
+    }
+}

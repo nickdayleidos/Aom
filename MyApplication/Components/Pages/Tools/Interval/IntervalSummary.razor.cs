@@ -243,37 +243,81 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 // Compose and log (your existing service)
                 var (subject, html, to, cc, from) = await EmailSvc.ComposeAndLogAsync(ctx, _cts.Token);
 
-                // Subject with interval
-                var subjectWithInterval =
-                    $"{subject} — {ctx.DateLocal:yyyy-MM-dd} {ctx.IntervalStart:hh\\:mm}-{ctx.IntervalEnd:hh\\:mm} ET";
+                // ---- helpers: robust HH:mm / HHmm no matter the type (DateTime, TimeSpan, string) ----
+                static string ToHHmm(object? t)
+                {
+                    switch (t)
+                    {
+                        case DateTime dt: return dt.ToString("HHmm");
+                        case DateTimeOffset dto: return dto.ToString("HHmm");
+                        case TimeSpan ts: return ts.ToString(@"hhmm");
+                        case string s:
+                            if (string.IsNullOrWhiteSpace(s)) return "0000";
+                            var digits = new string(s.Where(char.IsDigit).ToArray());
+                            return digits.Length >= 4 ? digits[..4] : digits.PadRight(4, '0');
+                        default: return "0000";
+                    }
+                }
 
-                // Build draft and download .eml
+                static string ToHH_colon_mm(object? t)
+                {
+                    switch (t)
+                    {
+                        case DateTime dt: return dt.ToString("HH':'mm");
+                        case DateTimeOffset dto: return dto.ToString("HH':'mm");
+                        case TimeSpan ts: return ts.ToString(@"hh\:mm");
+                        case string s:
+                            if (string.IsNullOrWhiteSpace(s)) return "00:00";
+                            var digits = new string(s.Where(char.IsDigit).ToArray());
+                            digits = digits.Length >= 4 ? digits[..4] : digits.PadRight(4, '0');
+                            return $"{digits[..2]}:{digits[2..4]}";
+                        default: return "00:00";
+                    }
+                }
+
+                var startHHmm = ToHHmm(ctx.IntervalStart);
+                var endHHmm = ToHHmm(ctx.IntervalEnd);
+                var startHH_colon = ToHH_colon_mm(ctx.IntervalStart);
+                var endHH_colon = ToHH_colon_mm(ctx.IntervalEnd);
+
+                // Subject with interval (24-hour, avoids invalid format on strings)
+                var subjectWithInterval = $"{subject} — {ctx.DateLocal:yyyy-MM-dd} {startHH_colon}-{endHH_colon} ET";
+
+                // ---- Build draft ----
                 var draft = new EmailDraft
                 {
                     Subject = subjectWithInterval,
                     HtmlBody = html,
-                    From = from,
-                    To = to,
-                    Cc = cc,
+                    From = from?.Trim(),           // shared mailbox SMTP
+                    To = to ?? string.Empty,
+                    Cc = cc ?? string.Empty,
                     OpenAsDraft = true,
                     IncludeCui = true
                 }
                 // ET-aware banner (CUI for Interval)
                 .WithCuiBanner("Interval Summary", preparedBy, generatedEt: Et.Now);
 
-                var bytes = EmailDraftBuilder.BuildEmlBytes(draft);
+                // Build message payload and download as .oft so Outlook opens a compose window
+                var bytes = EmailDraftBuilder.BuildMsgBytes(draft);
                 var base64 = Convert.ToBase64String(bytes);
-                var fileName = $"IntervalSummary_{ctx.DateLocal:yyyyMMdd}_{ctx.IntervalStart:hhmm}-{ctx.IntervalEnd:hhmm}.eml";
+                var fileName = $"IntervalSummary_{ctx.DateLocal:yyyyMMdd}_{startHHmm}-{endHHmm}.oft";
 
-                await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, "message/rfc822", base64);
+                await JS.InvokeVoidAsync(
+                    "downloadFileFromBase64",
+                    fileName,
+                    "application/vnd.ms-outlook",
+                    base64
+                );
+
                 Snackbar.Add("Draft generated — check your downloads.", Severity.Success);
             }
-            catch (JSDisconnectedException) { }
+            catch (JSDisconnectedException) { /* ignore navigation race */ }
             catch (Exception ex)
             {
                 Snackbar.Add($"Could not generate email: {ex.Message}", Severity.Error);
             }
         }
+
 
         // Build Interval email context from current UI state
         private IntervalEmailContext BuildIntervalContextFromState()

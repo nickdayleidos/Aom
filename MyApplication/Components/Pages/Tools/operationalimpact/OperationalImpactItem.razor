@@ -309,31 +309,47 @@
             {
                 Subject = subject,
                 HtmlBody = html,
-                From = from,
-                To = to,
-                Cc = cc,
+                From = from?.Trim(),
+                To = to ?? string.Empty,
+                Cc = cc ?? string.Empty,
                 OpenAsDraft = true,
                 IncludeCui = true
             }
             .WithCuiBanner(bannerTitle, preparedBy, generatedEt: generatedEt); // ET-aware banner
 
-            var bytes = EmailDraftBuilder.BuildEmlBytes(draft);
-            var safe = string.Concat(subject.Split(Path.GetInvalidFileNameChars(),
-                                                    StringSplitOptions.RemoveEmptyEntries)).Trim();
-            if (string.IsNullOrWhiteSpace(safe)) safe = "OperationalImpactUpdate";
+            // Build payload using MsgKit (returns .msg bytes)
+            var bytes = EmailDraftBuilder.SaveMsgDraft_SendAs(draft);
 
+            // Sanitize filename and prefer .oft so Outlook opens compose
+            string safeSubject = string.Concat(
+                (subject ?? "OperationalImpactUpdate")
+                .Split(System.IO.Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)
+            ).Trim();
+
+            if (string.IsNullOrWhiteSpace(safeSubject))
+                safeSubject = "OperationalImpactUpdate";
+
+            var fileName = $"{safeSubject}.oft";
+
+            // Download (use Outlook MIME; octet-stream also works)
             var b64 = Convert.ToBase64String(bytes);
-            await JS.InvokeVoidAsync("downloadFileFromBase64", $"{safe}.eml", "message/rfc822", b64);
+            await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, "application/vnd.ms-outlook", b64);
 
+            // Refresh UI state
             _updates = (await Repo.ListUpdatesAsync(id)).ToList();
             _newUpdate = string.Empty;
             _allClear = false;
 
             Snackbar.Add("Update saved and email draft generated.", Severity.Success);
         }
+        catch (JSDisconnectedException)
+        {
+            // ignore navigation race
+        }
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to add update/send: {ex.Message}", Severity.Error);
         }
     }
+
 }

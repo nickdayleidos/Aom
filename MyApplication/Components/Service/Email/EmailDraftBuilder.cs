@@ -4,64 +4,41 @@ using System.Collections.Generic;
 using System.IO;
 using MimeKit;
 using MyApplication.Components.Services.Email;
+using MsgKit;
+
+// MsgKit aliases (avoid name collisions)
+using MEmail = MsgKit.Email;
+using MSender = MsgKit.Sender;
+using MRepresenting = MsgKit.Representing;
 
 public static class EmailDraftBuilder
 {
+    // EML (unchanged)
     public static byte[] BuildEmlBytes(EmailDraft draft)
     {
         if (draft is null) throw new ArgumentNullException(nameof(draft));
 
-        // Build HTML body with optional CUI banner and custom banner, then the main content
         var html = ComposeHtml(draft);
-
         var msg = new MimeMessage();
 
-        // -----------------------------
-        // Recipients
-        // -----------------------------
         foreach (var t in SplitRecipients(draft.To))
             msg.To.Add(MailboxAddress.Parse(t));
-
         foreach (var c in SplitRecipients(draft.Cc))
             msg.Cc.Add(MailboxAddress.Parse(c));
 
-        // -----------------------------
-        // Subject
-        // -----------------------------
         msg.Subject = draft.Subject ?? string.Empty;
 
-        // -----------------------------
-        // From / Sender (force pure Send-As draft)
-        // -----------------------------
-        msg.From.Clear();
-        if (!string.IsNullOrWhiteSpace(draft.From))
-            msg.From.Add(MailboxAddress.Parse(draft.From.Trim()));
+        // Optionally prefill From for .eml
+        // msg.From.Clear();
+        // if (!string.IsNullOrWhiteSpace(draft.From))
+        //     msg.From.Add(MailboxAddress.Parse(draft.From.Trim()));
 
-        // Absolutely ensure no Sender/resent/transport headers that could trigger "on behalf of"
-        msg.Sender = null;
-        msg.Headers.Remove("Sender");
-        msg.Headers.Remove("Return-Path");
-        msg.Headers.Remove("Resent-From");
-        msg.Headers.Remove("Resent-Sender");
-        msg.Headers.Remove("Resent-To");
-        msg.Headers.Remove("Resent-Date");
+        msg.Body = new BodyBuilder { HtmlBody = html }.ToMessageBody();
 
-        // -----------------------------
-        // Body (HTML only; add TextBody if you ever want a plain-text alt)
-        // -----------------------------
-        var bodyBuilder = new BodyBuilder { HtmlBody = html };
-        msg.Body = bodyBuilder.ToMessageBody();
-
-        // -----------------------------
-        // Open as DRAFT in the mail client
-        // -----------------------------
         if (draft.OpenAsDraft)
         {
-            // Key flag for Outlook/Thunderbird compose window
             msg.Headers.Remove("X-Unsent");
             msg.Headers.Add("X-Unsent", "1");
-
-            // Avoid looking like an already-sent message
             msg.Headers.Remove("Date");
             msg.Headers.Remove("Message-ID");
         }
@@ -71,24 +48,68 @@ public static class EmailDraftBuilder
         return ms.ToArray();
     }
 
+    // MSG (MsgKit only)
+    public static byte[] BuildMsgBytes(EmailDraft draft)
+    {
+        if (draft is null) throw new ArgumentNullException(nameof(draft));
+
+        var html = ComposeHtml(draft);
+
+        var fromAddress = (draft.From ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(fromAddress))
+            throw new ArgumentException("draft.From is required for .msg", nameof(draft));
+
+        static string DisplayName(string email) =>
+            email.Contains('@') ? email[..email.IndexOf('@')] : email;
+
+        // >>> Force the authoring identity to the shared mailbox <<<
+        using var email = new MEmail(
+            sender: new MSender(fromAddress, DisplayName(fromAddress)),
+            representing: new MRepresenting(fromAddress, DisplayName(fromAddress)),
+            subject: draft.Subject ?? string.Empty
+        )
+        {
+            BodyText = null,
+            BodyHtml = html
+        };
+
+        // Make replies route to the shared mailbox and reinforce account selection
+        email.ReplyToRecipients.AddTo(fromAddress, DisplayName(fromAddress));
+
+        foreach (var t in SplitRecipients(draft.To))
+            email.Recipients.AddTo(t, t);
+        foreach (var c in SplitRecipients(draft.Cc))
+            email.Recipients.AddCc(c, c);
+
+        using var ms = new MemoryStream();
+        email.Save(ms);
+        return ms.ToArray();
+    }
+
+
+    // Shims (your pages already call these)
+    public static byte[] SaveMsgDraft_SendAs(EmailDraft draft) => BuildMsgBytes(draft);
+    public static void SaveMsgDraft_SendAs(EmailDraft draft, string outputMsgPath)
+    {
+        var bytes = BuildMsgBytes(draft);
+        var dir = Path.GetDirectoryName(Path.GetFullPath(outputMsgPath))!;
+        Directory.CreateDirectory(dir);
+        File.WriteAllBytes(outputMsgPath, bytes);
+    }
+
+    // Helpers
     private static string ComposeHtml(EmailDraft draft)
     {
-        var parts = new List<string>(capacity: 2);
-
-        // Only the blue banner you build in EmailDraftExtensions
+        var parts = new List<string>(2);
         if (!string.IsNullOrWhiteSpace(draft.BannerHtml))
             parts.Add(draft.BannerHtml!);
-
-        // Main body
         parts.Add(draft.HtmlBody ?? string.Empty);
-
         return string.Concat(parts);
     }
 
     private static IEnumerable<string> SplitRecipients(string? s)
     {
         if (string.IsNullOrWhiteSpace(s)) yield break;
-
         foreach (var part in s.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmed = part.Trim();

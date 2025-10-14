@@ -24,14 +24,39 @@
     <MudPaper Class="pa-4" Outlined="true">
         <MudGrid Spacing="2">
             <MudItem xs="12">
-                <MudTextField T="string" Label="USN Injection Announcement" Variant="Variant.Filled" Lines="6" @bind-Value="_inj" />
+                <MudTextField T="string"
+                              Label="USN Injection Announcement"
+                              Variant="Variant.Filled"
+                              Lines="3"
+                              AutoGrow="true"
+                              MaxLines="40"
+                              Resize="Resize.Vertical"
+                              @bind-Value="_inj" />
             </MudItem>
+
             <MudItem xs="12">
-                <MudTextField T="string" Label="USN Site Announcement" Variant="Variant.Filled" Lines="6" @bind-Value="_site" />
+                <MudTextField T="string"
+                              Label="USN Site Announcement"
+                              Variant="Variant.Filled"
+                              Lines="3"
+                              AutoGrow="true"
+                              MaxLines="40"
+                              Resize="Resize.Vertical"
+                              @bind-Value="_site" />
             </MudItem>
+
             <MudItem xs="12">
-                <MudTextField T="string" Label="USN Status Announcement" Variant="Variant.Filled" Lines="6" @bind-Value="_status" />
+                <MudTextField T="string"
+                              Label="USN Status Announcement"
+                              Variant="Variant.Filled"
+                              Lines="3"
+                              AutoGrow="true"
+                              MaxLines="40"
+                              Resize="Resize.Vertical"
+                              @bind-Value="_status" />
             </MudItem>
+
+
 
             <MudItem xs="12" class="d-flex gap-2">
                 <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SubmitAsync" StartIcon="@Icons.Material.Filled.Download">
@@ -111,26 +136,36 @@
             var authState = await Auth.GetAuthenticationStateAsync();
             var preparedBy = IdentityHelpers.GetSamAccount(authState.User) ?? "Unknown";
 
+            string WrapBody(string body) => @"
+            <style type=""text/css"">
+            /* Many Outlook signatures land inside div#divtagdefaultwrapper */
+            #divtagdefaultwrapper { display:none !important; visibility:hidden !important; height:0 !important; }
+            </style>" + body;
+
+            html = WrapBody(html);
+
             var draft = new EmailDraft
             {
                 Subject = subject,
                 HtmlBody = html,
-                From = from,
+                From = from,   // shared mailbox SMTP
                 To = to,
                 Cc = cc,
                 OpenAsDraft = true,
-                IncludeCui = false,      // FOUO, not CUI
+                IncludeCui = false
             }
-            .WithFouoBanner("Proactive Announcement", preparedBy); // banner + “Prepared by”
+.WithFouoBanner("Proactive Announcement", preparedBy);
 
-            
-            var emlBytes = EmailDraftBuilder.BuildEmlBytes(draft);
-            var fileName = $"Proactive_{entity.ProactiveTime:yyyyMMdd_HHmm}_ET.eml";
+            // Build once, serve as .oft so Outlook opens compose
+            var msgBytes = EmailDraftBuilder.BuildMsgBytes(draft);
+            var fileName = $"Proactive_{entity.ProactiveTime:yyyyMMdd_HHmm}_ET.oft";
 
-            // 3) Download the .eml draft
-            await DownloadAsync(fileName, "message/rfc822", emlBytes);
+            await DownloadAsync(fileName, "application/vnd.ms-outlook", msgBytes);
 
             Snackbar.Add("Saved and prepared email draft.", Severity.Success);
+
+
+
         }
         catch (Exception ex)
         {
