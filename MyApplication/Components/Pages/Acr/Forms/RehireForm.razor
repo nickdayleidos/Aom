@@ -4,10 +4,10 @@
 
 <MudForm @ref="_form">
     <MudGrid>
-        <!-- EMPLOYEE (required) -->
+        <!-- EMPLOYEE (required; INACTIVE ONLY passed in from parent) -->
         <MudItem xs="12" md="6">
             <MudAutocomplete T="Employees"
-                             Label="Employee"
+                             Label="Employee (Inactive)"
                              Dense="true"
                              Clearable="true"
                              Required="true"
@@ -37,13 +37,12 @@
 </MudForm>
 
 @code {
-    [Parameter] public IEnumerable<Employees> Employees { get; set; } = Enumerable.Empty<Employees>();
-    [Parameter] public EventCallback<SeparationDto> OnSubmit { get; set; }
-    [Parameter] public SeparationDto? Initial { get; set; }
-    [Parameter] public string SubmitLabel { get; set; } = "Submit Separation";
+    [Parameter] public IEnumerable<Employees> Employees { get; set; } = Enumerable.Empty<Employees>(); // pass INACTIVE list
+    [Parameter] public EventCallback<RehireDto> OnSubmit { get; set; }
+    [Parameter] public RehireDto? Initial { get; set; }
+    [Parameter] public string SubmitLabel { get; set; } = "Submit Rehire";
 
     private MudForm? _form;
-    private bool _prefilled;
 
     private sealed class Vm
     {
@@ -55,33 +54,26 @@
 
     protected override void OnParametersSet()
     {
-        if (_prefilled || Initial is null) return;
-
+        if (Initial is null) return;
         _vm.Employee = Employees.FirstOrDefault(e => e.Id == Initial.EmployeeId);
         _vm.EffectiveDateDt = Initial.EffectiveDate.ToDateTime(TimeOnly.MinValue);
         _vm.SubmitterComment = Initial.SubmitterComment;
-
-        _prefilled = true;
     }
 
-    private string EmpLabel(Employees? e) => e is null ? "" : $"{e.LastName}, {e.FirstName} ({e.Id}";
+    private static string EmpLabel(Employees? e) => e is null ? "" : $"{e.LastName}, {e.FirstName} ({e.Id})";
+
     private Task<IEnumerable<Employees>> SearchEmployees(string v, CancellationToken _)
         => Task.FromResult(Employees.Where(e => EmpLabel(e).Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
 
     private async Task SubmitClicked()
     {
         if (_form is not null) { await _form.Validate(); if (!_form.IsValid) return; }
-        await HandleSubmit();
-    }
-
-    private async Task HandleSubmit()
-    {
         if (_vm.EffectiveDateDt is null || _vm.Employee is null) return;
 
-        var dto = new SeparationDto(
-          EmployeeId: _vm.Employee.Id,
-          EffectiveDate: DateOnly.FromDateTime(_vm.EffectiveDateDt.Value),
-          SubmitterComment: string.IsNullOrWhiteSpace(_vm.SubmitterComment) ? null : _vm.SubmitterComment.Trim()
+        var dto = new RehireDto(
+            EmployeeId: _vm.Employee.Id,
+            EffectiveDate: DateOnly.FromDateTime(_vm.EffectiveDateDt.Value),
+            SubmitterComment: string.IsNullOrWhiteSpace(_vm.SubmitterComment) ? null : _vm.SubmitterComment.Trim()
         );
 
         await OnSubmit.InvokeAsync(dto);

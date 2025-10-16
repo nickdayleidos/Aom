@@ -27,11 +27,21 @@ namespace MyApplication.Components.Model.AOM.Employee
 
         public int? AcrTypeId { get; set; }
         public AcrType? AcrType { get; set; }
-
         public int AcrStatusId { get; set; }
         public AcrStatus? AcrStatus { get; set; }
-
+        [Column(TypeName = "varchar(32)")]
+        public string? SubmittedBy { get; set; }
+        [Column(TypeName = "varchar(32)")]
+        public string? RejectedBy { get; set; }
+        [Column(TypeName = "varchar(32)")]
+        public string? CancelledBy { get; set; }
+        [Column(TypeName = "varchar(32)")]
+        public string? ManagerApprovedBy { get; set; }
+        [Column(TypeName = "varchar(32)")]
+        public string? WfmApprovedBy { get; set; }
+        [Column(TypeName = "varchar(128)")]
         public string? SubmitterComment { get; set; }
+        [Column(TypeName = "varchar(128)")]
         public string? WfmComment { get; set; }
         public DateOnly EffectiveDate { get; set; }
         public DateTime? SubmitTime { get; set; }

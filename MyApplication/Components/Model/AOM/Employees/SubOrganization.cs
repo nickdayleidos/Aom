@@ -9,11 +9,13 @@ namespace MyApplication.Components.Model.AOM.Employee
         [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
 
+        public int? OrganizationId { get; set; }
+
         [Column(TypeName = "varchar(64)")]
         public string? Name { get; set; }
 
         [Column(TypeName = "varchar(128)")]
-        public string? Description { get; set; }
+        public string? ShortName { get; set; }
 
         public bool IsActive { get; set; }
 

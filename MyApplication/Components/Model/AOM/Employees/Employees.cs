@@ -28,6 +28,6 @@ namespace MyApplication.Components.Model.AOM.Employee
 
         public bool IsActive { get; set; } = true;
 
-        // 🚫 Removed: public ICollection<Employees> EmployeeLookup ...
+      
     }
 }

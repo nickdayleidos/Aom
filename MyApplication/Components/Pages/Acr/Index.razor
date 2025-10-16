@@ -1,4 +1,5 @@
 ﻿@page "/tools/acr"
+@using System.Linq
 @using MyApplication.Components.Service.Acr
 @using MyApplication.Common.Time
 @inject IAcrQueryService Query
@@ -39,6 +40,15 @@
             <MudItem xs="12" md="1" Class="d-flex align-center">
                 <MudButton OnClick="Load" Variant="Variant.Filled">Filter</MudButton>
             </MudItem>
+
+            <!-- Rows selector -->
+            <MudItem xs="12" md="1">
+                <MudSelect T="int" @bind-Value="PageSize" Label="Rows" Dense="true">
+                    <MudSelectItem Value="50">50</MudSelectItem>
+                    <MudSelectItem Value="100">100</MudSelectItem>
+                    <MudSelectItem Value="200">200</MudSelectItem>
+                </MudSelect>
+            </MudItem>
         </MudGrid>
     </MudPaper>
 
@@ -67,6 +77,20 @@
                 </MudTd>
             </RowTemplate>
         </MudTable>
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="pa-2">
+            <MudText Typo="Typo.body2">
+                Page @_currentPage of @_pageCount (@_all.Count total)
+            </MudText>
+
+            <MudStack Row="true" Spacing="1">
+                <MudButton Variant="Variant.Outlined" Disabled="@(_currentPage <= 1)" OnClick="PrevPage">
+                    <MudIcon Icon="@Icons.Material.Filled.NavigateBefore" /> Prev
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Disabled="@(_currentPage >= _pageCount)" OnClick="NextPage">
+                    Next <MudIcon Icon="@Icons.Material.Filled.NavigateNext" />
+                </MudButton>
+            </MudStack>
+        </MudStack>
     </MudPaper>
 
     <MudPaper Class="pa-3" Outlined="true">
@@ -80,13 +104,29 @@
     Dictionary<int, string> _types = new();
     Dictionary<int, string> _statuses = new();
 
-    int? _typeId;          // nullable for “All”
-    int? _statusId;        // nullable for “All”
+    int? _typeId;
+    int? _statusId;
     string? _empSearch;
     DateTime? _from;
     DateTime? _to;
 
+    List<AcrRequestListItem> _all = new();
     List<AcrRequestListItem> _rows = new();
+
+    private int _pageSize = 50;
+    private int PageSize
+    {
+        get => _pageSize;
+        set
+        {
+            _pageSize = value;
+            _currentPage = 1;
+            ApplyPagination();
+        }
+    }
+
+    private int _currentPage = 1;
+    private int _pageCount = 1;
 
     protected override async Task OnInitializedAsync()
     {
@@ -105,16 +145,50 @@
             _to is null ? null : DateOnly.FromDateTime(_to.Value)
         );
 
-        _rows = await Query.QueryAsync(f);
+        _all = (await Query.QueryAsync(f))
+            .OrderByDescending(r => r.EffectiveDate)
+            .ThenByDescending(r => r.SubmitTime)
+            .Take(1000)
+            .ToList();
+
+        _currentPage = 1;
+        ApplyPagination();
     }
 
-    // Show times in Eastern: handle old rows (UTC) and new rows (already ET)
+    private void ApplyPagination()
+    {
+        _pageCount = (int)Math.Ceiling(_all.Count / (double)_pageSize);
+        _currentPage = Math.Clamp(_currentPage, 1, Math.Max(1, _pageCount));
+
+        _rows = _all
+            .Skip((_currentPage - 1) * _pageSize)
+            .Take(_pageSize)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    private void NextPage()
+    {
+        if (_currentPage < _pageCount)
+        {
+            _currentPage++;
+            ApplyPagination();
+        }
+    }
+
+    private void PrevPage()
+    {
+        if (_currentPage > 1)
+        {
+            _currentPage--;
+            ApplyPagination();
+        }
+    }
+
     private static string? FormatEt(DateTime? dt)
     {
         if (dt is null) return null;
-
-        // If historical data was saved as UTC, convert to ET.
-        // If we already saved Et.Now (Kind=Unspecified/Local), just print it.
         return dt.Value.Kind == DateTimeKind.Utc
             ? Et.FromUtc(dt.Value).ToString("g")
             : dt.Value.ToString("g");

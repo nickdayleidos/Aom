@@ -46,8 +46,23 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAssertion(ctx =>
             ctx.User.IsInRole(@"LEIDOS-CORP\SMIT_TODAdmin") ||
             ctx.User.IsInRole(@"LEIDOS-CORP\SMIT_OST")));
-
     options.AddPolicy("PFM", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.IsInRole(@"LEIDOS-CORP\sftp_SMIT_PFRM") ||
+            ctx.User.IsInRole(@"YOURDOMAIN\IT Admin")));
+    options.AddPolicy("WFM", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.IsInRole(@"LEIDOS-CORP\sftp_SMIT_PFRM") ||
+            ctx.User.IsInRole(@"YOURDOMAIN\IT Admin")));
+    options.AddPolicy("C&C", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.IsInRole(@"LEIDOS-CORP\sftp_SMIT_PFRM") ||
+            ctx.User.IsInRole(@"YOURDOMAIN\IT Admin")));
+    options.AddPolicy("Supervisor", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.IsInRole(@"LEIDOS-CORP\sftp_SMIT_PFRM") ||
+            ctx.User.IsInRole(@"YOURDOMAIN\IT Admin")));
+    options.AddPolicy("Manager", policy =>
         policy.RequireAssertion(ctx =>
             ctx.User.IsInRole(@"LEIDOS-CORP\sftp_SMIT_PFRM") ||
             ctx.User.IsInRole(@"YOURDOMAIN\IT Admin")));

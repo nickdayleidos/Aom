@@ -25,19 +25,21 @@ public sealed record AcrIndexFilter(
 
 public interface IAcrQueryService
 {
-    Task<List<AcrRequestListItem>> QueryAsync(AcrIndexFilter filter, CancellationToken ct = default);
+    Task<List<AcrRequestListItem>> QueryAsync(
+        AcrIndexFilter filter,
+        int take = 1000,
+        CancellationToken ct = default);
 
     Task<Dictionary<int, string>> GetTypesAsync(CancellationToken ct = default);
     Task<Dictionary<int, string>> GetStatusesAsync(CancellationToken ct = default);
-
     Task<List<Employees>> GetEmployeesLookupAsync(CancellationToken ct = default);
     Task<List<Employees>> GetManagerEmployeesAsync(CancellationToken ct = default);
     Task<List<Employees>> GetSupervisorEmployeesAsync(CancellationToken ct = default);
-
     Task<List<Organization>> GetOrganizationsAsync(CancellationToken ct = default);
     Task<List<SubOrganization>> GetSubOrganizationsAsync(CancellationToken ct = default);
     Task<List<Site>> GetSitesAsync(CancellationToken ct = default);
     Task<List<Employer>> GetEmployersAsync(CancellationToken ct = default);
+
 }
 
 public sealed class AcrQueryService : IAcrQueryService
@@ -59,7 +61,7 @@ public sealed class AcrQueryService : IAcrQueryService
     public async Task<List<Employees>> GetEmployeesLookupAsync(CancellationToken ct = default)
         => await _db.Set<Employees>().AsNoTracking()
             .OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
-            .Select(e => new Employees { Id = e.Id, FirstName = e.FirstName, LastName = e.LastName })
+            .Select(e => new Employees { Id = e.Id, FirstName = e.FirstName, LastName = e.LastName, IsActive = e.IsActive })
             .ToListAsync(ct);
 
     public async Task<List<Employees>> GetManagerEmployeesAsync(CancellationToken ct = default)
@@ -67,7 +69,7 @@ public sealed class AcrQueryService : IAcrQueryService
                   join e in _db.Set<Employees>().AsNoTracking() on m.EmployeeId equals e.Id
                   where m.IsActive
                   orderby e.LastName, e.FirstName
-                  select new Employees { Id = e.Id, FirstName = e.FirstName, LastName = e.LastName })
+                  select new Employees { Id = e.Id, FirstName = e.FirstName, LastName = e.LastName, IsActive = m.IsActive })
                  .ToListAsync(ct);
 
     public async Task<List<Employees>> GetSupervisorEmployeesAsync(CancellationToken ct = default)
@@ -75,7 +77,7 @@ public sealed class AcrQueryService : IAcrQueryService
                   join e in _db.Set<Employees>().AsNoTracking() on s.EmployeeId equals e.Id
                   where s.IsActive
                   orderby e.LastName, e.FirstName
-                  select new Employees { Id = e.Id, FirstName = e.FirstName, LastName = e.LastName })
+                  select new Employees { Id = e.Id, FirstName = e.FirstName, LastName = e.LastName, IsActive = s.IsActive })
                  .ToListAsync(ct);
 
     public async Task<List<Organization>> GetOrganizationsAsync(CancellationToken ct = default)
@@ -99,8 +101,16 @@ public sealed class AcrQueryService : IAcrQueryService
             .ToListAsync(ct);
 
     // ----- Index query -----
-    public async Task<List<AcrRequestListItem>> QueryAsync(AcrIndexFilter f, CancellationToken ct = default)
+    public async Task<List<AcrRequestListItem>> QueryAsync(AcrIndexFilter f, int take = 1000, CancellationToken ct = default)
     {
+        // DB status ids
+        const int Submitted = 1;
+        const int ManagerApproved = 2;
+        const int WfmApproved = 3;
+        // 4 = Processed
+        const int Cancelled = 5;
+        const int Rejected = 6;
+
         var q = _db.Set<AcrRequest>()
                    .AsNoTracking()
                    .Include(r => r.AcrStatus)
@@ -109,7 +119,12 @@ public sealed class AcrQueryService : IAcrQueryService
                    .AsQueryable();
 
         if (f.AcrTypeId is int t) q = q.Where(r => r.AcrTypeId == t);
-        if (f.AcrStatusId is int s) q = q.Where(r => r.AcrStatusId == s);
+
+        // Default: exclude Cancelled/Rejected unless a status is explicitly selected
+        if (f.AcrStatusId is int s)
+            q = q.Where(r => r.AcrStatusId == s);
+        else
+            q = q.Where(r => r.AcrStatusId != Cancelled && r.AcrStatusId != Rejected);
 
         if (!string.IsNullOrWhiteSpace(f.EmployeeSearch))
         {
@@ -130,8 +145,13 @@ public sealed class AcrQueryService : IAcrQueryService
         if (f.EffectiveFrom is DateOnly df) q = q.Where(r => r.EffectiveDate >= df);
         if (f.EffectiveTo is DateOnly dt) q = q.Where(r => r.EffectiveDate <= dt);
 
+        // Order by EffectiveDate descending, then cap to 1000 (or provided `take`, whichever is lower)
+        var cap = Math.Min(take, 1000);
+
         return await q
-            .OrderByDescending(r => r.SubmitTime)
+            .OrderByDescending(r => r.EffectiveDate)
+            .ThenByDescending(r => r.SubmitTime) // stable secondary
+            .Take(cap)
             .Select(r => new AcrRequestListItem(
                 r.Id,
                 r.EmployeeId,
@@ -142,4 +162,6 @@ public sealed class AcrQueryService : IAcrQueryService
                 r.SubmitTime))
             .ToListAsync(ct);
     }
+
+
 }

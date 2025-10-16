@@ -125,7 +125,7 @@ else
         _prefilled = true;
     }
 
-    private static string EmpLabel(Employees? e) => e is null ? "" : $"{e.LastName}, {e.FirstName}";
+    private static string EmpLabel(Employees? e) => e is null ? "" : $"{e.LastName}, {e.FirstName} ({e.Id})";
     private Task<IEnumerable<Employees>> SearchEmployees(string v, CancellationToken _)
         => Task.FromResult(Employees.Where(e => EmpLabel(e).Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
 

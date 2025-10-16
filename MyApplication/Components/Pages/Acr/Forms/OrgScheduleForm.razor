@@ -43,16 +43,31 @@ else
                                  SearchFunc="@((string v, CancellationToken ct) => SearchSupervisors(v, ct))" />
             </MudItem>
 
-            <MudItem xs="12" md="6">
-                <MudAutocomplete T="Organization" @key="_vm.Organization" Label="Organization" Dense="true" Clearable="true"
-                                 @bind-Value="_vm.Organization" ToStringFunc="OrgLabel"
-                                 SearchFunc="@((string v, CancellationToken ct) => SearchOrganizations(v, ct))" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudAutocomplete T="SubOrganization" @key="_vm.SubOrganization" Label="Sub-Organization" Dense="true" Clearable="true"
-                                 @bind-Value="_vm.SubOrganization" ToStringFunc="SubOrgLabel"
-                                 SearchFunc="@((string v, CancellationToken ct) => SearchSubOrganizations(v, ct))" />
-            </MudItem>
+            <!-- Organization -->
+<MudItem xs="12" md="6">
+    <MudAutocomplete T="Organization"
+                     @key="_vm.Organization"
+                     Label="Organization"
+                     Dense="true"
+                     Clearable="true"
+                     @bind-Value="_vm.Organization"
+                     ToStringFunc="OrgLabel"
+                     SearchFunc="@((string v, CancellationToken ct) => SearchOrganizations(v, ct))"
+                                 @bind-Value:after="OnOrgChanged" />
+</MudItem>
+
+<!-- Sub-Organization (filtered) -->
+<MudItem xs="12" md="6">
+    <MudAutocomplete T="SubOrganization"
+                     @key="_vm.SubOrganization"
+                     Label="Sub-Organization"
+                     Dense="true"
+                     Clearable="true"
+                     @bind-Value="_vm.SubOrganization"
+                     ToStringFunc="SubOrgLabel"
+                     SearchFunc="@((string v, CancellationToken ct) => SearchSubOrganizations(v, ct))"
+                     Disabled="@(!_subListAny)" />
+</MudItem>
 
             <MudItem xs="12" md="6">
                 <MudAutocomplete T="Employer" @key="_vm.Employer" Label="Employer" Dense="true" Clearable="true"
@@ -125,6 +140,33 @@ else
     private bool _prefilled;
     private bool _lookupsReady;
     private static readonly string[] _days = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+
+
+    // Is current Sub list empty?
+    private bool _subListAny => FilteredSubs().Any();
+
+    // When org changes, clear invalid sub
+    private void OnOrgChanged()
+    {
+        // _vm.Organization already updated by @bind
+        if (_vm.SubOrganization is not null && !IsSubValidForOrg(_vm.SubOrganization, _vm.Organization))
+            _vm.SubOrganization = null;
+
+        StateHasChanged();
+    }
+
+    // Sub list: match selected org OR null org
+    private IEnumerable<SubOrganization> FilteredSubs()
+    {
+        var oid = _vm.Organization?.Id;
+        return SubOrganizations.Where(s => s.OrganizationId == oid || s.OrganizationId == null);
+    }
+
+    private static bool IsSubValidForOrg(SubOrganization s, Organization? org)
+        => s.OrganizationId == org?.Id || s.OrganizationId == null;
+
+    // Use filtered source for Sub-Org search
+   
 
     private sealed class DaySpan { public TimeSpan? Start { get; set; } public TimeSpan? End { get; set; } }
     private sealed class Vm
@@ -218,7 +260,7 @@ else
     }
 
     // Labels & Searches
-    private static string EmpLabel(Employees? e) => e is null ? "" : $"{e.LastName}, {e.FirstName}";
+    private static string EmpLabel(Employees? e) => e is null ? "" : $"{e.LastName}, {e.FirstName} ({e.Id})";
     private static string OrgLabel(Organization? o) => o?.Name ?? "";
     private static string SubOrgLabel(SubOrganization? so) => so?.Name ?? "";
     private static string EmployerLabel(Employer? e) => e?.Name ?? "";
@@ -233,7 +275,13 @@ else
     private Task<IEnumerable<Organization>> SearchOrganizations(string v, CancellationToken _)
         => Task.FromResult(Organizations.Where(o => (o.Name ?? "").Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
     private Task<IEnumerable<SubOrganization>> SearchSubOrganizations(string v, CancellationToken _)
-        => Task.FromResult(SubOrganizations.Where(so => (so.Name ?? "").Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
+    {
+        var q = (v ?? string.Empty).Trim();
+        var data = FilteredSubs();
+        if (!string.IsNullOrWhiteSpace(q))
+            data = data.Where(so => (so.Name ?? "").Contains(q, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(data);
+    }
     private Task<IEnumerable<Employer>> SearchEmployers(string v, CancellationToken _)
         => Task.FromResult(Employers.Where(e => (e.Name ?? "").Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
     private Task<IEnumerable<Site>> SearchSites(string v, CancellationToken _)

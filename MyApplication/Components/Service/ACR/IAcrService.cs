@@ -11,6 +11,7 @@ namespace MyApplication.Components.Service.Acr
         Task<int> CreateOrgScheduleAsync(OrganizationChangeDto org, ScheduleChangeDto sch, CancellationToken ct = default);
         Task<int> CreateNewHireAsync(NewHireDto dto, CancellationToken ct = default);
         Task<int> CreateSeparationAsync(SeparationDto dto, CancellationToken ct = default);
+        Task<int> CreateRehireAsync(RehireDto dto); // returns new ACR Id
 
         // Details / workflow
         Task<AcrRequest?> GetAsync(int id, CancellationToken ct = default);

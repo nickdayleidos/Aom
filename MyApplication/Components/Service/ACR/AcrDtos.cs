@@ -56,7 +56,6 @@ public record NewHireDto(
     string FirstName,
     string LastName,
     string? MiddleInitial,
-    int? SiteId,
     string? NmciEmail,
     string? UsnOperatorId,
     string? UsnAdminId,
@@ -69,6 +68,12 @@ public record NewHireDto(
 );
 
 public record SeparationDto(
+    int EmployeeId,
+    DateOnly EffectiveDate,
+    string? SubmitterComment
+);
+
+public sealed record RehireDto(
     int EmployeeId,
     DateOnly EffectiveDate,
     string? SubmitterComment

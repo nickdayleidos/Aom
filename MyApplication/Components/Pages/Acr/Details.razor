@@ -1,5 +1,8 @@
 ﻿@page "/tools/acr/{Id:int}"
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
 @using MyApplication.Common.Time
 @using MyApplication.Components.Data
 @using MyApplication.Components.Model.AOM.Employee
@@ -8,162 +11,232 @@
 @inject IAcrQueryService Query
 @inject ISnackbar Snackbar
 @inject IDbContextFactory<AomDbContext> DbFactory
+@inject NavigationManager NavManager
+@inject IAcrService Acr
+@inject IAuthorizationService Authz
 
-<MudStack Spacing="2">
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6">ACR #@Id — @TypeLabel (@StatusLabel)</MudText>
-        <MudDivider Class="my-2" />
-        <MudButton Variant="Variant.Filled" OnClick="@(() => _editing = !_editing)">
-            @(_editing ? "Cancel" : "Edit")
-        </MudButton>
-    </MudPaper>
+<CascadingAuthenticationState>
+    <MudStack Spacing="2">
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.h6">ACR #@Id — @TypeLabel (@StatusLabel)</MudText>
 
-    @if (!_loaded)
-    {
-        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-    }
-    else if (_req is null)
-    {
-        <MudAlert Severity="Severity.Error">ACR not found.</MudAlert>
-    }
-    else
-    {
-        @if (!_editing)
-        {
-            <MudPaper Class="pa-4" Outlined="true">
-                <MudStack>
-                    <MudText Typo="Typo.subtitle2">Type: @TypeLabel</MudText>
-                    <MudText Typo="Typo.subtitle2">Status: @StatusLabel</MudText>
-                    <MudText Typo="Typo.subtitle2">Employee Id: @_req.EmployeeId</MudText>
-                    <MudText Typo="Typo.subtitle2">Effective: @_req.EffectiveDate.ToString("yyyy-MM-dd")</MudText>
-                    <MudText Typo="Typo.subtitle2">Submitted: @_req.SubmitTime?.ToLocalTime()</MudText>
-                    <MudText Typo="Typo.subtitle2">Last Update: @_req.LastUpdateTime?.ToLocalTime()</MudText>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@GoBack">
+                        <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="me-1" />
+                        Back to Index
+                    </MudButton>
 
-                    @if (_org is not null)
-                    {
-                        <MudDivider Class="my-2" />
-                        <MudText Typo="Typo.subtitle1">Organization Information</MudText>
-
-                        <MudText>Manager: @(_managerName ?? "N/A") </MudText>
-                        <MudText> Supervisor: @(_supervisorName ?? "N/A") </MudText>
-                        <MudText> Organization: @(_orgName ?? "N/A") </MudText> 
-                        <MudText> Sub - Organization: @(_subOrgName ?? "N/A") </MudText>
-                        <MudText> Employer: @(_employerName ?? "N/A") </MudText> 
-                        <MudText> Site: @(_siteLabel ?? "N/A") </MudText>
-
-                        <MudText> Active: @BoolNA(_org?.IsActive) </MudText>
-                        <MudText> LOA: @BoolNA(_org?.IsLoa) </MudText>
-                        <MudText>  Int LOA: @BoolNA(_org?.IsIntLoa) </MudText>
-                        <MudText> Remote: @BoolNA(_org?.IsRemote) </MudText>
-                    }
-
-                    @if (_sch1 is not null)
-                    {
-                        <MudDivider Class="my-2" />
-                        <MudText Typo="Typo.subtitle1">Schedule Information</MudText>
-                        <MudText>Split Schedule: @IsSplit</MudText>
-
-                        <MudSimpleTable Class="mt-2">
-                            <thead><tr><th>Day</th><th>Start</th><th>End</th></tr></thead>
-                            <tbody>
-                                <tr><td>Monday</td><td>@Fmt(_sch1.MondayStart)</td><td>@Fmt(_sch1.MondayEnd)</td></tr>
-                                <tr><td>Tuesday</td><td>@Fmt(_sch1.TuesdayStart)</td><td>@Fmt(_sch1.TuesdayEnd)</td></tr>
-                                <tr><td>Wednesday</td><td>@Fmt(_sch1.WednesdayStart)</td><td>@Fmt(_sch1.WednesdayEnd)</td></tr>
-                                <tr><td>Thursday</td><td>@Fmt(_sch1.ThursdayStart)</td><td>@Fmt(_sch1.ThursdayEnd)</td></tr>
-                                <tr><td>Friday</td><td>@Fmt(_sch1.FridayStart)</td><td>@Fmt(_sch1.FridayEnd)</td></tr>
-                                <tr><td>Saturday</td><td>@Fmt(_sch1.SaturdayStart)</td><td>@Fmt(_sch1.SaturdayEnd)</td></tr>
-                                <tr><td>Sunday</td><td>@Fmt(_sch1.SundayStart)</td><td>@Fmt(_sch1.SundayEnd)</td></tr>
-                            </tbody>
-                        </MudSimpleTable>
-
-                        <MudText Class="mt-2">
-                            Break Time: @_sch1.BreakTime&nbsp;min,
-                            Breaks: @_sch1.Breaks,
-                            Lunch: @_sch1.LunchTime&nbsp;min
-                        </MudText>
-
-                        @if (_sch2 is not null)
-                        {
-                            <MudDivider Class="my-2" />
-                            <MudText Typo="Typo.subtitle2">Segment 2</MudText>
-                            <MudSimpleTable Class="mt-2">
-                                <thead><tr><th>Day</th><th>Start</th><th>End</th></tr></thead>
-                                <tbody>
-                                    <tr><td>Monday</td><td>@Fmt(_sch2.MondayStart)</td><td>@Fmt(_sch2.MondayEnd)</td></tr>
-                                    <tr><td>Tuesday</td><td>@Fmt(_sch2.TuesdayStart)</td><td>@Fmt(_sch2.TuesdayEnd)</td></tr>
-                                    <tr><td>Wednesday</td><td>@Fmt(_sch2.WednesdayStart)</td><td>@Fmt(_sch2.WednesdayEnd)</td></tr>
-                                    <tr><td>Thursday</td><td>@Fmt(_sch2.ThursdayStart)</td><td>@Fmt(_sch2.ThursdayEnd)</td></tr>
-                                    <tr><td>Friday</td><td>@Fmt(_sch2.FridayStart)</td><td>@Fmt(_sch2.FridayEnd)</td></tr>
-                                    <tr><td>Saturday</td><td>@Fmt(_sch2.SaturdayStart)</td><td>@Fmt(_sch2.SaturdayEnd)</td></tr>
-                                    <tr><td>Sunday</td><td>@Fmt(_sch2.SundayStart)</td><td>@Fmt(_sch2.SundayEnd)</td></tr>
-                                </tbody>
-                            </MudSimpleTable>
-                        }
-                    }
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => _editing = !_editing)">
+                        @(_editing ? "Cancel" : "Edit")
+                    </MudButton>
                 </MudStack>
-            </MudPaper>
+            </MudStack>
+        </MudPaper>
+
+        @if (!_loaded)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_req is null)
+        {
+            <MudAlert Severity="Severity.Error">ACR not found.</MudAlert>
         }
         else
         {
-            @switch (ResolveKind())
+            @if (!_editing)
             {
-                case TypeKind.OrgChange:
-                    <OrgForm Employees="_employees"
-                             ManagerEmployees="_managers"
-                             SupervisorEmployees="_supervisors"
-                             Organizations="_orgs"
-                             SubOrganizations="_subs"
-                             Sites="_sites"
-                             Employers="_employers"
-                             Initial="_orgInitial"
-                             SubmitLabel="Save Organization"
-                             OnSubmit="SaveOrgFromDto" />
-                    break;
+                <MudPaper Class="pa-4" Outlined="true">
+                    <MudStack>
+                        <MudText Typo="Typo.subtitle2">Type: @TypeLabel</MudText>
+                        <MudText Typo="Typo.subtitle2">Status: @StatusLabel</MudText>
+                        <MudText Typo="Typo.subtitle2">Employee Id: @_req.EmployeeId</MudText>
+                        <MudText Typo="Typo.subtitle2">Effective: @_req.EffectiveDate.ToString("yyyy-MM-dd")</MudText>
+                        <MudText Typo="Typo.subtitle2">Submitted: @_req.SubmitTime</MudText>
+                        <MudText Typo="Typo.subtitle2">Last Update: @_req.LastUpdateTime</MudText>
 
-                case TypeKind.ScheduleChange:
-                    <ScheduleForm Employees="_employees"
-                                  Initial="_schInitial"
-                                  SubmitLabel="Save Schedule"
-                                  OnSubmit="SaveScheduleFromDto" />
-                    break;
+                        @if (_org is not null)
+                        {
+                            <MudDivider Class="my-2" />
+                            <MudText Typo="Typo.subtitle1">Organization Information</MudText>
 
-                case TypeKind.OrgAndSchedule:
-                    <OrgScheduleForm Employees="_employees"
-                                     ManagerEmployees="_managers"
-                                     SupervisorEmployees="_supervisors"
-                                     Organizations="_orgs"
-                                     SubOrganizations="_subs"
-                                     Employers="_employers"
-                                     Sites="_sites"
-                                     OrgInitial="_orgInitial"
-                                     SchInitial="_schInitial"
-                                     SubmitLabel="Save Org + Schedule"
-                                     OnSubmit="SaveOrgScheduleFromDtos" />
-                    break;
+                            <MudText>Manager: @(_managerName ?? "N/A")</MudText>
+                            <MudText>Supervisor: @(_supervisorName ?? "N/A")</MudText>
+                            <MudText>Organization: @(_orgName ?? "N/A")</MudText>
+                            <MudText>Sub-Organization: @(_subOrgName ?? "N/A")</MudText>
+                            <MudText>Employer: @(_employerName ?? "N/A")</MudText>
+                            <MudText>Site: @(_siteLabel ?? "N/A")</MudText>
 
-                case TypeKind.Separation:
-                    <OrgForm Employees="_employees"
-                             Organizations="_orgs"
-                             SubOrganizations="_subs"
-                             Sites="_sites"
-                             Employers="_employers"
-                             Initial="_orgInitial"
-                             SubmitLabel="Save Separation"
-                             OnSubmit="SaveOrgFromDto" />
-                    break;
+                            <MudText>Active: @BoolNA(_org?.IsActive)</MudText>
+                            <MudText>LOA: @BoolNA(_org?.IsLoa)</MudText>
+                            <MudText>Intermittent LOA: @BoolNA(_org?.IsIntLoa)</MudText>
+                            <MudText>Remote: @BoolNA(_org?.IsRemote)</MudText>
+                        }
 
-                case TypeKind.NewHire:
-                default:
-                    <MudAlert Severity="Severity.Info">This request type has no editor here.</MudAlert>
-                    break;
+                        @if (_sch1 is not null)
+                        {
+                            <MudDivider Class="my-2" />
+                            <MudText Typo="Typo.subtitle1">Schedule Information</MudText>
+                            <MudText>Split Schedule: @IsSplit</MudText>
+
+                            <MudSimpleTable Class="mt-2">
+                                <thead><tr><th>Day</th><th>Start</th><th>End</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Monday</td><td>@Fmt(_sch1.MondayStart)</td><td>@Fmt(_sch1.MondayEnd)</td></tr>
+                                    <tr><td>Tuesday</td><td>@Fmt(_sch1.TuesdayStart)</td><td>@Fmt(_sch1.TuesdayEnd)</td></tr>
+                                    <tr><td>Wednesday</td><td>@Fmt(_sch1.WednesdayStart)</td><td>@Fmt(_sch1.WednesdayEnd)</td></tr>
+                                    <tr><td>Thursday</td><td>@Fmt(_sch1.ThursdayStart)</td><td>@Fmt(_sch1.ThursdayEnd)</td></tr>
+                                    <tr><td>Friday</td><td>@Fmt(_sch1.FridayStart)</td><td>@Fmt(_sch1.FridayEnd)</td></tr>
+                                    <tr><td>Saturday</td><td>@Fmt(_sch1.SaturdayStart)</td><td>@Fmt(_sch1.SaturdayEnd)</td></tr>
+                                    <tr><td>Sunday</td><td>@Fmt(_sch1.SundayStart)</td><td>@Fmt(_sch1.SundayEnd)</td></tr>
+                                </tbody>
+                            </MudSimpleTable>
+
+                            <MudText Class="mt-2">
+                                Break Time: @_sch1.BreakTime&nbsp;min,
+                                Breaks: @_sch1.Breaks,
+                                Lunch: @_sch1.LunchTime&nbsp;min
+                            </MudText>
+
+                            @if (_sch2 is not null)
+                            {
+                                <MudDivider Class="my-2" />
+                                <MudText Typo="Typo.subtitle2">Segment 2</MudText>
+                                <MudSimpleTable Class="mt-2">
+                                    <thead><tr><th>Day</th><th>Start</th><th>End</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Monday</td><td>@Fmt(_sch2.MondayStart)</td><td>@Fmt(_sch2.MondayEnd)</td></tr>
+                                        <tr><td>Tuesday</td><td>@Fmt(_sch2.TuesdayStart)</td><td>@Fmt(_sch2.TuesdayEnd)</td></tr>
+                                        <tr><td>Wednesday</td><td>@Fmt(_sch2.WednesdayStart)</td><td>@Fmt(_sch2.WednesdayEnd)</td></tr>
+                                        <tr><td>Thursday</td><td>@Fmt(_sch2.ThursdayStart)</td><td>@Fmt(_sch2.ThursdayEnd)</td></tr>
+                                        <tr><td>Friday</td><td>@Fmt(_sch2.FridayStart)</td><td>@Fmt(_sch2.FridayEnd)</td></tr>
+                                        <tr><td>Saturday</td><td>@Fmt(_sch2.SaturdayStart)</td><td>@Fmt(_sch2.SaturdayEnd)</td></tr>
+                                        <tr><td>Sunday</td><td>@Fmt(_sch2.SundayStart)</td><td>@Fmt(_sch2.SundayEnd)</td></tr>
+                                    </tbody>
+                                </MudSimpleTable>
+                            }
+                        }
+
+                        <!-- ACTION BUTTONS -->
+                        <MudDivider Class="my-4" />
+                        <MudStack Row="true" Spacing="2">
+                            <!-- Manager Approve: only Manager policy -->
+                            @if (_canManager)
+                            {
+                                <MudButton Color="Color.Success"
+                                           Variant="Variant.Filled"
+                                           Disabled="@(!_allowManagerApprove)"
+                                           OnClick="ManagerApprove">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="me-1" />
+                                    Manager Approve
+                                </MudButton>
+                            }
+
+                            <!-- WFM Approve: only WFM policy -->
+                            @if (_canWfm)
+                            {
+                                <MudButton Color="Color.Success"
+                                           Variant="Variant.Outlined"
+                                           Disabled="@(!_allowWfmApprove)"
+                                           OnClick="WfmApprove">
+                                    <MudIcon Icon="@Icons.Material.Filled.Verified" Class="me-1" />
+                                    WFM Approve
+                                </MudButton>
+                            }
+
+                            <!-- Reject: Manager or WFM -->
+                            @if (_canReject)
+                            {
+                                <MudButton Color="Color.Error"
+                                           Variant="Variant.Outlined"
+                                           Disabled="@(!_allowReject)"
+                                           OnClick="Reject">
+                                    <MudIcon Icon="@Icons.Material.Filled.ThumbDown" Class="me-1" />
+                                    Reject
+                                </MudButton>
+                            }
+
+                            <!-- Cancel: no limit -->
+                            <MudButton Color="Color.Secondary"
+                                       Variant="Variant.Outlined"
+                                       Disabled="@(!_allowCancel)"
+                                       OnClick="Cancel">
+                                <MudIcon Icon="@Icons.Material.Filled.Cancel" Class="me-1" />
+                                Cancel
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                @switch (ResolveKind())
+                {
+                    case TypeKind.OrgChange:
+                        <OrgForm Employees="_employees"
+                                 ManagerEmployees="_managers"
+                                 SupervisorEmployees="_supervisors"
+                                 Organizations="_orgs"
+                                 SubOrganizations="_subs"
+                                 Sites="_sites"
+                                 Employers="_employers"
+                                 Initial="_orgInitial"
+                                 SubmitLabel="Save Organization"
+                                 OnSubmit="SaveOrgFromDto" />
+                        break;
+
+                    case TypeKind.ScheduleChange:
+                        <ScheduleForm Employees="_employees"
+                                      Initial="_schInitial"
+                                      SubmitLabel="Save Schedule"
+                                      OnSubmit="SaveScheduleFromDto" />
+                        break;
+
+                    case TypeKind.OrgAndSchedule:
+                        <OrgScheduleForm Employees="_employees"
+                                         ManagerEmployees="_managers"
+                                         SupervisorEmployees="_supervisors"
+                                         Organizations="_orgs"
+                                         SubOrganizations="_subs"
+                                         Employers="_employers"
+                                         Sites="_sites"
+                                         OrgInitial="_orgInitial"
+                                         SchInitial="_schInitial"
+                                         SubmitLabel="Save Org + Schedule"
+                                         OnSubmit="SaveOrgScheduleFromDtos" />
+                        break;
+
+                    case TypeKind.Separation:
+                        <OrgForm Employees="_employees"
+                                 Organizations="_orgs"
+                                 SubOrganizations="_subs"
+                                 Sites="_sites"
+                                 Employers="_employers"
+                                 Initial="_orgInitial"
+                                 SubmitLabel="Save Separation"
+                                 OnSubmit="SaveOrgFromDto" />
+                        break;
+
+                    case TypeKind.NewHire:
+                    default:
+                        <MudAlert Severity="Severity.Info">This request type has no editor here.</MudAlert>
+                        break;
+                }
             }
         }
-    }
-</MudStack>
+    </MudStack>
+</CascadingAuthenticationState>
 
 @code {
-    [Parameter] public int Id { get; set; }
+        [Parameter] public int Id { get; set; }
     private bool IsSplit => (_sch2 is not null) || (_sch1?.IsSplitSchedule == true);
+
+    // Status constants must match server/service
+    private const int Submitted = 1;
+    private const int ManagerApproved = 2;
+    private const int WfmApproved = 3;
+    private const int Cancelled = 5;
+    private const int Rejected = 6;
 
     private bool _loaded;
     private bool _editing;
@@ -176,9 +249,17 @@
     private string? _statusName;
     private string? _managerName, _supervisorName, _orgName, _subOrgName, _employerName, _siteLabel;
 
+    // Auth flags
+    [CascadingParameter] private Task<AuthenticationState>? AuthStateTask { get; set; }
+    private bool _canManager, _canWfm, _canReject;
+
+    // Button enablement
+    private bool _allowManagerApprove, _allowWfmApprove, _allowReject, _allowCancel;
+
     private static string EmpLabel(Employees e) => $"{e.LastName}, {e.FirstName}";
     private static string BoolNA(bool? v) => v.HasValue ? (v.Value ? "True" : "False") : "N/A";
     private static string SiteLabel(Site s) => $"{s.SiteCode} - {s.Location}";
+    private static string Fmt(TimeOnly? t) => t.HasValue ? t.Value.ToString("HH:mm") : "-";
 
     // lookups
     private List<Employees> _employees = new();
@@ -189,8 +270,6 @@
     private List<Employer> _employers = new();
     private List<Site> _sites = new();
 
-
-
     // editor initials
     private OrganizationChangeDto? _orgInitial;
     private ScheduleChangeDto? _schInitial;
@@ -200,11 +279,12 @@
     private string TypeLabel => string.IsNullOrWhiteSpace(_typeName) ? "Unknown" : _typeName!;
     private string StatusLabel => string.IsNullOrWhiteSpace(_statusName) ? "Unknown" : _statusName!;
 
+    private void GoBack() => NavManager.NavigateTo("/tools/acr");
+
     protected override async Task OnParametersSetAsync()
     {
         _loaded = false;
 
-        // Use a fresh context for all read operations
         await using var ctx = await DbFactory.CreateDbContextAsync();
 
         // parent
@@ -233,7 +313,7 @@
             _sch1 = schAll.FirstOrDefault(s => s.ShiftNumber == null || s.ShiftNumber == 0 || s.ShiftNumber == 1);
             _sch2 = schAll.FirstOrDefault(s => s.ShiftNumber == 2);
 
-            // lookups (materialize, no DB in forms)
+            // lookups
             _employees = await Query.GetEmployeesLookupAsync();
             _managers = await Query.GetManagerEmployeesAsync();
             _supervisors = await Query.GetSupervisorEmployeesAsync();
@@ -241,6 +321,7 @@
             _subs = await Query.GetSubOrganizationsAsync();
             _sites = await Query.GetSitesAsync();
             _employers = await Query.GetEmployersAsync();
+
             _managerName = null;
             _supervisorName = null;
             _orgName = _orgs.FirstOrDefault(o => o.Id == _org?.OrganizationId)?.Name;
@@ -250,7 +331,6 @@
 
             if (_org?.ManagerId is int mid)
             {
-                // map Manager.Id -> EmployeeId, then lookup employee name in preloaded list
                 var mgrEmpId = await ctx.Managers.AsNoTracking()
                     .Where(m => m.Id == mid)
                     .Select(m => (int?)m.EmployeeId)
@@ -267,12 +347,54 @@
                 _supervisorName = _employees.FirstOrDefault(e => e.Id == supEmpId) is { } se ? EmpLabel(se) : null;
             }
 
-            // build INITIALS here (no queries in render)
+            // build INITIALS
             _orgInitial = BuildOrgInitialFromMemory(ctx);
             _schInitial = BuildSchInitialFromMemory();
         }
 
+        // auth flags
+        await ComputeAuthFlagsAsync();
+
+        // enable/disable buttons based on current status
+        ComputeButtonEnables();
+
         _loaded = true;
+    }
+
+    private async Task ComputeAuthFlagsAsync()
+    {
+        var user = (await (AuthStateTask ?? Task.FromResult<AuthenticationState>(null!)))?.User;
+        if (user is null)
+        {
+            _canManager = _canWfm = _canReject = false;
+            return;
+        }
+
+        _canManager = (await Authz.AuthorizeAsync(user, null, "Manager")).Succeeded;
+        _canWfm = (await Authz.AuthorizeAsync(user, null, "WFM")).Succeeded;
+        _canReject = _canManager || _canWfm;
+    }
+
+    private void ComputeButtonEnables()
+    {
+        if (_req is null) { _allowManagerApprove = _allowWfmApprove = _allowReject = _allowCancel = false; return; }
+
+        var s = _req.AcrStatusId;
+
+        bool IsValidTransition(int from, int to)
+        {
+            if (from == to) return false;
+            if (from == Cancelled || from == Rejected) return false; // terminal
+            if (to == Cancelled || to == Rejected) return true;
+            if (from == Submitted && (to == ManagerApproved || to == WfmApproved)) return true;
+        if (from == ManagerApproved && to == WfmApproved) return true;
+            return false;
+        }
+
+        _allowManagerApprove = IsValidTransition(s, ManagerApproved);
+        _allowWfmApprove = IsValidTransition(s, WfmApproved);
+        _allowReject = IsValidTransition(s, Rejected);
+        _allowCancel = IsValidTransition(s, Cancelled);
     }
 
     private static TypeKind FromName(string? raw)
@@ -283,7 +405,7 @@
         if (name.Contains("organization") && name.Contains("change")) return TypeKind.OrgChange;
         if (name.Contains("schedule") && name.Contains("change")) return TypeKind.ScheduleChange;
         if (name.Contains("new") && name.Contains("hire")) return TypeKind.NewHire;
-        if (name.Contains("separ")) return TypeKind.Separation;
+        if (name.Contains("separation")) return TypeKind.Separation;
         return TypeKind.Unknown;
     }
 
@@ -301,7 +423,7 @@
         return (_req?.AcrTypeId is null) ? TypeKind.Unknown : TypeKind.NewHire;
     }
 
-    // ---------- Build Initials (no DB calls during render) ----------
+    // ---------- Build Initials ----------
     private OrganizationChangeDto? BuildOrgInitialFromMemory(AomDbContext ctx)
     {
         if (_req is null || _org is null) return null;
@@ -367,7 +489,14 @@
         );
     }
 
-    // ---------- Save helpers (fresh context per op) ----------
+    // ---------- Save flow helpers ----------
+    private async Task FinishSaveAsync()
+    {
+        await OnParametersSetAsync();  // refresh data
+        _editing = false;              // back to details
+        StateHasChanged();
+    }
+
     private async Task<int?> EnsureManagerIdAsync(int? maybeEmpOrMgrId)
     {
         if (maybeEmpOrMgrId is null) return null;
@@ -396,8 +525,8 @@
                         .FirstOrDefaultAsync();
     }
 
-    // ---------- Save handlers (load, modify, save in a brand-new context) ----------
-    private async Task SaveOrgFromDto(OrganizationChangeDto dto)
+    // ---------- Core saves ----------
+    private async Task SaveOrgFromDtoCore(OrganizationChangeDto dto)
     {
         await using var db = await DbFactory.CreateDbContextAsync();
 
@@ -421,13 +550,9 @@
         org.IsRemote = dto.IsRemote;
 
         await db.SaveChangesAsync();
-        Snackbar.Add("Organization saved.", Severity.Success);
-
-        // Refresh in-memory snapshot
-        await OnParametersSetAsync();
     }
 
-    private async Task SaveScheduleFromDto(ScheduleChangeDto dto)
+    private async Task SaveScheduleFromDtoCore(ScheduleChangeDto dto)
     {
         await using var db = await DbFactory.CreateDbContextAsync();
 
@@ -481,19 +606,56 @@
         }
 
         await db.SaveChangesAsync();
-        Snackbar.Add("Schedule saved.", Severity.Success);
+    }
 
-        // Refresh in-memory snapshot
-        await OnParametersSetAsync();
+    // ---------- Public save handlers ----------
+    private async Task SaveOrgFromDto(OrganizationChangeDto dto)
+    {
+        await SaveOrgFromDtoCore(dto);
+        Snackbar.Add("Organization saved.", Severity.Success);
+        await FinishSaveAsync();
+    }
+
+    private async Task SaveScheduleFromDto(ScheduleChangeDto dto)
+    {
+        await SaveScheduleFromDtoCore(dto);
+        Snackbar.Add("Schedule saved.", Severity.Success);
+        await FinishSaveAsync();
     }
 
     private async Task SaveOrgScheduleFromDtos((OrganizationChangeDto Org, ScheduleChangeDto Sch) p)
     {
-        await SaveOrgFromDto(p.Org);
-        await SaveScheduleFromDto(p.Sch);
+        await SaveOrgFromDtoCore(p.Org);
+        await SaveScheduleFromDtoCore(p.Sch);
         Snackbar.Add("Org + Schedule saved.", Severity.Success);
+        await FinishSaveAsync();
     }
 
-    // display helper
-    private static string Fmt(TimeOnly? t) => t.HasValue ? t.Value.ToString("HH:mm") : "-";
+    // ---------- Status actions ----------
+    private async Task ManagerApprove()
+        => await DoStatusChange(ManagerApproved, "Manager approved.");
+
+    private async Task WfmApprove()
+        => await DoStatusChange(WfmApproved, "WFM approved.");
+
+    private async Task Reject()
+        => await DoStatusChange(Rejected, "ACR rejected.");
+
+    private async Task Cancel()
+        => await DoStatusChange(Cancelled, "ACR cancelled.");
+
+    private async Task DoStatusChange(int newStatus, string successMessage)
+    {
+        try
+        {
+            await Acr.UpdateStatusAsync(Id, newStatus);
+            Snackbar.Add(successMessage, Severity.Success);
+            await OnParametersSetAsync();   // refresh
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
 }

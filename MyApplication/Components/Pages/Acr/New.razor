@@ -14,7 +14,6 @@
 
         <MudGrid Class="mt-2">
             <MudItem xs="12" md="4">
-                <!-- TYPE selection only -->
                 <MudAutocomplete T="KeyValuePair<int,string>"
                                  Label="Type"
                                  Dense Clearable
@@ -29,7 +28,7 @@
     @switch (GetTypeKind(_selectedTypeId))
     {
         case TypeKind.OrgChange:
-            <OrgForm Employees="_employees"
+            <OrgForm Employees="_employeesActive"
                      ManagerEmployees="_managers"
                      SupervisorEmployees="_supervisors"
                      Organizations="_organizations"
@@ -40,19 +39,12 @@
             break;
 
         case TypeKind.ScheduleChange:
-            <ScheduleForm Employees="_employees" OnSubmit="SubmitSchedule" />
-            break;
-
-        case TypeKind.NewHire:
-            <NewHireForm OnSubmit="SubmitNewHire" />
-            break;
-
-        case TypeKind.Separation:
-            <SeparationForm Employees="_employees" OnSubmit="SubmitSeparation" />
+            <ScheduleForm Employees="_employeesActive"
+                          OnSubmit="SubmitSchedule" />
             break;
 
         case TypeKind.OrgAndSchedule:
-            <OrgScheduleForm Employees="_employees"
+            <OrgScheduleForm Employees="_employeesActive"
                              ManagerEmployees="_managers"
                              SupervisorEmployees="_supervisors"
                              Organizations="_organizations"
@@ -60,6 +52,21 @@
                              Employers="_employers"
                              Sites="_sites"
                              OnSubmit="SubmitOrgSchedule" />
+            break;
+
+        case TypeKind.Rehire:  @* if you have a Rehire form *@
+            <RehireForm Employees="_employeesInactive"
+                        OnSubmit="SubmitRehire" />
+            break;
+
+        case TypeKind.NewHire:
+            <NewHireForm OnSubmit="SubmitNewHire" />
+            break;
+
+        case TypeKind.Separation:
+            @* If you also want Separation to be active-only, swap _employees -> _employeesActive *@
+            <SeparationForm Employees="_employees"
+                            OnSubmit="SubmitSeparation" />
             break;
 
         default:
@@ -74,6 +81,8 @@
     // lookups
     private Dictionary<int, string> _types = new();
     private List<Employees> _employees = new();
+    private List<Employees> _employeesActive = new();
+    private List<Employees> _employeesInactive = new();
     private List<Site> _sites = new();
     private List<Employees> _managers = new();
     private List<Employees> _supervisors = new();
@@ -85,7 +94,7 @@
     private KeyValuePair<int, string> _selType;
     private int _selectedTypeId => _selType.Key;
 
-    private enum TypeKind { Unknown, OrgChange, ScheduleChange, NewHire, Separation, OrgAndSchedule }
+    private enum TypeKind { Unknown, OrgChange, ScheduleChange, NewHire, Separation, OrgAndSchedule, Rehire }
 
     private TypeKind GetTypeKind(int typeId)
     {
@@ -96,8 +105,9 @@
         if (name.Contains("organization and schedule")) return TypeKind.OrgAndSchedule;
         if (name.Contains("organization") && name.Contains("change")) return TypeKind.OrgChange;
         if (name.Contains("schedule") && name.Contains("change")) return TypeKind.ScheduleChange;
-        if (name.Contains("new") && name.Contains("hire")) return TypeKind.NewHire;
-        if (name.Contains("separ")) return TypeKind.Separation; // Separation/Seperation spelling guard
+        if (name.Contains("re-hire")) return TypeKind.Rehire;          // <-- added
+        if (name.Contains("new hire")) return TypeKind.NewHire;
+        if (name.Contains("separ") || name.Contains("seper")) return TypeKind.Separation;
         return TypeKind.Unknown;
     }
 
@@ -105,6 +115,11 @@
     {
         _types = await Query.GetTypesAsync();
         _employees = await Query.GetEmployeesLookupAsync();
+
+        // Filter safely even if IsActive is nullable
+        _employeesActive   = _employees.Where(e => e.IsActive == true).ToList();
+        _employeesInactive = _employees.Where(e => e.IsActive != true).ToList();
+
         _managers = await Query.GetManagerEmployeesAsync();
         _supervisors = await Query.GetSupervisorEmployeesAsync();
         _organizations = await Query.GetOrganizationsAsync();
@@ -129,10 +144,9 @@
         set { _selType = value; StateHasChanged(); }
     }
 
-    // ---------- Submit handlers ----------
+    // ---------- Submit handlers (add SubmitRehire if you have a Rehire form) ----------
     private async Task SubmitOrg(OrganizationChangeDto dto)
     {
-        // EmployeeId comes from the OrgForm now
         var id = await Acr.CreateOrganizationChangeAsync(dto);
         Snackbar.Add($"Created ACR #{id} (Organization).", Severity.Success);
         Nav.NavigateTo($"/tools/acr/{id}");
@@ -140,33 +154,37 @@
 
     private async Task SubmitSchedule(ScheduleChangeDto dto)
     {
-        // EmployeeId comes from the ScheduleForm now
         var id = await Acr.CreateScheduleChangeAsync(dto);
         Snackbar.Add($"Created ACR #{id} (Schedule).", Severity.Success);
         Nav.NavigateTo($"/tools/acr/{id}");
     }
 
+    private async Task SubmitOrgSchedule((OrganizationChangeDto Org, ScheduleChangeDto Sch) payload)
+    {
+        var id = await Acr.CreateOrgScheduleAsync(payload.Org, payload.Sch);
+        Snackbar.Add($"Created ACR #{id} (Org + Schedule).", Severity.Success);
+        Nav.NavigateTo($"/tools/acr/{id}");
+    }
+
     private async Task SubmitNewHire(NewHireDto dto)
     {
-        // Service creates Employee, then ACR; returns ACR Id
         var id = await Acr.CreateNewHireAsync(dto);
         Snackbar.Add($"Created ACR #{id} (New Hire).", Severity.Success);
         Nav.NavigateTo($"/tools/acr/{id}");
     }
 
-    private async Task SubmitSeparation(SeparationDto dto)
+    // Only if you have a Rehire form:
+    private async Task SubmitRehire(RehireDto dto)
     {
-        // EmployeeId comes from the SeparationForm now
-        var id = await Acr.CreateSeparationAsync(dto);
-        Snackbar.Add($"Created ACR #{id} (Separation).", Severity.Success);
+        var id = await Acr.CreateRehireAsync(dto);
+        Snackbar.Add($"Created ACR #{id} (Rehire).", Severity.Success);
         Nav.NavigateTo($"/tools/acr/{id}");
     }
 
-    private async Task SubmitOrgSchedule((OrganizationChangeDto Org, ScheduleChangeDto Sch) payload)
+    private async Task SubmitSeparation(SeparationDto dto)
     {
-        // Both DTOs already include EmployeeId from OrgScheduleForm
-        var id = await Acr.CreateOrgScheduleAsync(payload.Org, payload.Sch);
-        Snackbar.Add($"Created ACR #{id} (Org + Schedule).", Severity.Success);
+        var id = await Acr.CreateSeparationAsync(dto);
+        Snackbar.Add($"Created ACR #{id} (Separation).", Severity.Success);
         Nav.NavigateTo($"/tools/acr/{id}");
     }
 }

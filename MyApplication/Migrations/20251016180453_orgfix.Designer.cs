@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251016180453_orgfix")]
+    partial class orgfix
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -96,9 +99,6 @@ namespace MyApplication.Migrations
                     b.Property<int?>("AcrTypeId")
                         .HasColumnType("int");
 
-                    b.Property<string>("CancelledBy")
-                        .HasColumnType("varchar(32)");
-
                     b.Property<DateOnly>("EffectiveDate")
                         .HasColumnType("date");
 
@@ -108,26 +108,14 @@ namespace MyApplication.Migrations
                     b.Property<DateTime?>("LastUpdateTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("ManagerApprovedBy")
-                        .HasColumnType("varchar(32)");
-
-                    b.Property<string>("RejectedBy")
-                        .HasColumnType("varchar(32)");
-
                     b.Property<DateTime?>("SubmitTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("SubmittedBy")
-                        .HasColumnType("varchar(32)");
-
                     b.Property<string>("SubmitterComment")
-                        .HasColumnType("varchar(128)");
-
-                    b.Property<string>("WfmApprovedBy")
-                        .HasColumnType("varchar(32)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("WfmComment")
-                        .HasColumnType("varchar(128)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
