@@ -8,6 +8,7 @@ using MyApplication.Components.Data;
 using MyApplication.Components.Service;
 using MyApplication.Components.Service.Acr;
 using MyApplication.Components.Services.Email;
+using MyApplication.Components.Service.Employee;
 using System.Configuration;
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -121,6 +122,7 @@ builder.Services.AddScoped<IOiEventRepository, OiEventRepository>();
 builder.Services.AddScoped<OperationalImpactEmailService>();
 builder.Services.AddScoped<IProactiveRepository, ProactiveRepository>();
 builder.Services.AddScoped<IOperaRepository, OperaRepository>();
+builder.Services.AddScoped<EmployeesRepository>();
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Build & Pipeline

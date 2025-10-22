@@ -39,6 +39,7 @@ namespace MyApplication.Components.Model.AOM.Employee
 
         public int ScheduleId { get; set; }            // FK -> Schedule.Id
         public AcrSchedule? Schedule { get; set; }
+        
       
 
     }

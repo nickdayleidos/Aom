@@ -1,0 +1,130 @@
+﻿@page "/employees/{Id:int}"
+@using MudBlazor
+@using MyApplication.Components.Service.Employee
+@using MyApplication.Components.Service.Employee.Dtos
+@inject EmployeesRepository Repo
+@inject NavigationManager Nav
+@implements IDisposable
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-4" Outlined>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.h5">Employee Details — #@Id</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Outlined" OnClick="@GoBack">Back</MudButton>
+        </MudStack>
+    </MudPaper>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate Color="Color.Primary" />
+    }
+    else if (_detail is null)
+    {
+        <MudAlert Severity="Severity.Error">Employee not found.</MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Outlined>
+                    <MudText Typo="Typo.h6">Profile</MudText>
+                    <MudDivider Class="my-2" />
+                    <MudText><b>Name:</b> @_detail.LastName, @_detail.FirstName</MudText>
+                    <MudText><b>Corporate Id:</b> @_detail.CorporateId</MudText>
+                    <MudText><b>Domain Login:</b> @_detail.DomainLoginName</MudText>
+                    <MudText><b>Status:</b> @(_detail.IsActive ? "Active" : "Inactive")</MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Outlined>
+                    <MudText Typo="Typo.h6">Current Assignment (EmployeeHistory)</MudText>
+                    <MudDivider Class="my-2" />
+                    <MudText><b>Manager:</b> @_detail.Manager</MudText>
+                    <MudText><b>Supervisor:</b> @_detail.Supervisor</MudText>
+                    <MudText><b>Organization:</b> @_detail.Organization</MudText>
+                    <MudText><b>Sub-Organization:</b> @_detail.SubOrganization</MudText>
+                    <MudText><b>Employer:</b> @_detail.Employer</MudText>
+                    <MudText><b>Site:</b> @_detail.Site</MudText>
+                    <MudText><b>Effective:</b> @_detail.EffectiveDate?.ToString("yyyy-MM-dd")</MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Outlined>
+                    <MudText Typo="Typo.h6">Break/Lunch Schedule</MudText>
+                    <MudDivider Class="my-2" />
+                    @if (_detail.Breaks is null)
+                    {
+                        <MudText>No break schedule found.</MudText>
+                    }
+                    else
+                    {
+                        <MudList T="string" Dense="true">
+                            <MudListItem T="string">Mon Template Id: @_detail.Breaks.MondayTemplateId</MudListItem>
+                            <MudListItem T="string">Tue Template Id: @_detail.Breaks.TuesdayTemplateId</MudListItem>
+                            <MudListItem T="string">Wed Template Id: @_detail.Breaks.WednesdayTemplateId</MudListItem>
+                            <MudListItem T="string">Thu Template Id: @_detail.Breaks.ThursdayTemplateId</MudListItem>
+                            <MudListItem T="string">Fri Template Id: @_detail.Breaks.FridayTemplateId</MudListItem>
+                            <MudListItem T="string">Sat Template Id: @_detail.Breaks.SaturdayTemplateId</MudListItem>
+                            <MudListItem T="string">Sun Template Id: @_detail.Breaks.SundayTemplateId</MudListItem>
+                        </MudList>
+                    }
+
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Outlined>
+                    <MudText Typo="Typo.h6">Overtime Schedule</MudText>
+                    <MudDivider Class="my-2" />
+                    @if (_detail.Overtime is null)
+                    {
+                        <MudText>No overtime schedule found.</MudText>
+                    }
+                    else
+                    {
+                        <MudList T="string" Dense="true">
+                            <MudListItem T="string">Duration: @_detail.Overtime.Duration</MudListItem>
+                            <MudListItem T="string">Mon: @_detail.Overtime.BeforeShiftMonday - @_detail.Overtime.AfterShiftMonday</MudListItem>
+                            <MudListItem T="string">Tue: @_detail.Overtime.BeforeShiftTuesday - @_detail.Overtime.AfterShiftTuesday</MudListItem>
+                            <MudListItem T="string">Wed: @_detail.Overtime.BeforeShiftWednesday - @_detail.Overtime.AfterShiftWednesday</MudListItem>
+                            <MudListItem T="string">Thu: @_detail.Overtime.BeforeShiftThursday - @_detail.Overtime.AfterShiftThursday</MudListItem>
+                            <MudListItem T="string">Fri: @_detail.Overtime.BeforeShiftFriday - @_detail.Overtime.AfterShiftFriday</MudListItem>
+                            <MudListItem T="string">Sat: @_detail.Overtime.BeforeShiftSaturday - @_detail.Overtime.AfterShiftSaturday</MudListItem>
+                            <MudListItem T="string">Sun: @_detail.Overtime.BeforeShiftSunday - @_detail.Overtime.AfterShiftSunday</MudListItem>
+                        </MudList>
+                    }
+
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private bool _loading = true;
+    private EmployeeDetailDto? _detail;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _cts.Cancel();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+        _loading = true;
+        StateHasChanged();
+        _detail = await Repo.GetDetailAsync(Id, ct);
+        _loading = false;
+    }
+
+    private void GoBack() => Nav.NavigateTo("/employees");
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

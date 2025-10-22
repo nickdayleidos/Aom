@@ -1,0 +1,117 @@
+﻿@page "/employees"
+@using MudBlazor
+@using MyApplication.Components.Service.Employee
+@using MyApplication.Components.Service.Employee.Dtos
+@inject EmployeesRepository Repo
+@inject NavigationManager Nav
+@implements IDisposable
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-4" Outlined>
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+    <MudText Typo="Typo.h5">Employees</MudText>
+    <MudSpacer />
+    <MudSwitch @bind-value="_activeOnly" Color="Color.Primary" Class="mr-2" />
+    <MudText Class="mr-4">Active only</MudText>
+    <MudTextField T="string"
+                  Value="@_query"
+                  ValueChanged="@(v => OnQueryChanged(v))"
+                  Placeholder="Search (name, id, supervisor, manager, org, suborg)"
+                  Immediate="true"
+                  DebounceInterval="350"
+                  Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  Class="w-64" />
+</MudStack>
+
+
+    </MudPaper>
+
+    <MudPaper Class="pa-2" Outlined>
+        <MudTable Items="_items" Hover="true" Dense="true" Bordered="true" Breakpoint="Breakpoint.Sm" RowsPerPage="20" @ref="_table">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Name</MudTh>
+                <MudTh>Manager</MudTh>
+                <MudTh>Supervisor</MudTh>
+                <MudTh>Organization</MudTh>
+                <MudTh>Sub-Org</MudTh>
+                <MudTh>Active</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Id">@context.Id</MudTd>
+                <MudTd DataLabel="Name">@context.LastName, @context.FirstName</MudTd>
+                <MudTd DataLabel="Manager">@context.Manager</MudTd>
+                <MudTd DataLabel="Supervisor">@context.Supervisor</MudTd>
+                <MudTd DataLabel="Organization">@context.Organization</MudTd>
+                <MudTd DataLabel="Sub-Org">@context.SubOrganization</MudTd>
+                <MudTd DataLabel="Active">@(context.IsActive ? "Yes" : "No")</MudTd>
+                <MudTd>
+                    <MudButton Size="Size.Small"
+                               Variant="Variant.Outlined"
+                               OnClick="@(() => GoTo(context.Id))">
+                        Details
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Class="pa-4">No employees found.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private MudTable<EmployeeListItem> _table = default!;
+    private string _query = string.Empty;
+    private bool _activeOnly = true;
+    private List<EmployeeListItem> _items = new();
+    private CancellationTokenSource _cts = new();
+    
+
+
+    protected override async Task OnInitializedAsync() => await RefreshAsync();
+    protected override async Task OnParametersSetAsync() => await RefreshAsync();
+
+    private async Task OnQueryChanged(string value)
+    {
+        _query = value ?? string.Empty;
+        await RefreshAsync();
+    }
+
+    private void GoTo(int id) => Nav.NavigateTo($"/employees/{id}");
+
+    private async Task RefreshAsync()
+    {
+        _cts.Cancel();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+        _items = await Repo.SearchAsync(_query, _activeOnly, take: 200, ct);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}
+
+    private async Task RefreshAsync()
+    {
+        _cts.Cancel();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+        _items = await Repo.SearchAsync(_query, _activeOnly, take: 200, ct);
+        StateHasChanged();
+    }
+
+    private void GoTo(int id) => Nav.NavigateTo($"/employees/{id}");
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

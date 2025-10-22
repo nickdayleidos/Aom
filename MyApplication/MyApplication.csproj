@@ -37,7 +37,6 @@
 
 
   <ItemGroup>
-    <Folder Include="Components\Repository\" />
     <Folder Include="Migrations\" />
   </ItemGroup>
 </Project>
