@@ -104,5 +104,7 @@ namespace MyApplication.Components.Model.AOM.Employee
         public int? BreakTime { get; set; }
         public int? Breaks { get; set; }
         public int? LunchTime { get; set; }
+        public int breakTemplateId { get; set; }
+
     }
 }

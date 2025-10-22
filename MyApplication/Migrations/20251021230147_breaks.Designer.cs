@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251021230147_breaks")]
+    partial class breaks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -265,6 +268,9 @@ namespace MyApplication.Migrations
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("EmployeesId")
+                        .HasColumnType("int");
+
                     b.Property<int>("FridayTemplateId")
                         .HasColumnType("int");
 
@@ -289,6 +295,8 @@ namespace MyApplication.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId");
+
+                    b.HasIndex("EmployeesId");
 
                     b.ToTable("BreakSchedules", "Employee");
                 });
@@ -731,9 +739,14 @@ namespace MyApplication.Migrations
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("EmployeeId1")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId");
+
+                    b.HasIndex("EmployeeId1");
 
                     b.ToTable("OvertimeSchedules", "Employee");
                 });
@@ -1357,6 +1370,12 @@ namespace MyApplication.Migrations
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employees")
+                        .WithMany()
+                        .HasForeignKey("EmployeesId");
+
+                    b.Navigation("Employees");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.EmployeeHistory", b =>
@@ -1497,6 +1516,12 @@ namespace MyApplication.Migrations
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId1");
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Supervisor", b =>

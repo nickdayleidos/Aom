@@ -24,7 +24,6 @@
 
         <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="ClearAsync" StartIcon="@Icons.Material.Filled.LayersClear">Clear</MudButton>
         <MudSpacer />
-
     </MudPaper>
 
     <!-- Interval header -->
@@ -81,7 +80,6 @@
                     <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.EmailOldestHours" Label="Oldest Email (hrs)" /></MudItem>
                     <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.CustCareCount" Label="Customer Care Count" /></MudItem>
                     <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.CustCareOldestHours" Label="Oldest Cust Care (hrs)" /></MudItem>
-                   
 
                     <!-- SIPR GDA / UAIF -->
                     <MudItem xs="12"><MudText Typo="Typo.subtitle1">SIPR Email GDA / UAIF</MudText></MudItem>
@@ -155,7 +153,6 @@
         </MudItem>
 
         <!-- Right: Current Day by Interval -->
-        <!-- Right: Current Day by Interval -->
         <MudItem xs="12" md="4">
             <MudPaper Class="pa-4" Outlined="true">
                 <MudText Typo="Typo.h6">Current Day — By 30-min Interval</MudText>
@@ -198,7 +195,7 @@
     <MudPaper Class="pa-4" Outlined="true">
         <MudText Typo="Typo.h6">Backlog</MudText>
         <MudGrid GutterSize="2" Class="mt-2">
-            <!-- ... your existing backlog fields unchanged ... -->
+            <!-- SRM – User Admin -->
             <MudItem xs="12"><MudText Typo="Typo.subtitle1">SRM – User Admin</MudText></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmAutoCount" Label="Auto USN Count" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmAutoAgeHours" Label="Auto USN Oldest (hrs)" /></MudItem>
@@ -207,6 +204,7 @@
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmSocManCount" Label="Manual SOC Count" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmSocManAgeHours" Label="Manual SOC Oldest (hrs)" /></MudItem>
 
+            <!-- SRM – Validation -->
             <MudItem xs="12"><MudText Typo="Typo.subtitle1">SRM – Validation</MudText></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValLineCount" Label="Line Items Count" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValLineAgeDays" Label="Line Items Oldest (days)" /></MudItem>
@@ -215,12 +213,14 @@
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValEmailCount" Label="Email Buildouts Count" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValEmailAgeDays" Label="Email Buildouts Oldest (days)" /></MudItem>
 
+            <!-- SRM – Active Follow Up / Incidents -->
             <MudItem xs="12"><MudText Typo="Typo.subtitle1">SRM – Active Follow Up / Incidents</MudText></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.AfuCount" Label="AFU Count" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.AfuAgeHours" Label="AFU Oldest (days)" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.CsCount" Label="Open Incidents Count" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.CsAgeHours" Label="Open Incidents Oldest (hrs)" /></MudItem>
 
+            <!-- SRM – OCM Activations -->
             <MudItem xs="12"><MudText Typo="Typo.subtitle1">SRM – OCM Activations</MudText></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprReadyCount" Label="NIPR Ready Count" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprReadyAgeHours" Label="NIPR Ready Oldest (hrs)" /></MudItem>
@@ -236,7 +236,8 @@
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprFatalAgeHours" Label="NIPR Fatal Review Oldest (hrs)" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprFatalCount" Label="SIPR Fatal Review Count" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprFatalAgeHours" Label="SIPR Fatal Review Oldest (hrs)" /></MudItem>
-    
+
+            <!-- RDM -->
             <MudItem xs="12"><MudText Typo="Typo.subtitle1">RDM</MudText></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmUsnCount" Label="RDM USN Count" /></MudItem>
             <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmUsnAgeDays" Label="RDM USN Oldest (days)" /></MudItem>

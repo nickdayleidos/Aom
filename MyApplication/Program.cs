@@ -105,7 +105,7 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 // Other app/data services
 builder.Services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
-builder.Services.AddScoped<IAwsIntervalReader, AwsIntervalReader>();
+
 builder.Services.AddScoped<IIntervalSummaryRepository, IntervalSummaryRepository>();
 
 builder.Services.AddScoped<

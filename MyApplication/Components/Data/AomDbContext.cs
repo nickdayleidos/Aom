@@ -2,6 +2,7 @@
 
 // Employee / ACR / Opera models
 using MyApplication.Components.Model.AOM.Employee;
+
 // Tools models
 using MyApplication.Components.Model.AOM.Tools;
 
@@ -20,8 +21,7 @@ namespace MyApplication.Components.Data
         public DbSet<Organization>     Organizations      { get; set; } = default!;
         public DbSet<SubOrganization>  SubOrganizations   { get; set; } = default!;
         public DbSet<EmployeeHistory>  EmployeeHistories  { get; set; } = default!;
-        public DbSet<Schedule>         Schedules          { get; set; } = default!; // assumes Schedule has Id
-
+       
         // ---------- Opera (Employee schema) ----------
         public DbSet<OperaType>        OperaType          { get; set; } = default!;
         public DbSet<OperaSubType>     OperaSubType       { get; set; } = default!;
@@ -35,6 +35,11 @@ namespace MyApplication.Components.Data
         public DbSet<AcrRequest>       AcrRequests        { get; set; } = default!;
         public DbSet<AcrSchedule>      AcrSchedule        { get; set; } = default!;
         public DbSet<AcrOrganization>  AcrOrganization    { get; set; } = default!;
+
+        // ---------- WFM (Employee schema) ----------
+        public DbSet<BreakTemplates> BreakTemplates { get; set; } = default!;
+        public DbSet<OvertimeSchedules> OvertimeSchedules { get; set; } = default!;
+        public DbSet<BreakSchedules> BreakSchedules { get; set; } = default!;
 
         // ---------- Tools schema ----------
         public DbSet<EmailTemplates>         EmailTemplates         { get; set; } = default!;
@@ -53,15 +58,18 @@ namespace MyApplication.Components.Data
             // =========================
             // Tables + Primary Keys
             // =========================
-            b.Entity<Employees>(e        => { e.ToTable(nameof(Employees), "Employee");       e.HasKey(x => x.Id); });
-            b.Entity<Employer>(e         => { e.ToTable(nameof(Employer), "Employee");        e.HasKey(x => x.Id); });
-            b.Entity<Manager>(e          => { e.ToTable(nameof(Manager), "Employee");         e.HasKey(x => x.Id); });
-            b.Entity<Supervisor>(e       => { e.ToTable(nameof(Supervisor), "Employee");      e.HasKey(x => x.Id); });
-            b.Entity<Site>(e             => { e.ToTable(nameof(Site), "Employee");            e.HasKey(x => x.Id); });
-            b.Entity<Organization>(e     => { e.ToTable(nameof(Organization), "Employee");    e.HasKey(x => x.Id); });
-            b.Entity<SubOrganization>(e  => { e.ToTable(nameof(SubOrganization), "Employee"); e.HasKey(x => x.Id); });
-            b.Entity<EmployeeHistory>(e  => { e.ToTable(nameof(EmployeeHistory), "Employee"); e.HasKey(x => x.Id); });
-            b.Entity<Schedule>(e         => { e.ToTable(nameof(Schedule), "Employee");        e.HasKey(x => x.Id); });
+            b.Entity<Employees>(e           => { e.ToTable(nameof(Employees), "Employee");       e.HasKey(x => x.Id); });
+            b.Entity<Employer>(e            => { e.ToTable(nameof(Employer), "Employee");        e.HasKey(x => x.Id); });
+            b.Entity<Manager>(e             => { e.ToTable(nameof(Manager), "Employee");         e.HasKey(x => x.Id); });
+            b.Entity<Supervisor>(e          => { e.ToTable(nameof(Supervisor), "Employee");      e.HasKey(x => x.Id); });
+            b.Entity<Site>(e                => { e.ToTable(nameof(Site), "Employee");            e.HasKey(x => x.Id); });
+            b.Entity<Organization>(e        => { e.ToTable(nameof(Organization), "Employee");    e.HasKey(x => x.Id); });
+            b.Entity<SubOrganization>(e     => { e.ToTable(nameof(SubOrganization), "Employee"); e.HasKey(x => x.Id); });
+            b.Entity<EmployeeHistory>(e     => { e.ToTable(nameof(EmployeeHistory), "Employee"); e.HasKey(x => x.Id); });
+
+            b.Entity<BreakTemplates>(e  => { e.ToTable(nameof(BreakTemplates), "Employee");        e.HasKey(x => x.Id); });
+            b.Entity<OvertimeSchedules>(e => { e.ToTable(nameof(OvertimeSchedules), "Employee"); e.HasKey(x => x.Id); });
+            b.Entity<BreakSchedules>(e => { e.ToTable(nameof(BreakSchedules), "Employee"); e.HasKey(x => x.Id); });
 
             b.Entity<OperaType>(e        => { e.ToTable(nameof(OperaType), "Employee");       e.HasKey(x => x.Id); });
             b.Entity<OperaSubType>(e     => { e.ToTable(nameof(OperaSubType), "Employee");    e.HasKey(x => x.Id); });
@@ -92,6 +100,19 @@ namespace MyApplication.Components.Data
              .WithMany()
              .HasForeignKey(x => x.EmployeeId)
              .OnDelete(DeleteBehavior.Restrict);
+
+           
+            b.Entity<OvertimeSchedules>()
+             .HasOne<Employees> ()
+             .WithMany()
+             .HasForeignKey(x => x.EmployeeId)
+             .OnDelete(DeleteBehavior.Restrict); 
+
+            b.Entity<BreakSchedules>()
+             .HasOne<Employees>()
+             .WithMany()
+             .HasForeignKey(x => x.EmployeeId)
+             .OnDelete(DeleteBehavior.Restrict); 
 
             b.Entity<Supervisor>()
              .HasOne<Employees>()

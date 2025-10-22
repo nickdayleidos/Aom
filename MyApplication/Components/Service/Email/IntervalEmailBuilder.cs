@@ -214,8 +214,8 @@ SRM Validation<br/>
 &nbsp;&nbsp;Line Items: {{SrmValLineCount}} &nbsp;&nbsp; Oldest: {{SrmValLineAgeDays}} Days<br/>
 &nbsp;&nbsp;Failed Inbound: {{SrmValLineFailCount}} &nbsp;&nbsp; Oldest: {{SrmValLineFailAgeDays}} Days<br/>
 &nbsp;&nbsp;Email Buildouts: {{SrmValEmailCount}} &nbsp;&nbsp; Oldest: {{SrmValEmailAgeDays}} Days<br/>
-SRM Active Follow up (Automated): {{AfuCount}} &nbsp;&nbsp; Oldest: {{AfuAgeHours}} Hours<br/>
-SRM Customer Satisfaction: {{CsCount}} &nbsp;&nbsp; Oldest: {{CsAgeHours}} Days<br/>
+SRM Active Follow up (Automated): {{AfuCount}} &nbsp;&nbsp; Oldest: {{AfuAgeHours}} Days<br/>
+SRM Customer Satisfaction: {{CsCount}} &nbsp;&nbsp; Oldest: {{CsAgeHours}} Hours<br/>
 SRM OCM Account Activation Buildouts in Queue<br/>
 &nbsp;&nbsp;NIPR OCM Ready: {{OcmNiprReadyCount}} &nbsp;&nbsp; Oldest: {{OcmNiprReadyAgeHours}} Hours<br/>
 &nbsp;&nbsp;NIPR OCM Hold: {{OcmNiprHoldCount}} &nbsp;&nbsp; Oldest: {{OcmNiprHoldAgeHours}} Hours<br/>

@@ -12,6 +12,6 @@ namespace MyApplication.Components.Model.AOM.Employee
         [Column(TypeName = "varchar(64)")]
         public string Name { get; set; } = string.Empty;
 
-        // 🚫 Removed self-collection
+        
     }
 }

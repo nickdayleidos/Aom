@@ -7,15 +7,15 @@ using Microsoft.JSInterop;
 using MimeKit; // .eml creation
 using MudBlazor;
 using MyApplication.Common;                // IdentityHelpers
-using MyApplication.Common.Time;           // <-- ET helper (Et)
+using MyApplication.Common.Time;           // Et helper
 using MyApplication.Components.Pages.Tools.Interval;
 using MyApplication.Components.Service;
 using MyApplication.Components.Services.Email;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Net;
-using System.Security.Claims;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,7 +33,11 @@ namespace MyApplication.Components.Pages.Tools.Interval
 
         private IntervalSummaryState State { get; set; } = new();
 
-        private string _connString = string.Empty;
+        // Connection strings
+        private string _connString = string.Empty;   // legacy usage (AWS-first)
+        private string _connAws = string.Empty;      // AWS call data
+        private string _connAom = string.Empty;      // AOM app DB (IntervalSummary table)
+
         private string _lastError = string.Empty;
         private string? _info;
         private readonly CancellationTokenSource _cts = new();
@@ -51,10 +55,11 @@ namespace MyApplication.Components.Pages.Tools.Interval
 
         protected override void OnInitialized()
         {
-            _connString = GetConnString();
-            if (string.IsNullOrWhiteSpace(_connString))
+            InitConnStrings();
+
+            if (string.IsNullOrWhiteSpace(_connAws) && string.IsNullOrWhiteSpace(_connAom))
             {
-                _lastError = "No SQL connection string found. Expected ConnectionStrings:AWS (fallback AOM).";
+                _lastError = "No SQL connection strings found. Expected ConnectionStrings:AWS and/or ConnectionStrings:AOM.";
                 Snackbar.Add(_lastError, Severity.Error, cfg => cfg.RequireInteraction = true);
             }
 
@@ -74,16 +79,30 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 await PopulateAsync();
         }
 
-        private string GetConnString()
+        // Initialize both connection strings,
+        // keep _connString behavior for existing WithConn() usage (AWS-first, fallback AOM)
+        private void InitConnStrings()
         {
-            var aws = Config.GetConnectionString("AWS") ?? Config["ConnectionStrings:AWS"];
-            var aom = Config.GetConnectionString("AOM") ?? Config["ConnectionStrings:AOM"];
+            _connAws = Config.GetConnectionString("AWS") ?? Config["ConnectionStrings:AWS"] ?? "";
+            _connAom = Config.GetConnectionString("AOM") ?? Config["ConnectionStrings:AOM"] ?? "";
 
-            if (!string.IsNullOrWhiteSpace(aws)) { _info = "Using connection string: AWS"; return aws!; }
-            if (!string.IsNullOrWhiteSpace(aom)) { _info = "Using connection string: AOM"; return aom!; }
-
-            _info = "No connection string found (looked for AWS, then AOM).";
-            return string.Empty;
+            if (!string.IsNullOrWhiteSpace(_connAws))
+            {
+                _connString = _connAws;
+                _info = string.IsNullOrWhiteSpace(_connAom)
+                    ? "Using connection string: AWS"
+                    : "Using connection strings: AWS + AOM";
+            }
+            else if (!string.IsNullOrWhiteSpace(_connAom))
+            {
+                _connString = _connAom; // to avoid nulls if someone calls WithConn by mistake
+                _info = "Using connection string: AOM only (no AWS).";
+            }
+            else
+            {
+                _connString = string.Empty;
+                _info = "No connection string found (looked for AWS, then AOM).";
+            }
         }
 
         // ========================= Toolbar actions =========================
@@ -91,9 +110,9 @@ namespace MyApplication.Components.Pages.Tools.Interval
 
         private async Task PopulateAsync()
         {
-            if (string.IsNullOrWhiteSpace(_connString))
+            if (string.IsNullOrWhiteSpace(_connAws) && string.IsNullOrWhiteSpace(_connAom))
             {
-                _lastError = "Populate aborted: ConnectionStrings:AWS is empty.";
+                _lastError = "Populate aborted: no AWS/AOM connection strings.";
                 Snackbar.Add(_lastError, Severity.Error, cfg => cfg.RequireInteraction = true);
                 return;
             }
@@ -107,65 +126,90 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 // selectedDate is ET (date only)
                 var selectedDate = (State.Header.IntervalDate ?? Et.Now).Date;
 
-                var dayStart = selectedDate;             // 00:00 ET
+                var dayStart = selectedDate;           // 00:00 ET
                 var dayEnd = selectedDate.AddDays(1);  // next day 00:00 ET
 
                 var (mStart, mEnd) = GetMtdBounds(selectedDate); // both ET
 
                 // Kick off all queries in parallel. Each uses its own connection.
+                // Current Day (AWS call data)
                 var tCurSvd = WithConn(c => QueryCurrentAsync(c, "isreportingweb = 1", dayStart, dayEnd, _cts.Token), _cts.Token);
                 var tCurVip = WithConn(c => QueryCurrentAsync(c, "CMS_Equivalent = 46", dayStart, dayEnd, _cts.Token), _cts.Token);
                 var tCurSipr = WithConn(c => QueryCurrentAsync(c, "CMS_Equivalent = 68", dayStart, dayEnd, _cts.Token), _cts.Token);
                 var tCurNnpi = WithConn(c => QueryCurrentAsync(c, "CMS_Equivalent = 27", dayStart, dayEnd, _cts.Token), _cts.Token);
 
+                // MTD (AWS call data)
                 var tMtdSvd = WithConn(c => QueryMtdAsync(c, "isreportingweb = 1", mStart, mEnd, _cts.Token), _cts.Token);
                 var tMtdVip = WithConn(c => QueryMtdAsync(c, "CMS_Equivalent = 46", mStart, mEnd, _cts.Token), _cts.Token);
                 var tMtdSipr = WithConn(c => QueryMtdAsync(c, "CMS_Equivalent = 68", mStart, mEnd, _cts.Token), _cts.Token);
                 var tMtdNnpi = WithConn(c => QueryMtdAsync(c, "CMS_Equivalent = 27", mStart, mEnd, _cts.Token), _cts.Token);
 
+                // Intervals (AWS call data)
                 var tIntervals = WithConn(c => QueryCurrentDayIntervalsAsync(c, dayStart, dayEnd, _cts.Token), _cts.Token);
 
-                await Task.WhenAll(tCurSvd, tCurVip, tCurSipr, tCurNnpi, tMtdSvd, tMtdVip, tMtdSipr, tMtdNnpi, tIntervals);
+                // Latest Notes (AOM DB)
+                var tNotes = !string.IsNullOrWhiteSpace(_connAom)
+                    ? WithConnAom(c => QueryLatestNotesAsync(c, _cts.Token), _cts.Token)
+                    : Task.FromResult<LatestNotesRow?>(null);
 
-                // Assign results
+                await Task.WhenAll(
+                    tCurSvd, tCurVip, tCurSipr, tCurNnpi,
+                    tMtdSvd, tMtdVip, tMtdSipr, tMtdNnpi,
+                    tIntervals, tNotes
+                );
+
+                // Assign results (Current)
                 var curSvd = tCurSvd.Result; var mtdSvd = tMtdSvd.Result;
                 var curVip = tCurVip.Result; var mtdVip = tMtdVip.Result;
                 var curSipr = tCurSipr.Result; var mtdSipr = tMtdSipr.Result;
                 var curNnpi = tCurNnpi.Result; var mtdNnpi = tMtdNnpi.Result;
 
-                State.Current.UsnAsa = curSvd.ASA.ToString();
-                State.Current.UsnCallsOffered = curSvd.CallsOffered.ToString();
-                State.Current.UsnCallsAnswered = curSvd.Answered.ToString();
+                State.Current.UsnAsa = curSvd.ASA.ToString(CultureInfo.InvariantCulture);
+                State.Current.UsnCallsOffered = curSvd.CallsOffered.ToString(CultureInfo.InvariantCulture);
+                State.Current.UsnCallsAnswered = curSvd.Answered.ToString(CultureInfo.InvariantCulture);
 
-                State.Current.VipAsa = curVip.ASA.ToString();
-                State.Current.VipCallsOffered = curVip.CallsOffered.ToString();
-                State.Current.VipCallsAnswered = curVip.Answered.ToString();
+                State.Current.VipAsa = curVip.ASA.ToString(CultureInfo.InvariantCulture);
+                State.Current.VipCallsOffered = curVip.CallsOffered.ToString(CultureInfo.InvariantCulture);
+                State.Current.VipCallsAnswered = curVip.Answered.ToString(CultureInfo.InvariantCulture);
 
-                State.Current.SiprAsa = curSipr.ASA.ToString();
-                State.Current.SiprCallsOffered = curSipr.CallsOffered.ToString();
-                State.Current.SiprCallsAnswered = curSipr.Answered.ToString();
+                State.Current.SiprAsa = curSipr.ASA.ToString(CultureInfo.InvariantCulture);
+                State.Current.SiprCallsOffered = curSipr.CallsOffered.ToString(CultureInfo.InvariantCulture);
+                State.Current.SiprCallsAnswered = curSipr.Answered.ToString(CultureInfo.InvariantCulture);
 
-                State.Current.NnpiAsa = curNnpi.ASA.ToString();
-                State.Current.NnpiCallsOffered = curNnpi.CallsOffered.ToString();
-                State.Current.NnpiCallsAnswered = curNnpi.Answered.ToString();
+                State.Current.NnpiAsa = curNnpi.ASA.ToString(CultureInfo.InvariantCulture);
+                State.Current.NnpiCallsOffered = curNnpi.CallsOffered.ToString(CultureInfo.InvariantCulture);
+                State.Current.NnpiCallsAnswered = curNnpi.Answered.ToString(CultureInfo.InvariantCulture);
 
-                State.Mtd.UsnAsa = mtdSvd.ASA.ToString();
-                State.Mtd.UsnCallsOffered = mtdSvd.CallsOffered.ToString();
-                State.Mtd.UsnCallsAnswered = mtdSvd.Answered.ToString();
+                // Assign results (MTD)
+                State.Mtd.UsnAsa = mtdSvd.ASA.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.UsnCallsOffered = mtdSvd.CallsOffered.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.UsnCallsAnswered = mtdSvd.Answered.ToString(CultureInfo.InvariantCulture);
 
-                State.Mtd.VipAsa = mtdVip.ASA.ToString();
-                State.Mtd.VipCallsOffered = mtdVip.CallsOffered.ToString();
-                State.Mtd.VipCallsAnswered = mtdVip.Answered.ToString();
+                State.Mtd.VipAsa = mtdVip.ASA.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.VipCallsOffered = mtdVip.CallsOffered.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.VipCallsAnswered = mtdVip.Answered.ToString(CultureInfo.InvariantCulture);
 
-                State.Mtd.SiprAsa = mtdSipr.ASA.ToString();
-                State.Mtd.SiprCallsOffered = mtdSipr.CallsOffered.ToString();
-                State.Mtd.SiprCallsAnswered = mtdSipr.Answered.ToString();
+                State.Mtd.SiprAsa = mtdSipr.ASA.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.SiprCallsOffered = mtdSipr.CallsOffered.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.SiprCallsAnswered = mtdSipr.Answered.ToString(CultureInfo.InvariantCulture);
 
-                State.Mtd.NnpiAsa = mtdNnpi.ASA.ToString();
-                State.Mtd.NnpiCallsOffered = mtdNnpi.CallsOffered.ToString();
-                State.Mtd.NnpiCallsAnswered = mtdNnpi.Answered.ToString();
+                State.Mtd.NnpiAsa = mtdNnpi.ASA.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.NnpiCallsOffered = mtdNnpi.CallsOffered.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.NnpiCallsAnswered = mtdNnpi.Answered.ToString(CultureInfo.InvariantCulture);
 
+                // Intervals
                 _intervalRows = tIntervals.Result;
+
+                // Latest Notes
+                var latest = tNotes.Result;
+                if (latest is not null)
+                {
+                    State.Notes.FocusArea = latest.NaTodaysFocusArea ?? "";
+                    State.Notes.CirImpactAsa = latest.NaMajorCirImpact ?? "";
+                    State.Notes.ImpactEvents = latest.NaImpactingEvents ?? "";
+                    State.Notes.HpsmStatus = latest.NaHpsmStatus ?? "";
+                    State.Notes.ManagementNotes = latest.NaManagementNotes ?? "";
+                }
 
                 await SafeStateHasChangedAsync();
                 Snackbar.Add($"Populate complete for {selectedDate:yyyy-MM-dd}. Intervals: {_intervalRows.Count}.", Severity.Success);
@@ -199,9 +243,6 @@ namespace MyApplication.Components.Pages.Tools.Interval
             try
             {
                 var sb = new StringBuilder();
-                sb.AppendLine($"Interval: {State.Header.IntervalDate:yyyy-MM-dd} {State.Header.IntervalStart}-{State.Header.IntervalEnd} ET");
-                sb.AppendLine();
-
                 sb.AppendLine("Current Day");
                 sb.AppendLine(Triplet("SvD", State.Current.UsnAsa, State.Current.UsnCallsOffered, State.Current.UsnCallsAnswered));
                 sb.AppendLine(Triplet("VIP", State.Current.VipAsa, State.Current.VipCallsOffered, State.Current.VipCallsAnswered));
@@ -248,9 +289,9 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 {
                     switch (t)
                     {
-                        case DateTime dt: return dt.ToString("HHmm");
-                        case DateTimeOffset dto: return dto.ToString("HHmm");
-                        case TimeSpan ts: return ts.ToString(@"hhmm");
+                        case DateTime dt: return dt.ToString("HHmm", CultureInfo.InvariantCulture);
+                        case DateTimeOffset dto: return dto.ToString("HHmm", CultureInfo.InvariantCulture);
+                        case TimeSpan ts: return ts.ToString(@"hhmm", CultureInfo.InvariantCulture);
                         case string s:
                             if (string.IsNullOrWhiteSpace(s)) return "0000";
                             var digits = new string(s.Where(char.IsDigit).ToArray());
@@ -263,9 +304,9 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 {
                     switch (t)
                     {
-                        case DateTime dt: return dt.ToString("HH':'mm");
-                        case DateTimeOffset dto: return dto.ToString("HH':'mm");
-                        case TimeSpan ts: return ts.ToString(@"hh\:mm");
+                        case DateTime dt: return dt.ToString("HH':'mm", CultureInfo.InvariantCulture);
+                        case DateTimeOffset dto: return dto.ToString("HH':'mm", CultureInfo.InvariantCulture);
+                        case TimeSpan ts: return ts.ToString(@"hh\:mm", CultureInfo.InvariantCulture);
                         case string s:
                             if (string.IsNullOrWhiteSpace(s)) return "00:00";
                             var digits = new string(s.Where(char.IsDigit).ToArray());
@@ -317,7 +358,6 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 Snackbar.Add($"Could not generate email: {ex.Message}", Severity.Error);
             }
         }
-
 
         // Build Interval email context from current UI state
         private IntervalEmailContext BuildIntervalContextFromState()
@@ -571,9 +611,47 @@ ORDER BY [interval];";
             return rows.AsList();
         }
 
+        // ====== Latest Notes from AOM ======
+        private sealed class LatestNotesRow
+        {
+            public string? NaTodaysFocusArea { get; set; }
+            public string? NaMajorCirImpact { get; set; }
+            public string? NaImpactingEvents { get; set; }
+            public string? NaHpsmStatus { get; set; }
+            public string? NaManagementNotes { get; set; }
+        }
+
+        private async Task<LatestNotesRow?> QueryLatestNotesAsync(SqlConnection conn, CancellationToken ct)
+        {
+            const string sql = @"
+SELECT TOP (1)
+       [NaTodaysFocusArea],
+       [NaMajorCirImpact],
+       [NaImpactingEvents],
+       [NaHpsmStatus],
+       [NaManagementNotes]
+FROM [Aom].[Tools].[IntervalSummary] WITH (NOLOCK)
+ORDER BY [Id] DESC;";
+
+            var cmd = new CommandDefinition(sql, cancellationToken: ct, commandTimeout: 60);
+            return await conn.QuerySingleOrDefaultAsync<LatestNotesRow>(cmd);
+        }
+
         private async Task<T> WithConn<T>(Func<SqlConnection, Task<T>> work, CancellationToken ct)
         {
-            using var c = new SqlConnection(_connString);
+            if (string.IsNullOrWhiteSpace(_connAws) && string.IsNullOrWhiteSpace(_connString))
+                throw new InvalidOperationException("AWS connection string is empty.");
+
+            using var c = new SqlConnection(string.IsNullOrWhiteSpace(_connAws) ? _connString : _connAws);
+            await c.OpenAsync(ct);
+            return await work(c);
+        }
+
+        private async Task<T> WithConnAom<T>(Func<SqlConnection, Task<T>> work, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(_connAom))
+                throw new InvalidOperationException("AOM connection string is empty. Add ConnectionStrings:AOM.");
+            using var c = new SqlConnection(_connAom);
             await c.OpenAsync(ct);
             return await work(c);
         }
