@@ -21,10 +21,13 @@ namespace MyApplication.Components.Data
         public DbSet<SubOrganization> SubOrganizations { get; set; } = default!;
         public DbSet<EmployeeHistory> EmployeeHistory { get; set; } = default!;
 
+        // NEW: View
+        public DbSet<EmployeeCurrentDetails> EmployeeCurrentDetails { get; set; } = default!;
+
         // WFM (Employee schema)
         public DbSet<BreakTemplates> BreakTemplates { get; set; } = default!;
         public DbSet<AcrOvertimeSchedules> AcrOvertimeSchedules { get; set; } = default!;
-        public DbSet<AcrOvertimeTypes> AcrOvertimeTypes { get; set; } = default!; // <- added
+        public DbSet<AcrOvertimeTypes> AcrOvertimeTypes { get; set; } = default!;
         public DbSet<BreakSchedules> BreakSchedules { get; set; } = default!;
         public DbSet<DetailedSchedule> DetailedSchedule { get; set; } = default!;
 
@@ -68,10 +71,13 @@ namespace MyApplication.Components.Data
         {
             base.OnModelCreating(b);
 
-            // ------------------------------------------------------------
-            // EMPLOYEE core tables
-            // ------------------------------------------------------------
-            b.Entity<Employees>().ToTable(nameof(Employees), "Employee").HasKey(x => x.Id);
+            // AUTO-LOAD CONFIGURATIONS (Loads Employee, EmployeeCurrentDetails, AcrOvertimeSchedules)
+            b.ApplyConfigurationsFromAssembly(typeof(AomDbContext).Assembly);
+
+            // =========================================================================================
+            // TODO: Move the rest of these configurations to their own files like EmployeeConfiguration
+            // =========================================================================================
+
             b.Entity<Employer>().ToTable(nameof(Employer), "Employee").HasKey(x => x.Id);
             b.Entity<Manager>().ToTable(nameof(Manager), "Employee").HasKey(x => x.Id);
             b.Entity<Supervisor>().ToTable(nameof(Supervisor), "Employee").HasKey(x => x.Id);
@@ -80,18 +86,11 @@ namespace MyApplication.Components.Data
             b.Entity<SubOrganization>().ToTable(nameof(SubOrganization), "Employee").HasKey(x => x.Id);
             b.Entity<EmployeeHistory>().ToTable(nameof(EmployeeHistory), "Employee").HasKey(x => x.Id);
 
-            // ------------------------------------------------------------
-            // WFM
-            // ------------------------------------------------------------
             b.Entity<BreakTemplates>().ToTable(nameof(BreakTemplates), "Employee").HasKey(x => x.Id);
             b.Entity<AcrOvertimeTypes>().ToTable("OvertimeTypes", "Employee").HasKey(x => x.Id);
-            b.Entity<AcrOvertimeSchedules>().ToTable(nameof(AcrOvertimeSchedules), "Employee").HasKey(x => x.Id);
             b.Entity<BreakSchedules>().ToTable(nameof(BreakSchedules), "Employee").HasKey(x => x.Id);
             b.Entity<DetailedSchedule>().ToTable(nameof(DetailedSchedule), "Employee").HasKey(x => x.Id);
 
-            // ------------------------------------------------------------
-            // OPERA
-            // ------------------------------------------------------------
             b.Entity<ActivityType>().ToTable(nameof(ActivityType), "Employee").HasKey(x => x.Id);
             b.Entity<ActivitySubType>().ToTable(nameof(ActivitySubType), "Employee").HasKey(x => x.Id);
             b.Entity<OperaStatus>().ToTable(nameof(OperaStatus), "Employee").HasKey(x => x.Id);
@@ -102,9 +101,6 @@ namespace MyApplication.Components.Data
                  })
                  .HasKey(x => x.RequestId);
 
-            // ------------------------------------------------------------
-            // ACR
-            // ------------------------------------------------------------
             b.Entity<AcrType>().ToTable(nameof(AcrType), "Employee").HasKey(x => x.Id);
             b.Entity<AcrStatus>().ToTable(nameof(AcrStatus), "Employee").HasKey(x => x.Id);
             b.Entity<AcrRequest>().ToTable(nameof(AcrRequest), "Employee", tb =>
@@ -115,14 +111,9 @@ namespace MyApplication.Components.Data
             b.Entity<AcrSchedule>().ToTable(nameof(AcrSchedule), "Employee").HasKey(x => x.Id);
             b.Entity<AcrOrganization>().ToTable(nameof(AcrOrganization), "Employee").HasKey(x => x.Id);
 
-            // ------------------------------------------------------------
-            // Skills
-            // ------------------------------------------------------------
             b.Entity<Skills>().ToTable(nameof(Skills), "Employee").HasKey(x => x.Id);
             b.Entity<SkillType>().ToTable(nameof(SkillType), "Employee").HasKey(x => x.Id);
-            // ------------------------------------------------------------
-            // TOOLS
-            // ------------------------------------------------------------
+
             b.Entity<EmailTemplates>().ToTable(nameof(EmailTemplates), "Tools").HasKey(x => x.Id);
             b.Entity<IntervalSummary>().ToTable(nameof(IntervalSummary), "Tools").HasKey(x => x.Id);
             b.Entity<OiCategory>().ToTable(nameof(OiCategory), "Tools").HasKey(x => x.Id);
@@ -132,15 +123,11 @@ namespace MyApplication.Components.Data
             b.Entity<OiStatus>().ToTable(nameof(OiStatus), "Tools").HasKey(x => x.Id);
             b.Entity<ProactiveAnnouncement>().ToTable(nameof(ProactiveAnnouncement), "Tools").HasKey(x => x.Id);
 
-            // ------------------------------------------------------------
-            // AWS
-            // ------------------------------------------------------------
-
             b.Entity<Status>().ToTable(nameof(Statuses), "Aws").HasKey(x => x.Id);
 
 
             // ============================================================
-            // RELATIONSHIPS: EMPLOYEE / WFM
+            // RELATIONSHIPS
             // ============================================================
             b.Entity<Manager>()
              .HasOne<Employees>()
@@ -155,7 +142,7 @@ namespace MyApplication.Components.Data
              .OnDelete(DeleteBehavior.Restrict);
 
             b.Entity<DetailedSchedule>(e =>
-            { 
+            {
                 e.HasOne(x => x.Employees)
                 .WithMany()
                 .HasForeignKey(x => x.EmployeeId)
@@ -170,10 +157,7 @@ namespace MyApplication.Components.Data
                 .WithMany()
                 .HasForeignKey(x => x.ActivitySubTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
-            }
-            ); 
-
-            // Removed: AcrOvertimeSchedules -> Employees (there is no EmployeeId on this table)
+            });
 
             b.Entity<BreakSchedules>()
              .HasOne<Employees>()
@@ -218,26 +202,21 @@ namespace MyApplication.Components.Data
                  .HasForeignKey(x => x.SubOrganizationId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // Schedule FK → AcrRequest (ScheduleRequestId holds the ACR id for schedule)
                 e.HasOne(x => x.ScheduleRequest)
                  .WithMany()
                  .HasForeignKey(x => x.ScheduleRequestId)
                  .OnDelete(DeleteBehavior.Restrict);
-                
-                e.HasOne(x => x.OvertimeRequest)                        // NEW
+
+                e.HasOne(x => x.OvertimeRequest)
                    .WithMany()
                    .HasForeignKey(x => x.OvertimeRequestId)
                    .OnDelete(DeleteBehavior.NoAction);
 
-
                 e.HasIndex(x => x.EmployeeId);
-                e.HasIndex(x => x.OvertimeRequestId);                  // NEW (lookup speed)
+                e.HasIndex(x => x.OvertimeRequestId);
                 e.HasIndex(x => new { x.EmployeeId, x.EffectiveDate });
             });
 
-            // ============================================================
-            // RELATIONSHIPS: OPERA
-            // ============================================================
             b.Entity<ActivitySubType>()
              .HasOne(st => st.ActivityType)
              .WithMany(t => t.SubTypes)
@@ -256,8 +235,6 @@ namespace MyApplication.Components.Data
              .HasForeignKey(r => r.ActivitySubTypeId)
              .OnDelete(DeleteBehavior.Restrict);
 
-           
-
             b.Entity<OperaRequest>()
              .HasOne(r => r.Employees)
              .WithMany()
@@ -267,9 +244,6 @@ namespace MyApplication.Components.Data
             b.Entity<OperaRequest>().HasIndex(r => r.StartTime);
             b.Entity<OperaRequest>().HasIndex(r => new { r.EmployeeId, r.StartTime });
 
-            // ============================================================
-            // RELATIONSHIPS: ACR
-            // ============================================================
             b.Entity<AcrRequest>(e =>
             {
                 e.HasOne(r => r.Employee)
@@ -310,20 +284,11 @@ namespace MyApplication.Components.Data
 
             b.Entity<AcrSchedule>(e =>
             {
-                // Keep ShiftNumber optional if you allow "null or 1" for first segment; otherwise make required.
-                // e.Property(x => x.ShiftNumber).IsRequired();
-
                 e.HasOne(s => s.AcrRequest)
                  .WithMany()
                  .HasForeignKey(s => s.AcrRequestId)
                  .OnDelete(DeleteBehavior.Cascade);
-
-                // e.HasIndex(s => new { s.AcrRequestId, s.ShiftNumber }).IsUnique();
             });
-
-            // ============================================================
-            // RELATIONSHIPS: Skills
-            // ============================================================
 
             b.Entity<Skills>(e =>
             {
@@ -336,63 +301,6 @@ namespace MyApplication.Components.Data
                  .WithMany()
                  .HasForeignKey(s => s.SkillTypeId)
                  .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // ============================================================
-            // RELATIONSHIPS: OVERTIME SCHEDULES
-            // ============================================================
-            b.Entity<AcrOvertimeSchedules>(e =>
-            {
-                // 1:1 to AcrRequest via unique AcrRequestId
-                e.HasOne(x => x.AcrRequest)
-                 .WithMany()
-                 .HasForeignKey(x => x.AcrRequestId)
-                 .OnDelete(DeleteBehavior.Cascade);
-
-                e.HasIndex(x => x.AcrRequestId).IsUnique();
-
-                // Each day → OvertimeTypes (optional; Restrict deletions)
-                e.HasOne(x => x.MondayType)
-                 .WithMany()
-                 .HasForeignKey(x => x.MondayTypeId)
-                 .OnDelete(DeleteBehavior.Restrict)
-                 .HasConstraintName("FK_AcrOvertimeSchedules_MondayType_OvertimeTypes");
-
-                e.HasOne(x => x.TuesdayType)
-                 .WithMany()
-                 .HasForeignKey(x => x.TuesdayTypeId)
-                 .OnDelete(DeleteBehavior.Restrict)
-                 .HasConstraintName("FK_AcrOvertimeSchedules_TuesdayType_OvertimeTypes");
-
-                e.HasOne(x => x.WednesdayType)
-                 .WithMany()
-                 .HasForeignKey(x => x.WednesdayTypeId)
-                 .OnDelete(DeleteBehavior.Restrict)
-                 .HasConstraintName("FK_AcrOvertimeSchedules_WednesdayType_OvertimeTypes");
-
-                e.HasOne(x => x.ThursdayType)
-                 .WithMany()
-                 .HasForeignKey(x => x.ThursdayTypeId)
-                 .OnDelete(DeleteBehavior.Restrict)
-                 .HasConstraintName("FK_AcrOvertimeSchedules_ThursdayType_OvertimeTypes");
-
-                e.HasOne(x => x.FridayType)
-                 .WithMany()
-                 .HasForeignKey(x => x.FridayTypeId)
-                 .OnDelete(DeleteBehavior.Restrict)
-                 .HasConstraintName("FK_AcrOvertimeSchedules_FridayType_OvertimeTypes");
-
-                e.HasOne(x => x.SaturdayType)
-                 .WithMany()
-                 .HasForeignKey(x => x.SaturdayTypeId)
-                 .OnDelete(DeleteBehavior.Restrict)
-                 .HasConstraintName("FK_AcrOvertimeSchedules_SaturdayType_OvertimeTypes");
-
-                e.HasOne(x => x.SundayType)
-                 .WithMany()
-                 .HasForeignKey(x => x.SundayTypeId)
-                 .OnDelete(DeleteBehavior.Restrict)
-                 .HasConstraintName("FK_AcrOvertimeSchedules_SundayType_OvertimeTypes");
             });
         }
     }

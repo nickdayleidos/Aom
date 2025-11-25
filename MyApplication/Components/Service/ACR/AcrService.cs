@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MyApplication.Components.Data;
 using MyApplication.Components.Model.AOM.Employee;
+using MyApplication.Common.Time;
 
 namespace MyApplication.Components.Service.Acr
 {
@@ -120,8 +121,8 @@ namespace MyApplication.Components.Service.Acr
             }
 
             // Effective date – use the value from the VM if set; otherwise default to "today" in ET
-            var effectiveDate = vm.EffectiveDate
-                ?? DateOnly.FromDateTime(GetEasternNow().Date);
+            // REFACTOR: Use Et.Today
+            var effectiveDate = vm.EffectiveDate ?? Et.Today;
 
             var req = new AcrRequest
             {
@@ -132,7 +133,8 @@ namespace MyApplication.Components.Service.Acr
                 SubmitterComment = vm.SubmitterComment,
 
                 // Submit time stored in Eastern instead of UTC
-                SubmitTime = GetEasternNow(),
+                // REFACTOR: Use Et.Now
+                SubmitTime = Et.Now,
                 SubmittedBy = submittedBy,
 
                 IsActive = vm.TypeId switch
@@ -218,13 +220,6 @@ namespace MyApplication.Components.Service.Acr
 
             // ✅ every code path ends up here
             return acrId;
-        }
-
-        // Small helper to get "now" in Eastern time
-        private static DateTime GetEasternNow()
-        {
-            var etZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
-            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, etZone);
         }
 
         private static async Task ApplyEmployeeStateChangesForSpecialTypes(

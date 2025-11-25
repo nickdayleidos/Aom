@@ -10,7 +10,6 @@
 <MudStack Spacing="2">
     <MudPaper Class="pa-4" Outlined>
 
-        <!-- Header ---------------------------------------------------------->
         <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
             <MudText Typo="Typo.h5">ACRs</MudText>
 
@@ -22,7 +21,6 @@
             </MudButton>
         </MudStack>
 
-        <!-- Tabs ------------------------------------------------------------>
         <MudTabs @bind-ActivePanelIndex="TabIndex"
                  Rounded="true"
                  Elevation="0"
@@ -34,9 +32,7 @@
             <MudTabPanel Text="WFM Approve"
                          Icon="@Icons.Material.Outlined.CheckCircleOutline" />
         </MudTabs>
-        <!-- Filter bar ------------------------------------------------------>
         <MudGrid Class="mt-3 mb-2" AlignItems="Center" GutterSize="2">
-            <!-- Search -->
             <MudItem xs="12" md="5">
                 <MudTextField T="string"
                               Label="Employee"
@@ -49,9 +45,9 @@
                               OnDebounceIntervalElapsed="OnSearchChanged" />
             </MudItem>
 
-            <!-- Type filter -->
             <MudItem xs="12" md="3">
-                <MudSelect T="int?" Label="Type"
+                <MudSelect T="int?"
+                           Label="Type"
                            Dense="true"
                            Clearable="true"
                            Value="_selectedTypeId"
@@ -65,9 +61,9 @@
                 </MudSelect>
             </MudItem>
 
-            <!-- Status filter (disabled on Manager/WFM tabs) -->
             <MudItem xs="12" md="3">
-                <MudSelect T="int?" Label="Status"
+                <MudSelect T="int?"
+                           Label="Status"
                            Dense="true"
                            Clearable="true"
                            Disabled="@(TabIndex != 0)"
@@ -82,7 +78,6 @@
                 </MudSelect>
             </MudItem>
 
-            <!-- Clear filters -->
             <MudItem xs="12" md="1" Class="d-flex justify-end">
                 <MudButton Variant="Variant.Text"
                            Color="Color.Secondary"
@@ -93,7 +88,6 @@
             </MudItem>
         </MudGrid>
 
-        <!-- Table ----------------------------------------------------------->
         <MudTable Items="_rows"
                   Hover="true"
                   Dense="true"
@@ -202,7 +196,6 @@
             EffectiveFrom = null,
             EffectiveTo = null
         };
-
         await ReloadAsync();
     }
 
@@ -243,27 +236,12 @@
             EmployeeSearch = search
         };
 
-        var rows = await Query.QueryAsync(_filter, take: 1000);
-
-        // 🔍 Extra safety: client-side filter by Employee name or id
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = search.Trim();
-
-            rows = rows
-                .Where(r =>
-                    (!string.IsNullOrWhiteSpace(r.EmployeeName) &&
-                     r.EmployeeName.Contains(term, StringComparison.OrdinalIgnoreCase))
-                    || r.EmployeeId.ToString().Contains(term, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-        }
-
-        _rows = rows;
+        // We trust the query service to handle the filtering
+        _rows = await Query.QueryAsync(_filter, take: 1000);
 
         _loading = false;
         StateHasChanged();
     }
-
 
     private void OnRowClick(TableRowClickEventArgs<AcrRequestListItem> e)
         => Nav.NavigateTo($"/acr/{e.Item.Id}");

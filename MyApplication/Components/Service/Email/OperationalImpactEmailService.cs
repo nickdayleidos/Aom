@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MyApplication.Components.Model.AOM.Tools;
 using MyApplication.Components.Service;
+using MyApplication.Common.Time;
 
 namespace MyApplication.Components.Services.Email
 {
@@ -30,20 +31,6 @@ namespace MyApplication.Components.Services.Email
         // -------------------------
         // CREATE (new OI email)
         // -------------------------
-
-        private static DateTime GetEasternNow()
-        {
-            try
-            {
-                var tz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"); // Windows
-                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);          // Kind = Unspecified (good)
-            }
-            catch
-            {
-                var tz = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");     // Linux
-                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);          // Kind = Unspecified (good)
-            }
-        }
 
         public async Task<(string subject, string html, string to, string cc, string from, int id)>
             CreateEventAndComposeAsync(OiEvent model, CancellationToken ct = default)
@@ -108,7 +95,7 @@ namespace MyApplication.Components.Services.Email
             // If ALL CLEAR and no ResolutionTime yet, stamp it with ET now and persist
             if (allClear && !ev.ResolutionTime.HasValue)
             {
-                ev.ResolutionTime = GetEasternNow(); // Unspecified ET
+                ev.ResolutionTime = Et.Now;
                 await _repo.UpdateAsync(ev, ct).ConfigureAwait(false);
             }
 
@@ -230,16 +217,9 @@ namespace MyApplication.Components.Services.Email
             return replaced;
         }
 
-        private static TimeZoneInfo GetEtTz()
-        {
-            try { return TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"); }
-            catch { return TimeZoneInfo.FindSystemTimeZoneById("America/New_York"); }
-        }
-
-        // *** FIXED: Treat Unspecified as already ET — do not convert again ***
         private static string FormatEt(DateTime dt)
         {
-            var et = GetEtTz();
+            var et = Et.Zone;
 
             DateTime etTime = dt.Kind switch
             {
@@ -257,9 +237,7 @@ namespace MyApplication.Components.Services.Email
 
         private static string NowEtString()
         {
-            var et = GetEtTz();
-            var nowEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, et);
-            return $"{nowEt:MM/dd/yyyy h:mm tt} ET";
+            return $"{Et.Now:MM/dd/yyyy h:mm tt} ET";
         }
     }
 }

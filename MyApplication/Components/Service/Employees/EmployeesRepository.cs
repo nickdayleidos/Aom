@@ -20,68 +20,39 @@ namespace MyApplication.Components.Service.Employee
 
             await using var db = await _factory.CreateDbContextAsync(ct);
 
-            var baseQuery =
-                from e in db.Employees
-                let hist =
-                    (from h in db.EmployeeHistory
-                     where h.EmployeeId == e.Id
-                     orderby h.EffectiveDate descending
-                     select new
-                     {
-                         h.SupervisorId,
-                         h.ManagerId,
-                         h.OrganizationId,
-                         h.SubOrganizationId,
-
-                         ManagerName = (
-                             from m in db.Managers
-                             join me in db.Employees on m.EmployeeId equals me.Id
-                             where m.Id == h.ManagerId
-                             select me.LastName + ", " + me.FirstName
-                         ).FirstOrDefault(),
-
-                         SupervisorName = (
-                             from s in db.Supervisors
-                             join se in db.Employees on s.EmployeeId equals se.Id
-                             where s.Id == h.SupervisorId
-                             select se.LastName + ", " + se.FirstName
-                         ).FirstOrDefault(),
-
-                         OrgName = db.Organizations.Where(o => o.Id == h.OrganizationId).Select(o => o.Name).FirstOrDefault(),
-                         SubOrgName = db.SubOrganizations.Where(so => so.Id == h.SubOrganizationId).Select(so => so.Name).FirstOrDefault(),
-                     }).FirstOrDefault()
-                select new { Emp = e, History = hist };
+            // Refactored to use View
+            var baseQuery = db.EmployeeCurrentDetails.AsQueryable();
 
             if (activeOnly)
-                baseQuery = baseQuery.Where(x => x.Emp.IsActive);
+                baseQuery = baseQuery.Where(x => x.IsActive);
 
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var isId = int.TryParse(q, out var idValue);
                 baseQuery = baseQuery.Where(x =>
-                       (x.Emp.FirstName != null && EF.Functions.Like(x.Emp.FirstName, $"%{q}%"))
-                    || (x.Emp.LastName != null && EF.Functions.Like(x.Emp.LastName, $"%{q}%"))
-                    || (isId && x.Emp.Id == idValue)
-                    || (x.History.ManagerName != null && EF.Functions.Like(x.History.ManagerName, $"%{q}%"))
-                    || (x.History.SupervisorName != null && EF.Functions.Like(x.History.SupervisorName, $"%{q}%"))
-                    || (x.History.OrgName != null && EF.Functions.Like(x.History.OrgName, $"%{q}%"))
-                    || (x.History.SubOrgName != null && EF.Functions.Like(x.History.SubOrgName, $"%{q}%"))
+                       (x.FirstName != null && EF.Functions.Like(x.FirstName, $"%{q}%"))
+                    || (x.LastName != null && EF.Functions.Like(x.LastName, $"%{q}%"))
+                    || (isId && x.EmployeeId == idValue)
+                    || (x.ManagerName != null && EF.Functions.Like(x.ManagerName, $"%{q}%"))
+                    || (x.SupervisorName != null && EF.Functions.Like(x.SupervisorName, $"%{q}%"))
+                    || (x.OrganizationName != null && EF.Functions.Like(x.OrganizationName, $"%{q}%"))
+                    || (x.SubOrganizationName != null && EF.Functions.Like(x.SubOrganizationName, $"%{q}%"))
                 );
             }
 
             return await baseQuery
-                .OrderBy(x => x.Emp.LastName).ThenBy(x => x.Emp.FirstName)
+                .OrderBy(x => x.LastName).ThenBy(x => x.FirstName)
                 .Take(take)
                 .Select(x => new EmployeeListItem
                 {
-                    Id = x.Emp.Id,
-                    FirstName = x.Emp.FirstName,
-                    LastName = x.Emp.LastName,
-                    IsActive = x.Emp.IsActive,
-                    Manager = x.History.ManagerName,
-                    Supervisor = x.History.SupervisorName,
-                    Organization = x.History.OrgName,
-                    SubOrganization = x.History.SubOrgName,
+                    Id = x.EmployeeId,
+                    FirstName = x.FirstName,
+                    LastName = x.LastName,
+                    IsActive = x.IsActive,
+                    Manager = x.ManagerName,
+                    Supervisor = x.SupervisorName,
+                    Organization = x.OrganizationName,
+                    SubOrganization = x.SubOrganizationName,
                 })
                 .ToListAsync(ct);
         }
@@ -127,9 +98,6 @@ namespace MyApplication.Components.Service.Employee
                            SiteName = db.Sites.Where(s => s.Id == h.SiteId).Select(s => s.SiteCode).FirstOrDefault(),
                        }).FirstOrDefaultAsync(ct);
 
-            
-
-            
 
             return new EmployeeDetailDto
             {
@@ -146,8 +114,6 @@ namespace MyApplication.Components.Service.Employee
                 Employer = hist?.EmployerName,
                 Site = hist?.SiteName,
                 EffectiveDate = hist?.EffectiveDate,
-
-                
             };
         }
     }

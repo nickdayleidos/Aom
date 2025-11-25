@@ -1,14 +1,16 @@
 ﻿using MyApplication.Components.Model.AOM.Employee;
+// Alias to avoid ambiguity if needed
+using EmployeeEntity = MyApplication.Components.Model.AOM.Employee.Employees;
 
 namespace MyApplication.Components.Service
 {
     public sealed class OperaQuery
     {
-        public string? NameOrId { get; set; }    // matches first/last or numeric ids
+        public string? NameOrId { get; set; }
         public int? StatusId { get; set; }
         public DateTime? FromUtc { get; set; }
         public DateTime? ToUtc { get; set; }
-        public int Take { get; set; } = 1000;    // hard limit
+        public int Take { get; set; } = 1000;
     }
 
     public interface IOperaRepository
@@ -19,6 +21,11 @@ namespace MyApplication.Components.Service
         Task UpdateAsync(OperaRequest req, CancellationToken ct = default);
         Task SetStatusAsync(int requestId, int statusId, string actor, CancellationToken ct = default);
         Task<IReadOnlyList<OperaStatus>> GetStatusesAsync(CancellationToken ct = default);
-        Task<IReadOnlyList<Employees>> SearchEmployeesAsync(string term, int take = 20, CancellationToken ct = default);
+        Task<IReadOnlyList<EmployeeEntity>> SearchEmployeesAsync(string term, int take = 20, CancellationToken ct = default);
+
+        // --- NEW HELPERS (Replaces DbContext usage in Razor) ---
+        Task<Dictionary<int, string>> GetActivityTypesAsync(CancellationToken ct = default);
+        Task<Dictionary<int, string>> GetActivitySubTypesAsync(CancellationToken ct = default);
+        Task<Dictionary<int, string?>> GetEmployeeSiteTimeZonesAsync(IEnumerable<int> employeeIds, CancellationToken ct = default);
     }
 }
