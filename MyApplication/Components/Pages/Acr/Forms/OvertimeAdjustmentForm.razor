@@ -1,0 +1,94 @@
+﻿
+@inject IAcrQueryService Query
+
+<MudStack Spacing="2">
+    <MudText Typo="Typo.subtitle2">Overtime Adjustment (Type Ids by Day)</MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Monday" Dense ReadOnly="@ReadOnly" @bind-Value="_mon">
+                @foreach (var kv in _otTypes)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Tuesday" Dense ReadOnly="@ReadOnly" @bind-Value="_tue">
+                @foreach (var kv in _otTypes)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Wednesday" Dense ReadOnly="@ReadOnly" @bind-Value="_wed">
+                @foreach (var kv in _otTypes)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Thursday" Dense ReadOnly="@ReadOnly" @bind-Value="_thu">
+                @foreach (var kv in _otTypes)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Friday" Dense ReadOnly="@ReadOnly" @bind-Value="_fri">
+                @foreach (var kv in _otTypes)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Saturday" Dense ReadOnly="@ReadOnly" @bind-Value="_sat">
+                @foreach (var kv in _otTypes)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Sunday" Dense ReadOnly="@ReadOnly" @bind-Value="_sun">
+                @foreach (var kv in _otTypes)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+</MudStack>
+
+@code {
+    [Parameter] public OvertimeAdjustmentDto? Value { get; set; }
+    [Parameter] public EventCallback<OvertimeAdjustmentDto?> ValueChanged { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private List<KeyValuePair<int, string>> _otTypes = new();
+
+    // shorthand to guarantee we always have a Value instance to mutate with `with { }`
+    private static OvertimeAdjustmentDto Ensure(OvertimeAdjustmentDto? v)
+        => v ?? new OvertimeAdjustmentDto(null, null, null, null, null, null, null);
+
+    private int? _mon { get => Value?.MondayTypeId; set { Value = Ensure(Value) with { MondayTypeId = value }; ValueChanged.InvokeAsync(Value); } }
+    private int? _tue { get => Value?.TuesdayTypeId; set { Value = Ensure(Value) with { TuesdayTypeId = value }; ValueChanged.InvokeAsync(Value); } }
+    private int? _wed { get => Value?.WednesdayTypeId; set { Value = Ensure(Value) with { WednesdayTypeId = value }; ValueChanged.InvokeAsync(Value); } }
+    private int? _thu { get => Value?.ThursdayTypeId; set { Value = Ensure(Value) with { ThursdayTypeId = value }; ValueChanged.InvokeAsync(Value); } }
+    private int? _fri { get => Value?.FridayTypeId; set { Value = Ensure(Value) with { FridayTypeId = value }; ValueChanged.InvokeAsync(Value); } }
+    private int? _sat { get => Value?.SaturdayTypeId; set { Value = Ensure(Value) with { SaturdayTypeId = value }; ValueChanged.InvokeAsync(Value); } }
+    private int? _sun { get => Value?.SundayTypeId; set { Value = Ensure(Value) with { SundayTypeId = value }; ValueChanged.InvokeAsync(Value); } }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // expects a query like: Dictionary<int, string> GetOvertimeTypesAsync()
+        _otTypes = await Query.GetOvertimeTypesAsync();
+    }
+}

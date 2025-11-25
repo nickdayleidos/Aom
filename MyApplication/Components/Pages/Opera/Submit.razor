@@ -1,171 +1,333 @@
-﻿@page "/opera/submit"
-
+﻿@page "/opera/new"
+@attribute [Authorize(Policy = "Admin")]
+@using System
 @using System.Linq
 @using Microsoft.EntityFrameworkCore
 @using MudBlazor
 @using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Common.Time
 @inject IOperaRepository Repo
 @inject AomDbContext Db
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
+@inject UserProfileService UserProfile
+@using MyApplication.Components.Service
 
 <MudStack Spacing="2">
-    <MudPaper Class="pa-3" Outlined="true">
-        <MudText Typo="Typo.h6">New Opera Requests</MudText>
+    <MudPaper Class="pa-4" Outlined="true">
+        @if (!string.IsNullOrWhiteSpace(_lastError))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-2">
+                <MudText Typo="Typo.caption">
+                    @_lastError
+                </MudText>
+            </MudAlert>
+        }
+        <MudStack Spacing="1">
+            <MudText Typo="Typo.h5">New Opera Requests</MudText>
+            <MudText Typo="Typo.caption">
+                Select employees on the left, then fill in the request details on the right.
+            </MudText>
 
-        <MudGrid Spacing="2" Class="mt-2">
+            <MudGrid Spacing="3" Class="mt-2">
+                <!-- Left: employee picker -->
+                <MudItem xs="12" md="5">
+                    <MudPaper Class="pa-3 h-100">
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.subtitle1">Employees</MudText>
 
-            <!-- Employees (multi-select with external search) -->
-            <MudItem xs="12" md="6">
-                <MudTextField @bind-Value="_empQuery"
-                              @bind-Value:after="OnEmpQueryChanged"
-                              Label="Search employees (name or ID)"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Search"
-                              Immediate="true"
-                              DebounceInterval="300" />
+                            <MudGrid Spacing="1" Class="mt-1">
+                                <!-- Available employees -->
+                                <MudItem xs="12" md="6">
+                                    <MudTextField @bind-Value="_availableFilter"
+                                                  @bind-Value:after="OnAvailableFilterChanged"
+                                                  Label="Filter"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Immediate="true"
+                                                  DebounceInterval="250" />
 
-                <MudSelect T="int"
-                           Label="Employees"
-                           MultiSelection="true"
-                           SelectedValues="_selectedEmployeeIds"
-                           SelectedValuesChanged="OnSelectedEmployeesChanged"
-                           Dense="true"
-                           Clearable="true"
-                           CloseMenuOnSelection="false"
-                           MaxHeight="400"
-                           ToStringFunc="@EmployeeLabel">
-                    @foreach (var o in _employeeOptions)
-                    {
-                        <MudSelectItem T="int" Value="@o.Id">@o.Label</MudSelectItem>
-                    }
-                </MudSelect>
+                                    <MudList T="EmployeeOption"
+                                             Dense="true"
+                                             Class="mt-1"
+                                             Style="max-height:380px; overflow-y:auto;">
+                                        @foreach (var emp in _employeeOptions
+                                                                                .Where(o => !_selectedEmployeeIds.Contains(o.Id) &&
+                                                                                (string.IsNullOrWhiteSpace(_availableFilter) ||
+                                                                                o.Label.Contains(_availableFilter, StringComparison.OrdinalIgnoreCase))))
+                                        {
+                                            <MudListItem T="EmployeeOption"
+                                                         Value="emp"
+                                                         Clickable="true"
+                                                         OnClick="@(() => AddEmployee(emp.Id))">
+                                                @emp.Label
+                                            </MudListItem>
+                                        }
+                                    </MudList>
+                                </MudItem>
 
-            </MudItem>
+                                <!-- Selected employees -->
+                                <MudItem xs="12" md="6">
+                                    <MudTextField @bind-Value="_selectedFilter"
+                                                  Label="Filter"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Immediate="true"
+                                                  DebounceInterval="250" />
 
-            <!-- Start/End (ET) -->
-            <MudItem xs="12" md="3">
-                <MudDatePicker @bind-Date="_startDateEt" Label="Start Date (ET)" />
-            </MudItem>
-            <MudItem xs="12" md="3">
-                <MudTimePicker @bind-Time="_startTimeEt" Label="Start Time (ET)" />
-            </MudItem>
+                                    <MudList T="EmployeeOption"
+                                             Dense="true"
+                                             Class="mt-1"
+                                             Style="max-height:380px; overflow-y:auto;">
+                                        @foreach (var emp in GetSelectedEmployeeOptions()
+                                                                                .Where(o => string.IsNullOrWhiteSpace(_selectedFilter) ||
+                                                                                o.Label.Contains(_selectedFilter, StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            <MudListItem T="EmployeeOption"
+                                                         Value="emp"
+                                                         Clickable="true"
+                                                         OnClick="@(() => RemoveEmployee(emp.Id))">
+                                                @emp.Label
+                                            </MudListItem>
+                                        }
+                                    </MudList>
+                                </MudItem>
+                            </MudGrid>
 
-            <MudItem xs="12" md="3">
-                <MudDatePicker @bind-Date="_endDateEt" Label="End Date (ET)" />
-            </MudItem>
-            <MudItem xs="12" md="3">
-                <MudTimePicker @bind-Time="_endTimeEt" Label="End Time (ET)" />
-            </MudItem>
+                            <MudText Class="mt-1" Typo="Typo.caption">
+                                Click a name on the left to add, click on the right to remove.
+                            </MudText>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
 
-            <!-- Type / SubType / SubClass -->
-            <MudItem xs="12" md="4">
-                <MudSelect T="int?" @bind-Value="_typeId" Label="Type" Clearable="true">
-                    @foreach (var t in _types)
-                    {
-                        <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.Name</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
+                <!-- Right: request details -->
+                <MudItem xs="12" md="7">
+                    <MudPaper Class="pa-3 h-100">
+                        <MudStack Spacing="2">
 
-            <MudItem xs="12" md="4">
-                <MudSelect T="int?" @bind-Value="_subTypeId" Label="SubType" Disabled="@(_typeId is null)" Clearable="true">
-                    @foreach (var st in _subTypes.Where(s => s.OperaTypeId == (_typeId ?? -1)))
-                    {
-                        <MudSelectItem T="int?" Value="@((int?)st.Id)">@st.Name</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
+                            <!-- Header -->
+                            <MudText Typo="Typo.subtitle1">Request details</MudText>
 
-            <MudItem xs="12" md="4">
-                <MudSelect T="int?" @bind-Value="_subClassId" Label="SubClass" Disabled="@(_subTypeId is null)" Clearable="true">
-                    @foreach (var sc in _subClasses.Where(c => c.OperaSubTypeId == (_subTypeId ?? -1)))
-                    {
-                        <MudSelectItem T="int?" Value="@((int?)sc.Id)">@sc.Name</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
+                            <!-- Type / SubType / Timeframe / Time Zone -->
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" md="3">
+                                    <MudSelect T="int?"
+                                               @bind-Value="_typeId"
+                                               Label="Type"
+                                               Variant="Variant.Outlined"
+                                               Dense="true"
+                                               Required="true">
+                                        @foreach (var t in _types)
+                                        {
+                                            <MudSelectItem T="int?" Value="@((int?)t.Id)">
+                                                @t.Name
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
 
-            <!-- Submitter comments -->
-            <MudItem xs="12" md="12">
-                <MudTextField @bind-Value="_comments" Label="Submitter Comments" Lines="3" />
-            </MudItem>
+                                <MudItem xs="12" md="3">
+                                    <MudSelect T="int?"
+                                               @bind-Value="_subTypeId"
+                                               Label="SubType"
+                                               Variant="Variant.Outlined"
+                                               Dense="true"
+                                               Disabled="@(_typeId is null)"
+                                               Required="true">
+                                        @foreach (var st in _subTypes.Where(s => s.ActivityTypeId == (_typeId ?? -1)))
+                                        {
+                                            <MudSelectItem T="int?" Value="@((int?)st.Id)">
+                                                @st.Name
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
 
-            <!-- Actions -->
-            <MudItem xs="12" md="12" Class="d-flex gap-2">
-                <MudButton Variant="Variant.Filled" OnClick="SubmitAsync" Disabled="@_busy">Submit</MudButton>
-                <MudButton Variant="Variant.Outlined" OnClick="@(() => Nav.NavigateTo("/tools/opera"))">Cancel</MudButton>
-            </MudItem>
-        </MudGrid>
+                                <MudItem xs="12" md="3">
+                                    <MudSelect T="OperaTimeframeMode ?"
+                                               @bind-Value="_timeframeMode"
+                                               Label="Timeframe"
+                                               Variant="Variant.Outlined"
+                                               Dense="true"
+                                               Required="true">
+                                        <MudSelectItem T="OperaTimeframeMode ?" Value="@OperaTimeframeMode.Eos">
+                                            EOS
+                                        </MudSelectItem>
+                                        <MudSelectItem T="OperaTimeframeMode ?" Value="@OperaTimeframeMode.FullShift">
+                                            Full Shift
+                                        </MudSelectItem>
+                                        <MudSelectItem T="OperaTimeframeMode ?" Value="@OperaTimeframeMode.Custom">
+                                            Timeframe
+                                        </MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+
+                                <MudItem xs="12" md="3">
+                                    <MudSelect T="SiteZone ?"
+                                               @bind-Value="_zone"
+                                               Label="Time Zone"
+                                               Variant="Variant.Outlined"
+                                               Dense="true"
+                                               Required="true">
+                                        <MudSelectItem T="SiteZone ?" Value="@SiteZone.ET">
+                                            Eastern
+                                        </MudSelectItem>
+                                        <MudSelectItem T="SiteZone ?" Value="@SiteZone.MT">
+                                            Mountain
+                                        </MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                            </MudGrid>
+
+                            <!-- When -->
+                            <MudDivider Class="my-1" />
+                            <MudText Typo="Typo.body2">When</MudText>
+
+                            <!-- START Row -->
+                            <MudGrid Spacing="2" Class="mt-1">
+                                <MudItem xs="12" md="4">
+                                    <MudDatePicker @bind-Date="_startDateEt"
+                                                   Label="Start Date"
+                                                   Variant="Variant.Outlined"
+                                                   Dense="true"
+                                                   Disabled="@(_timeframeMode is null)" />
+                                </MudItem>
+
+                                <MudItem xs="12" md="4">
+                                    <MudTimePicker @bind-Time="_startTimeEt"
+                                                   Label="Start Time"
+                                                   Variant="Variant.Outlined"
+                                                   Editable="true" Clearable="true"
+                                                   Dense="true"
+                                                   Disabled="@(_timeframeMode is null || _timeframeMode == OperaTimeframeMode.FullShift)" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <!-- END Row -->
+                            <MudGrid Spacing="2" Class="mt-1">
+                                <MudItem xs="12" md="4">
+                                    <MudDatePicker @bind-Date="_endDateEt"
+                                                   Label="End Date"
+                                                   Variant="Variant.Outlined"
+                                                   Dense="true"
+                                                   Disabled="@(_timeframeMode is null || _timeframeMode == OperaTimeframeMode.Eos)" />
+                                </MudItem>
+
+                                <MudItem xs="12" md="4">
+                                    <MudTimePicker @bind-Time="_endTimeEt"
+                                                   Label="End Time"
+                                                   Variant="Variant.Outlined"
+                                                   Editable="true" Clearable="true"
+                                                   Dense="true"
+                                                   Disabled="@(_timeframeMode != OperaTimeframeMode.Custom)" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <!-- Comments -->
+                            <MudDivider Class="my-1" />
+                            <MudText Typo="Typo.body2">Comments</MudText>
+
+                            <MudTextField @bind-Value="_comments"
+                                          Label="Submitter Comments"
+                                          Variant="Variant.Outlined"
+                                          Lines="3"
+                                          FullWidth="true" />
+
+                            <!-- Actions -->
+                            <MudStack Row="true" Justify="Justify.FlexStart" Spacing="1" Class="mt-2">
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           OnClick="SubmitAsync"
+                                           Disabled="@_busy">
+                                    SUBMIT
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Default"
+                                           OnClick="@(() => Nav.NavigateTo("/opera"))">
+                                    CANCEL
+                                </MudButton>
+                            </MudStack>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudStack>
     </MudPaper>
 </MudStack>
 
 @code {
-    // ---------- Employee multi-select (IDs) ----------
+    // ---------- Employee selection ----------
+    private sealed record EmployeeOption(int Id, string Label);
+
     private HashSet<int> _selectedEmployeeIds = new();
-    private string _empQuery = string.Empty;
+    private string _availableFilter = string.Empty;
+    private string _selectedFilter = string.Empty;
     private List<EmployeeOption> _employeeOptions = new();
     private readonly Dictionary<int, string> _labelCache = new();
     private CancellationTokenSource? _empCts;
-    private bool _disposed;
-
-    private sealed record EmployeeOption(int Id, string Label);
-
+    private string? _lastError;
     // ---------- Lookups ----------
-    private List<OperaType> _types = new();
-    private List<OperaSubType> _subTypes = new();
-    private List<OperaSubClass> _subClasses = new();
+    private List<ActivityType> _types = new();
+    private List<ActivitySubType> _subTypes = new();
 
-    // Selections (nullable → no default 0) asdfadsf
+    // No defaults – user must choose
     private int? _typeId;
     private int? _subTypeId;
-    private int? _subClassId;
+    private OperaTimeframeMode? _timeframeMode;
+    private SiteZone? _zone;
 
-    // ET date/time for UI
+    // date/time inputs (in the *selected* time zone)
     private DateTime? _startDateEt;
     private TimeSpan? _startTimeEt;
     private DateTime? _endDateEt;
     private TimeSpan? _endTimeEt;
 
-    // Other
     private string? _comments;
     private bool _busy;
 
-    private static readonly TimeZoneInfo EtTz =
-        TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+    private enum OperaTimeframeMode
+    {
+        Eos,
+        FullShift,
+        Custom
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        // Defaults: current ET
-        var nowEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, EtTz);
-        _startDateEt = nowEt.Date;
-        _startTimeEt = nowEt.TimeOfDay;
-        _endDateEt = nowEt.Date;
-        _endTimeEt = nowEt.TimeOfDay.Add(TimeSpan.FromHours(1));
+        // seed with "now" just so pickers have something sane when user picks timeframe
+        var now = DateTime.Now;
+        _startDateEt = now.Date;
+        _startTimeEt = now.TimeOfDay;
+        _endDateEt = now.Date;
+        _endTimeEt = now.TimeOfDay.Add(TimeSpan.FromHours(1));
 
-        // Load lookups using the injected scoped DbContext
         try
         {
-            _types = await Db.OperaType.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-            _subTypes = await Db.OperaSubType.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-            _subClasses = await Db.OperaSubClass.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+            _types = await Db.ActivityTypes
+                .AsNoTracking()
+                .Where(x => x.IsActive == true)
+                .OrderBy(x => x.Name)
+                .ToListAsync();
 
-            _typeId = _types.FirstOrDefault()?.Id;
-            _subTypeId = _subTypes.Where(s => s.OperaTypeId == _typeId)
-                                   .Select(s => (int?)s.Id).FirstOrDefault();
-            _subClassId = null;
+            _subTypes = await Db.ActivitySubTypes
+                .AsNoTracking()
+                .Where(x => x.IsActive == true)
+                .OrderBy(x => x.Name)
+                .ToListAsync();
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to load lookups: {ex.Message}", Severity.Error);
-            _types = new(); _subTypes = new(); _subClasses = new();
+            _types = new(); _subTypes = new();
         }
 
-        await LoadEmployeeOptionsAsync(""); // initial options
+        await LoadEmployeeOptionsAsync("");
     }
 
-    // Runs after _empQuery is updated by @bind
-    private Task OnEmpQueryChanged() => LoadEmployeeOptionsAsync(_empQuery);
+    // ---------- employee search ----------
+
+    private Task OnAvailableFilterChanged() => LoadEmployeeOptionsAsync(_availableFilter);
 
     private async Task LoadEmployeeOptionsAsync(string query)
     {
@@ -175,118 +337,212 @@
 
         try
         {
-            // Repo must return non-null; guard just in case
-            IReadOnlyList<Employees> list =
-                await Repo.SearchEmployeesAsync(query ?? "", 50, _empCts.Token)
-                ?? Array.Empty<Employees>();
+            var list = await Repo.SearchEmployeesAsync(query ?? "", 50, _empCts.Token)
+                       ?? Array.Empty<Employees>();
 
-            // Cache labels for ToStringFunc
             foreach (var e in list)
                 _labelCache[e.Id] = $"{e.LastName}, {e.FirstName} (#{e.Id})";
 
-            var options = list.Select(e => new EmployeeOption(e.Id, _labelCache[e.Id])).ToList();
+            _employeeOptions = list
+                .Select(e => new EmployeeOption(e.Id, _labelCache[e.Id]))
+                .ToList();
 
-            // Keep already-selected IDs visible even if filtered out
             foreach (var id in _selectedEmployeeIds)
-                if (!options.Any(o => o.Id == id) && _labelCache.TryGetValue(id, out var lbl))
-                    options.Insert(0, new EmployeeOption(id, lbl));
-
-            _employeeOptions = options;
-
-            if (!_disposed)
-                await InvokeAsync(StateHasChanged);
+                if (!_labelCache.ContainsKey(id))
+                    _labelCache[id] = $"#{id}";
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (_empCts?.IsCancellationRequested == true)
         {
-            // user typed again or navigated; ignore
-        }
-        catch (ObjectDisposedException)
-        {
-            // component disposed during navigation; ignore
         }
         catch (Exception ex)
         {
+            Snackbar.Add($"Failed to search employees: {ex.Message}", Severity.Error);
             _employeeOptions = new();
-            if (!_disposed)
-                Snackbar.Add($"Employee search failed: {ex.Message}", Severity.Error);
         }
     }
 
-    // Label used by MudSelect.ToStringFunc
+    private IEnumerable<EmployeeOption> GetSelectedEmployeeOptions()
+    {
+        foreach (var id in _selectedEmployeeIds.OrderBy(i => i))
+            yield return new EmployeeOption(id, EmployeeLabel(id));
+    }
+
+    private void AddEmployee(int id)
+    {
+        if (_selectedEmployeeIds.Add(id))
+            StateHasChanged();
+    }
+
+    private void RemoveEmployee(int id)
+    {
+        if (_selectedEmployeeIds.Remove(id))
+            StateHasChanged();
+    }
+
     private string EmployeeLabel(int id) =>
         _labelCache.TryGetValue(id, out var s) ? s : $"#{id}";
 
-    // Wire-up for SelectedValuesChanged (MudSelect expects IEnumerable<int>)
-    private void OnSelectedEmployeesChanged(IEnumerable<int> values) =>
-        _selectedEmployeeIds = values?.ToHashSet() ?? new();
+    // ---------- time conversion: site → ET (DB) ----------
 
-    private static DateTime ToUtcFromEt(DateTime dateEt, TimeSpan timeEt)
+    /// <summary>
+    /// Compute start/end times in *Eastern local* based on the selected timeframe
+    /// and the submitter's time zone (ET/MT).
+    /// </summary>
+    private bool TryGetStartEndEt(out DateTime startEt, out DateTime endEt)
     {
-        var local = DateTime.SpecifyKind(dateEt.Date + timeEt, DateTimeKind.Unspecified);
-        return TimeZoneInfo.ConvertTimeToUtc(local, EtTz);
+        startEt = default;
+        endEt = default;
+
+        if (_timeframeMode is null)
+        {
+            Snackbar.Add("Select a timeframe.", Severity.Warning);
+            return false;
+        }
+
+        if (_zone is null)
+        {
+            Snackbar.Add("Select a time zone (Eastern or Mountain).", Severity.Warning);
+            return false;
+        }
+
+        var zone = _zone.Value;
+
+        switch (_timeframeMode)
+        {
+            case OperaTimeframeMode.Eos:
+                if (!_startDateEt.HasValue || !_startTimeEt.HasValue)
+                {
+                    Snackbar.Add("Provide start date and time for EOS.", Severity.Warning);
+                    return false;
+                }
+
+                var eosLocal = _startDateEt.Value.Date + _startTimeEt.Value; // local in chosen zone
+                startEt = SiteTime.FromSiteToEt(eosLocal, zone);
+                endEt = startEt;
+                return true;
+
+            case OperaTimeframeMode.FullShift:
+                if (!_startDateEt.HasValue || !_endDateEt.HasValue)
+                {
+                    Snackbar.Add("Provide start and end dates for Full Shift.", Severity.Warning);
+                    return false;
+                }
+
+                if (_endDateEt.Value < _startDateEt.Value)
+                {
+                    Snackbar.Add("End date must be on or after start date.", Severity.Warning);
+                    return false;
+                }
+
+                var fullStartLocal = _startDateEt.Value.Date;
+                var fullEndLocal = _endDateEt.Value.Date.AddHours(23).AddMinutes(59);
+
+                startEt = SiteTime.FromSiteToEt(fullStartLocal, zone);
+                endEt = SiteTime.FromSiteToEt(fullEndLocal, zone);
+                return true;
+
+            case OperaTimeframeMode.Custom:
+                if (!_startDateEt.HasValue || !_startTimeEt.HasValue ||
+                    !_endDateEt.HasValue || !_endTimeEt.HasValue)
+                {
+                    Snackbar.Add("Provide start and end date/time.", Severity.Warning);
+                    return false;
+                }
+
+                var startLocal = _startDateEt.Value.Date + _startTimeEt.Value;
+                var endLocal = _endDateEt.Value.Date + _endTimeEt.Value;
+
+                startEt = SiteTime.FromSiteToEt(startLocal, zone);
+                endEt = SiteTime.FromSiteToEt(endLocal, zone);
+
+                if (endEt <= startEt)
+                {
+                    Snackbar.Add("End must be after start.", Severity.Warning);
+                    return false;
+                }
+
+                return true;
+
+            default:
+                Snackbar.Add("Select a timeframe.", Severity.Warning);
+                return false;
+        }
     }
 
     private async Task SubmitAsync()
     {
+        _lastError = null;
+
         if (_selectedEmployeeIds.Count == 0)
         {
             Snackbar.Add("Select at least one employee.", Severity.Warning);
             return;
         }
-        if (!_startDateEt.HasValue || !_startTimeEt.HasValue || !_endDateEt.HasValue || !_endTimeEt.HasValue)
+
+        if (_typeId is null || _subTypeId is null || _timeframeMode is null || _zone is null)
         {
-            Snackbar.Add("Provide start and end date/time.", Severity.Warning);
-            return;
-        }
-        if (_typeId is null || _subTypeId is null)
-        {
-            Snackbar.Add("Select Type and SubType.", Severity.Warning);
+            Snackbar.Add("Type, SubType, Timeframe, and Time Zone are required.", Severity.Warning);
             return;
         }
 
-        var startUtc = ToUtcFromEt(_startDateEt.Value, _startTimeEt.Value);
-        var endUtc = ToUtcFromEt(_endDateEt.Value, _endTimeEt.Value);
-        if (endUtc <= startUtc)
-        {
-            Snackbar.Add("End must be after start.", Severity.Warning);
-            return;
-        }
-
-        _busy = true;
         try
         {
+            if (!TryGetStartEndEt(out var startEt, out var endEt))
+                return;
+
+            _busy = true;
+
+            // 🔹 Who is submitting?
+            var profile = await UserProfile.GetAsync();
+            var actor = profile.UserName
+                        ?? profile.DisplayName
+                        ?? profile.Email
+                        ?? "unknown";
+
             var nowUtc = DateTime.UtcNow;
+
             var batch = _selectedEmployeeIds.Select(id => new OperaRequest
             {
                 EmployeeId = id,
-                StartTime = startUtc,
-                EndTime = endUtc,
-                SubmittedBy = "system", // TODO: current user
-                OperaTypeId = _typeId.Value,
-                OperaSubTypeId = _subTypeId.Value,
-                OperaSubClassId = _subClassId,
-                SubmitterComments = _comments,
-                SubmitTime = nowUtc
+                StartTime = startEt,   // ET-local
+                EndTime = endEt,     // ET-local
+                SubmittedBy = actor,
+                SubmitTime = nowUtc,    // audit in UTC
+                OperaStatusId = 1,         // Submitted
+                ActivityTypeId = _typeId.Value,
+                ActivitySubTypeId = _subTypeId.Value,
+                SubmitterComments = _comments
             });
 
             await Repo.CreateManyAsync(batch);
+
             Snackbar.Add($"Created {_selectedEmployeeIds.Count} request(s).", Severity.Success);
-            Nav.NavigateTo("/tools/opera");
+            Nav.NavigateTo("/opera");
+        }
+        catch (Exception ex)
+        {
+            // 🔥 Capture full details for debugging
+            _lastError = ex.ToString();
+
+            // 🔥 Shorter message for the user
+            Snackbar.Add($"Error submitting request: {ex.Message}", Severity.Error);
+
+            Console.Error.WriteLine("OPERA SUBMIT ERROR:");
+            Console.Error.WriteLine(ex);
         }
         finally
         {
             _busy = false;
+            StateHasChanged();
         }
     }
 
-    // Clean up CTS to avoid TaskCanceled/JS disconnect noise
+
+
+
     public void Dispose()
     {
-        _disposed = true;
         _empCts?.Cancel();
         _empCts?.Dispose();
     }
-}
-
-
 }

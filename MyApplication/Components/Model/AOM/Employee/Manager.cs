@@ -10,7 +10,7 @@ namespace MyApplication.Components.Model.AOM.Employee
         public int Id { get; set; }
 
         public int EmployeeId { get; set; }   // FK -> Employees.Id
-        public bool IsActive { get; set; } = true;
+        public bool? IsActive { get; set; } = true;
 
         // 🚫 Removed self-collection
     }

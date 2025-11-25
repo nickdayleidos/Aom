@@ -1,4 +1,5 @@
 ﻿@page "/employees/{Id:int}"
+@attribute [Authorize(Policy = "Admin")]
 @using MudBlazor
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Components.Service.Employee.Dtos

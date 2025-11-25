@@ -1,45 +1,43 @@
-﻿using System;
+﻿using SDateTime = global::System.DateTime;
+using SDateTimeOffset = global::System.DateTimeOffset;
+using STz = global::System.TimeZoneInfo;
 
 namespace MyApplication.Common.Time
 {
-    public static class Et
+    public static partial class Et
     {
         public const string WindowsId = "Eastern Standard Time";
         public const string IanaId = "America/New_York";
 
-        // cache the zone once per app lifetime
-        private static readonly TimeZoneInfo _zone = GetEtZone();
-        public static TimeZoneInfo Zone => _zone;
+        private static readonly STz _zone = GetEtZone();
+        public static STz Zone => _zone;
 
-        public static DateTime Now => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _zone);
-        public static DateTimeOffset NowOffset
-            => TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, _zone);
-
+        public static SDateTime Now => STz.ConvertTimeFromUtc(SDateTime.UtcNow, _zone);
+        public static SDateTimeOffset NowOffset => STz.ConvertTime(SDateTimeOffset.UtcNow, _zone);
         public static DateOnly Today => DateOnly.FromDateTime(Now);
 
-        public static DateTime FromUtc(DateTime utc)    // UTC -> ET (naive local)
-            => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), _zone);
+        public static SDateTime FromUtc(SDateTime utc)
+            => STz.ConvertTimeFromUtc(SDateTime.SpecifyKind(utc, System.DateTimeKind.Utc), _zone);
 
-        public static DateTime ToUtc(DateTime etLocal)  // ET (naive local) -> UTC
-            => TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(etLocal, DateTimeKind.Unspecified), _zone);
+        public static SDateTime ToUtc(SDateTime etLocal)
+            => STz.ConvertTimeToUtc(SDateTime.SpecifyKind(etLocal, System.DateTimeKind.Unspecified), _zone);
 
-        public static DateTimeOffset ToEtOffset(DateTime utc) // UTC -> ET (offset-aware)
+        public static SDateTimeOffset ToEtOffset(SDateTime utc)
         {
             var etLocal = FromUtc(utc);
-            return new DateTimeOffset(etLocal, _zone.GetUtcOffset(etLocal));
+            return new SDateTimeOffset(etLocal, _zone.GetUtcOffset(etLocal));
         }
 
-        // common formats (keep them consistent across emails)
-        public const string SubjectFormat = "yyyy-MM-dd HH:mm";       // e.g., 2025-09-04 12:35
-        public const string BodyFormat = "MM/dd/yyyy h:mm tt";     // e.g., 09/04/2025 12:35 PM
+        public const string SubjectFormat = "yyyy-MM-dd HH:mm";
+        public const string BodyFormat = "MM/dd/yyyy h:mm tt";
 
-        private static TimeZoneInfo GetEtZone()
+        private static STz GetEtZone()
         {
-            try { return TimeZoneInfo.FindSystemTimeZoneById(WindowsId); }
+            try { return STz.FindSystemTimeZoneById(WindowsId); }
             catch
             {
-                try { return TimeZoneInfo.FindSystemTimeZoneById(IanaId); }
-                catch { return TimeZoneInfo.Utc; } // last-resort fallback
+                try { return STz.FindSystemTimeZoneById(IanaId); }
+                catch { return STz.Utc; }
             }
         }
     }

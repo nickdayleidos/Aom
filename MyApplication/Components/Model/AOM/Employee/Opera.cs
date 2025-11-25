@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using MyApplication.Components.Model.AOM.Aws;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 
@@ -6,41 +7,31 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MyApplication.Components.Model.AOM.Employee
 {
-    public class OperaType
+    public class ActivityType
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public string Name { get; set; } = default!;
-        public string? Desc { get; set; }
-
-        public ICollection<OperaSubType> SubTypes { get; set; } = new List<OperaSubType>();
+        
+        public ICollection<ActivitySubType> SubTypes { get; set; } = new List<ActivitySubType>();
+        public bool? IsActive { get; set; } = true;
     }
 
-    public class OperaSubType
+    public class ActivitySubType
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public string Name { get; set; } = default!;
-        public int OperaTypeId { get; set; }
-        public bool IsImpacting { get; set; }
-        public string? Desc { get; set; }
-
-        public OperaType OperaType { get; set; } = default!;
-        public ICollection<OperaSubClass> SubClasses { get; set; } = new List<OperaSubClass>();
+        public int ActivityTypeId { get; set; }
+        public ActivityType ActivityType { get; set; } = default!;
+        public int? AwsStatusId { get; set; }
+        public Status? AwsStatus { get; set; }
+        public bool? IsActive { get; set; } = true;
     }
 
-    public class OperaSubClass
-    {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
-        public string Name { get; set; } = default!;
-        public int OperaSubTypeId { get; set; }
-
-        public OperaSubType OperaSubType { get; set; } = default!;
-    }
+    
 
     public class OperaStatus
     {
@@ -48,6 +39,7 @@ namespace MyApplication.Components.Model.AOM.Employee
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public string Name { get; set; } = default!;
+        public bool? IsActive { get; set; } = true;
     }
 
     public class OperaRequest
@@ -60,10 +52,9 @@ namespace MyApplication.Components.Model.AOM.Employee
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
         public string SubmittedBy { get; set; } = default!;
-        public int OperaTypeId { get; set; }
-        public OperaType OperaType { get; set; } = default!;
-        public int OperaSubTypeId { get; set; }
-        public int? OperaSubClassId { get; set; }
+        public int ActivityTypeId { get; set; }
+        public ActivityType ActivityType { get; set; } = default!;
+        public int ActivitySubTypeId { get; set; }
         public string? SubmitterComments { get; set; }
         public bool Approved { get; set; }
         public string? ApprovedBy { get; set; }
@@ -71,10 +62,17 @@ namespace MyApplication.Components.Model.AOM.Employee
         public string? ReviewedBy { get; set; }
         public string? WfmComments { get; set; }
         public DateTime SubmitTime { get; set; }
+        public int? OperaStatusId { get; set; }
+        public OperaStatus? OperaStatus { get; set; }
 
-       
-      
-        public OperaSubType OperaSubType { get; set; } = default!;
-        public OperaSubClass? OperaSubClass { get; set; }
+        public ActivitySubType? ActivitySubType { get; set; } = default!;
+        public DateTime? ApproveTime { get; set; }
+        public string? ApproveBy { get; set; }
+        public DateTime? CancelledTime { get; set; }
+        public string? CancelledBy { get; set; }
+        public DateTime? RejectedTime { get; set; }
+        public string? RejectedBy { get; set; }
+
+
     }
 }

@@ -1,0 +1,209 @@
+﻿@page "/acr/{Id:int}/edit"
+@attribute [Authorize(Policy = "Admin")]
+@inject IAcrQueryService Query
+@inject IAcrService Acr
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-2" Outlined="true">
+    <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.subtitle2">Time display</MudText>
+        <MudSelect T="TimeDisplayMode" Dense @bind-Value="_mode">
+            <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (employee site)</MudSelectItem>
+            <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern</MudSelectItem>
+            <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain</MudSelectItem>
+        </MudSelect>
+    </MudStack>
+</MudPaper>
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-4" Outlined>
+        @if (_vm is null)
+        {
+            <MudProgressLinear Indeterminate />
+        }
+        else
+        {
+            <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+                <MudText Typo="Typo.h6">Edit ACR #@_vm.Id</MudText>
+                <MudSpacer />
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           OnClick="SaveAsync">
+                    Save
+                </MudButton>
+            </MudStack>
+
+            <MudDivider Class="my-2" />
+
+            <MudGrid>
+                @if (_vm.TypeKey == AcrTypeKey.NewHire)
+                {
+                    @* New Hire: just show the edit form full-width *@
+                    <MudItem xs="12" md="12">
+                        <AcrFormHost Value="_vm"
+                                     ValueChanged="OnVmChanged"
+                                     Mode="_mode" />
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12" md="5">
+                        <PreviousDetails Value="@_mirror"
+                                         EmployeeId="@_vm.EmployeeId"
+                                         ShowOrg="@(_vm.Organization is not null)"
+                                         ShowSchedule="@(_vm.Schedule is not null)"
+                                         ShowOvertime="@((_vm.Overtime is not null) || (_vm.Schedule?.IsOtAdjustment ?? false))"
+                                         Mode="_mode" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="7">
+                        <AcrFormHost Value="_vm"
+                                     ValueChanged="OnVmChanged"
+                                     Mode="_mode" />
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+    </MudPaper>
+</MudStack>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private AcrEditVm? _vm;
+    private AcrCreateVm? _mirror;
+    private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
+    private string? _siteWindowsTz;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _vm = await Query.LoadForEditAsync(Id);
+        RebuildMirror();
+    }
+
+    // keep the mirror (for PreviousDetails) in sync with the edit VM
+    private void RebuildMirror()
+    {
+        if (_vm is null)
+        {
+            _mirror = null;
+            return;
+        }
+
+        _mirror = new AcrCreateVm
+        {
+            EmployeeId = _vm.EmployeeId,
+            TypeId = _vm.TypeId,
+            EffectiveDate = _vm.EffectiveDate,
+            SubmitterComment = _vm.SubmitterComment,
+            IncludeOvertimeAdjustment = _vm.IncludeOvertimeAdjustment,
+            Organization = _vm.Organization,
+            Schedule = _vm.Schedule,
+            Overtime = _vm.Overtime
+            // No NewHire here – AcrEditVm doesn't expose it,
+            // and the edit page isn't editing the New Hire block.
+        };
+    }
+
+
+    private Task OnVmChanged(object? value)
+    {
+        if (value is AcrEditVm e)
+        {
+            _vm = e;
+            RebuildMirror();
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_vm is null) return;
+
+        if (!_vm.EffectiveDate.HasValue)
+        {
+            Snackbar.Add("Effective Date is required.", Severity.Error);
+            return;
+        }
+
+        _siteWindowsTz ??= await ResolveSiteWindowsTzAsync();
+        var vmToSave = ConvertScheduleToEastern(_vm, _siteWindowsTz);
+
+        await Acr.UpdateAsync(vmToSave);
+        Snackbar.Add("ACR updated.", Severity.Success);
+        Nav.NavigateTo("/acr");
+    }
+
+    private async Task<string> ResolveSiteWindowsTzAsync()
+    {
+        // 1. If the form has an explicit site (Org section), use that
+        if (_vm?.Organization?.SiteId is int siteId1)
+        {
+            var tz = await Query.GetSiteTimeZoneAsync(siteId1);
+            if (!string.IsNullOrWhiteSpace(tz))
+                return tz!;
+        }
+
+        // 2. Otherwise, use the employee's current site from latest history
+        if (_vm?.EmployeeId is int empId)
+        {
+            var prev = await Query.GetPrevDetailsAsync(empId, TimeDisplayMode.Eastern);
+            if (prev?.SiteId is int siteId2)
+            {
+                var tz = await Query.GetSiteTimeZoneAsync(siteId2);
+                if (!string.IsNullOrWhiteSpace(tz))
+                    return tz!;
+            }
+        }
+
+        // 3. Fallback if we couldn't resolve (treat as Eastern)
+        return "Eastern Standard Time";
+    }
+
+    // Local (site) -> Eastern conversion using Windows tzids
+    private static TimeOnly? LocalToEastern(DateOnly date, TimeOnly? local, string siteWindowsTz)
+    {
+        if (local is null) return null;
+
+        var tzLocal = TimeZoneInfo.FindSystemTimeZoneById(siteWindowsTz);
+        var tzEast = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+        var localDt = new DateTime(date.Year, date.Month, date.Day,
+                                   local.Value.Hour, local.Value.Minute, 0,
+                                   DateTimeKind.Unspecified);
+        var utc = TimeZoneInfo.ConvertTimeToUtc(localDt, tzLocal);
+        var et = TimeZoneInfo.ConvertTimeFromUtc(utc, tzEast);
+
+        return new TimeOnly(et.Hour, et.Minute);
+    }
+
+    private AcrEditVm ConvertScheduleToEastern(AcrEditVm src, string siteWindowsTz)
+    {
+        if (src.Schedule is null) return src;
+
+        var ed = src.EffectiveDate ?? DateOnly.FromDateTime(DateTime.Today);
+
+        TimeOnly? ToEt(TimeOnly? local) => LocalToEastern(ed, local, siteWindowsTz);
+
+        var sch = src.Schedule with
+        {
+            MondayStart = ToEt(src.Schedule.MondayStart),
+            MondayEnd = ToEt(src.Schedule.MondayEnd),
+            TuesdayStart = ToEt(src.Schedule.TuesdayStart),
+            TuesdayEnd = ToEt(src.Schedule.TuesdayEnd),
+            WednesdayStart = ToEt(src.Schedule.WednesdayStart),
+            WednesdayEnd = ToEt(src.Schedule.WednesdayEnd),
+            ThursdayStart = ToEt(src.Schedule.ThursdayStart),
+            ThursdayEnd = ToEt(src.Schedule.ThursdayEnd),
+            FridayStart = ToEt(src.Schedule.FridayStart),
+            FridayEnd = ToEt(src.Schedule.FridayEnd),
+            SaturdayStart = ToEt(src.Schedule.SaturdayStart),
+            SaturdayEnd = ToEt(src.Schedule.SaturdayEnd),
+            SundayStart = ToEt(src.Schedule.SundayStart),
+            SundayEnd = ToEt(src.Schedule.SundayEnd)
+        };
+
+        return src with { Schedule = sch };
+    }
+}

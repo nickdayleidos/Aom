@@ -23,7 +23,7 @@ namespace MyApplication.Components.Service.Employee
             var baseQuery =
                 from e in db.Employees
                 let hist =
-                    (from h in db.EmployeeHistories
+                    (from h in db.EmployeeHistory
                      where h.EmployeeId == e.Id
                      orderby h.EffectiveDate descending
                      select new
@@ -94,7 +94,7 @@ namespace MyApplication.Components.Service.Employee
             if (emp == null) return null;
 
             var hist =
-                await (from h in db.EmployeeHistories
+                await (from h in db.EmployeeHistory
                        where h.EmployeeId == employeeId
                        orderby h.EffectiveDate descending
                        select new
@@ -127,41 +127,9 @@ namespace MyApplication.Components.Service.Employee
                            SiteName = db.Sites.Where(s => s.Id == h.SiteId).Select(s => s.SiteCode).FirstOrDefault(),
                        }).FirstOrDefaultAsync(ct);
 
-            var breaks = await db.BreakSchedules
-                .Where(b => b.EmployeeId == employeeId)
-                .Select(b => new BreakScheduleDto
-                {
-                    MondayTemplateId = b.MondayTemplateId,
-                    TuesdayTemplateId = b.TuesdayTemplateId,
-                    WednesdayTemplateId = b.WednesdayTemplateId,
-                    ThursdayTemplateId = b.ThursdayTemplateId,
-                    FridayTemplateId = b.FridayTemplateId,
-                    SaturdayTemplateId = b.SaturdayTemplateId,
-                    SundayTemplateId = b.SundayTemplateId,
-                })
-                .FirstOrDefaultAsync(ct);
+            
 
-            var ot = await db.OvertimeSchedules
-                .Where(o => o.EmployeeId == employeeId)
-                .Select(o => new OvertimeScheduleDto
-                {
-                    Duration = o.Duration,
-                    BeforeShiftMonday = o.BeforeShiftMonday,
-                    AfterShiftMonday = o.AfterShiftMonday,
-                    BeforeShiftTuesday = o.BeforeShiftTuesday,
-                    AfterShiftTuesday = o.AfterShiftTuesday,
-                    BeforeShiftWednesday = o.BeforeShiftWednesday,
-                    AfterShiftWednesday = o.AfterShiftWednesday,
-                    BeforeShiftThursday = o.BeforeShiftThursday,
-                    AfterShiftThursday = o.AfterShiftThursday,
-                    BeforeShiftFriday = o.BeforeShiftFriday,
-                    AfterShiftFriday = o.AfterShiftFriday,
-                    BeforeShiftSaturday = o.BeforeShiftSaturday,
-                    AfterShiftSaturday = o.AfterShiftSaturday,
-                    BeforeShiftSunday = o.BeforeShiftSunday,
-                    AfterShiftSunday = o.AfterShiftSunday,
-                })
-                .FirstOrDefaultAsync(ct);
+            
 
             return new EmployeeDetailDto
             {
@@ -178,8 +146,8 @@ namespace MyApplication.Components.Service.Employee
                 Employer = hist?.EmployerName,
                 Site = hist?.SiteName,
                 EffectiveDate = hist?.EffectiveDate,
-                Breaks = breaks,
-                Overtime = ot
+
+                
             };
         }
     }

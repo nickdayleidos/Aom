@@ -1,0 +1,86 @@
+﻿
+
+<MudStack Spacing="3">
+    <OrganizationChangeForm Value="OrgValue"
+                            ValueChanged="OrgValueChanged"
+                            ReadOnly="ReadOnly" />
+
+    <ScheduleChangeForm Value="SchValue"
+                        ValueChanged="OnScheduleChanged"
+                        ReadOnly="ReadOnly" />
+
+    <MudSwitch Class="mt-2"
+               Label="Include Overtime Adjustment"
+               Disabled="@ReadOnly"
+               @bind-Value="_includeOt" />
+
+    @if (_includeOt)
+    {
+        <OvertimeAdjustmentForm Value="OvertimeValue"
+                                ValueChanged="OvertimeValueChanged"
+                                ReadOnly="ReadOnly" />
+    }
+</MudStack>
+
+@code {
+    // ORG
+    [Parameter] public OrganizationChangeDto? OrgValue { get; set; }
+    [Parameter] public EventCallback<OrganizationChangeDto?> OrgValueChanged { get; set; }
+
+    // SCHEDULE
+    [Parameter] public ScheduleChangeDto? SchValue { get; set; }
+    [Parameter] public EventCallback<ScheduleChangeDto?> SchValueChanged { get; set; }
+
+    // OVERTIME
+    [Parameter] public bool IncludeOvertime { get; set; }
+    [Parameter] public EventCallback<bool> IncludeOvertimeChanged { get; set; }
+    [Parameter] public OvertimeAdjustmentDto? OvertimeValue { get; set; }
+    [Parameter] public EventCallback<OvertimeAdjustmentDto?> OvertimeValueChanged { get; set; }
+
+    [Parameter] public bool ReadOnly { get; set; }
+
+    // Local wrapper so the switch reacts immediately and we can enforce the rules here
+    private bool _includeOt
+    {
+        get => IncludeOvertime;
+        set
+        {
+            if (IncludeOvertime == value) return;
+
+            IncludeOvertime = value;
+            _ = IncludeOvertimeChanged.InvokeAsync(value);
+
+            // Mirror schedule flag
+            if (SchValue is not null && (SchValue.IsOtAdjustment ?? false) != value)
+            {
+                var s = SchValue with { IsOtAdjustment = value };
+                SchValue = s;
+                _ = SchValueChanged.InvokeAsync(s);
+            }
+
+            // Turning OFF -> drop OT payload so nothing re-enables it
+            if (!value && OvertimeValue is not null)
+                _ = OvertimeValueChanged.InvokeAsync(null);
+        }
+    }
+
+    // Schedule changed (including its IsOtAdjustment toggle in the schedule form)
+    private async Task OnScheduleChanged(ScheduleChangeDto? next)
+    {
+        var before = SchValue?.IsOtAdjustment ?? false;
+        var after = next?.IsOtAdjustment ?? false;
+
+        SchValue = next;
+        await SchValueChanged.InvokeAsync(next);
+
+        if (before != after)
+        {
+            // Reflect to VM switch
+            IncludeOvertime = after;
+            await IncludeOvertimeChanged.InvokeAsync(after);
+
+            if (!after && OvertimeValue is not null)
+                await OvertimeValueChanged.InvokeAsync(null);
+        }
+    }
+}

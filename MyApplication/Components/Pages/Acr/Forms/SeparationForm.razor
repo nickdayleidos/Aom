@@ -1,89 +1,19 @@
-﻿@using MudBlazor
-@using MyApplication.Components.Model.AOM.Employee
-@using MyApplication.Components.Service.Acr
+﻿
 
-<MudForm @ref="_form">
+<MudStack Spacing="2">
+    <MudText Typo="Typo.subtitle2">Separation</MudText>
+
     <MudGrid>
-        <!-- EMPLOYEE (required) -->
-        <MudItem xs="12" md="6">
-            <MudAutocomplete T="Employees"
-                             Label="Employee"
-                             Dense="true"
-                             Clearable="true"
-                             Required="true"
-                             RequiredError="Employee is required"
-                             @bind-Value="_vm.Employee"
-                             ToStringFunc="EmpLabel"
-                             SearchFunc="SearchEmployees" />
-        </MudItem>
-
-        <MudItem xs="12" md="6">
-            <MudDatePicker Label="Effective Date"
-                           @bind-Date="_vm.EffectiveDateDt"
-                           Required="true"
-                           RequiredError="Effective date is required" />
-        </MudItem>
-
         <MudItem xs="12">
-            <MudTextField Label="Submitter Comment" @bind-Value="_vm.SubmitterComment" Lines="3" Immediate="true" />
-        </MudItem>
-
-        <MudItem xs="12">
-            <MudButton OnClick="SubmitClicked" Color="Color.Primary" Variant="Variant.Filled">
-                @SubmitLabel
-            </MudButton>
+            <MudTextField Label="Submitter Comment" @bind-Value="_submitterComment" ReadOnly="@ReadOnly" Lines="3" />
         </MudItem>
     </MudGrid>
-</MudForm>
+</MudStack>
 
 @code {
-    [Parameter] public IEnumerable<Employees> Employees { get; set; } = Enumerable.Empty<Employees>();
-    [Parameter] public EventCallback<SeparationDto> OnSubmit { get; set; }
-    [Parameter] public SeparationDto? Initial { get; set; }
-    [Parameter] public string SubmitLabel { get; set; } = "Submit Separation";
+    // Host controls Effective Date; keep param for compatibility but don't render it here.
+    [Parameter] public DateOnly EffectiveDate { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
 
-    private MudForm? _form;
-    private bool _prefilled;
-
-    private sealed class Vm
-    {
-        public Employees? Employee { get; set; }
-        public DateTime? EffectiveDateDt { get; set; }
-        public string? SubmitterComment { get; set; }
-    }
-    private readonly Vm _vm = new();
-
-    protected override void OnParametersSet()
-    {
-        if (_prefilled || Initial is null) return;
-
-        _vm.Employee = Employees.FirstOrDefault(e => e.Id == Initial.EmployeeId);
-        _vm.EffectiveDateDt = Initial.EffectiveDate.ToDateTime(TimeOnly.MinValue);
-        _vm.SubmitterComment = Initial.SubmitterComment;
-
-        _prefilled = true;
-    }
-
-    private string EmpLabel(Employees? e) => e is null ? "" : $"{e.LastName}, {e.FirstName} ({e.Id}";
-    private Task<IEnumerable<Employees>> SearchEmployees(string v, CancellationToken _)
-        => Task.FromResult(Employees.Where(e => EmpLabel(e).Contains(v ?? "", StringComparison.OrdinalIgnoreCase)));
-
-    private async Task SubmitClicked()
-    {
-        if (_form is not null) { await _form.Validate(); if (!_form.IsValid) return; }
-        await HandleSubmit();
-    }
-
-    private async Task HandleSubmit()
-    {
-        if (_vm.EffectiveDateDt is null || _vm.Employee is null) return;
-
-        var dto = new SeparationDto(
-          EmployeeId: _vm.Employee.Id,
-          EffectiveDate: DateOnly.FromDateTime(_vm.EffectiveDateDt.Value),
-          SubmitterComment: string.IsNullOrWhiteSpace(_vm.SubmitterComment) ? null : _vm.SubmitterComment.Trim()
-        );
-
-        await OnSubmit.InvokeAsync(dto);
-    }
+    private string? _submitterComment;
 }

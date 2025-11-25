@@ -1,7 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
-using MyApplication.Common;
-using MyApplication.Common.Time;
+﻿using Microsoft.EntityFrameworkCore;
 using MyApplication.Components.Data;
 using MyApplication.Components.Model.AOM.Employee;
 
@@ -18,402 +15,414 @@ namespace MyApplication.Components.Service.Acr
             _http = http;
         }
 
-        // Status constants
+        // Matches Employee.AcrStatus table
         private const int Submitted = 1;
         private const int ManagerApproved = 2;
         private const int WfmApproved = 3;
         private const int Cancelled = 5;
         private const int Rejected = 6;
 
-        // Type names – must match seed data precisely
-        private const string Type_OrganizationChange = "Organization Change";
-        private const string Type_ScheduleChange = "Schedule change";
-        private const string Type_NewHire = "New Hire";
-        private const string Type_Separation = "Seperation"; // spelling per your seed/UI
-        private const string Type_OrganizationAndSchedule = "Organization and Schedule change";
+        private string? CurrentUser => _http.HttpContext?.User?.Identity?.Name;
 
-        // ---------- helpers ----------
-        private static async Task<int?> ResolveManagerIdAsync(AomDbContext db, int? managerEmployeeId, CancellationToken ct)
+        public async Task<int> CreateAsync(AcrCreateVm vm, CancellationToken ct = default)
         {
-            if (managerEmployeeId is not int empId) return null;
-            return await db.Managers
-                .Where(m => m.EmployeeId == empId && m.IsActive)
-                .Select(m => (int?)m.Id)
-                .FirstOrDefaultAsync(ct);
-        }
+            await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-        private static async Task<int?> ResolveSupervisorIdAsync(AomDbContext db, int? supervisorEmployeeId, CancellationToken ct)
-        {
-            if (supervisorEmployeeId is not int empId) return null;
-            return await db.Supervisors
-                .Where(s => s.EmployeeId == empId && s.IsActive)
-                .Select(s => (int?)s.Id)
-                .FirstOrDefaultAsync(ct);
-        }
+            var typeKey = (AcrTypeKey)vm.TypeId;
 
-        private static void GuardEmployee(int employeeId)
-        {
-            if (employeeId <= 0) throw new ArgumentException("Employee is required.");
-        }
-
-        private string? GetActor() =>
-            IdentityHelpers.GetSamAccount(_http.HttpContext?.User) is { Length: > 0 } sam ? sam : null;
-
-        private AcrRequest NewAcr(int employeeId, int typeId, DateOnly effective, string? comment) => new()
-        {
-            EmployeeId = employeeId,
-            AcrTypeId = typeId,
-            AcrStatusId = Submitted,
-            EffectiveDate = effective,
-            SubmitterComment = comment,
-            SubmitTime = Et.Now,
-            LastUpdateTime = Et.Now,
-            SubmittedBy = GetActor()
-        };
-
-        private static async Task<int> GetTypeIdAsync(AomDbContext db, string typeName, CancellationToken ct)
-            => await db.Set<AcrType>()
-                       .Where(t => t.Name == typeName)
-                       .Select(t => t.Id)
-                       .FirstAsync(ct);
-
-        private static bool IsValidTransition(int from, int to)
-        {
-            if (from == to) return false;
-            if (from is Cancelled or Rejected) return false; // terminal
-            if (to is Cancelled or Rejected) return true;    // allow cancel/reject from active
-            if (from == Submitted && to == ManagerApproved) return true;
-            if (from == ManagerApproved && to == WfmApproved) return true;
-            return false;
-        }
-
-        // -------------------- CREATE: Organization Change --------------------
-        public async Task<int> CreateOrganizationChangeAsync(OrganizationChangeDto dto, CancellationToken ct = default)
-        {
-            await using var db = await _dbFactory.CreateDbContextAsync();
-
-            GuardEmployee(dto.EmployeeId);
-
-            var mgrId = await ResolveManagerIdAsync(db, dto.ManagerId, ct);
-            var supId = await ResolveSupervisorIdAsync(db, dto.SupervisorId, ct);
-            var typeId = await GetTypeIdAsync(db, Type_OrganizationChange, ct);
-            var acr = NewAcr(dto.EmployeeId, typeId, dto.EffectiveDate, dto.SubmitterComment);
-
-            var org = new AcrOrganization
+            // ---------- NEW HIRE BRANCH ----------
+            if (typeKey == AcrTypeKey.NewHire)
             {
-                AcrRequest = acr,
-                ManagerId = mgrId,                // Manager.Id
-                SupervisorId = supId,             // Supervisor.Id
-                OrganizationId = dto.OrganizationId,
-                SubOrganizationId = dto.SubOrganizationId,
-                EmployerId = dto.EmployerId,
-                SiteId = dto.SiteId,
-                IsActive = dto.IsActive,
-                IsLoa = dto.IsLoa,
-                IsIntLoa = dto.IsIntLoa,
-                IsRemote = dto.IsRemote
-            };
+                if (vm.NewHire is null)
+                    throw new InvalidOperationException("New Hire ACR missing NewHire data.");
 
-            db.Add(acr);
-            db.Add(org);
-            await db.SaveChangesAsync(ct);
-            return acr.Id;
-        }
+                var nh = vm.NewHire;
 
-        // -------------------- CREATE: Schedule Change --------------------
-        public async Task<int> CreateScheduleChangeAsync(ScheduleChangeDto dto, CancellationToken ct = default)
-        {
-            await using var db = await _dbFactory.CreateDbContextAsync();
-
-            GuardEmployee(dto.EmployeeId);
-
-            var typeId = await GetTypeIdAsync(db, Type_ScheduleChange, ct);
-            var acr = NewAcr(dto.EmployeeId, typeId, dto.EffectiveDate, dto.SubmitterComment);
-
-            var shift1 = new AcrSchedule
-            {
-                AcrRequest = acr,
-                IsSplitSchedule = dto.IsSplitSchedule,
-                ShiftNumber = 1,
-                MondayStart = dto.MondayStart,
-                MondayEnd = dto.MondayEnd,
-                TuesdayStart = dto.TuesdayStart,
-                TuesdayEnd = dto.TuesdayEnd,
-                WednesdayStart = dto.WednesdayStart,
-                WednesdayEnd = dto.WednesdayEnd,
-                ThursdayStart = dto.ThursdayStart,
-                ThursdayEnd = dto.ThursdayEnd,
-                FridayStart = dto.FridayStart,
-                FridayEnd = dto.FridayEnd,
-                SaturdayStart = dto.SaturdayStart,
-                SaturdayEnd = dto.SaturdayEnd,
-                SundayStart = dto.SundayStart,
-                SundayEnd = dto.SundayEnd,
-                BreakTime = dto.BreakTime,
-                Breaks = dto.Breaks,
-                LunchTime = dto.LunchTime
-            };
-
-            db.Add(acr);
-            db.Add(shift1);
-
-            if (dto.IsSplitSchedule)
-            {
-                var shift2 = new AcrSchedule
+                var emp = new Employees
                 {
-                    AcrRequest = acr,
-                    IsSplitSchedule = true,
-                    ShiftNumber = 2,
-                    MondayStart = dto.MondayStart2,
-                    MondayEnd = dto.MondayEnd2,
-                    TuesdayStart = dto.TuesdayStart2,
-                    TuesdayEnd = dto.TuesdayEnd2,
-                    WednesdayStart = dto.WednesdayStart2,
-                    WednesdayEnd = dto.WednesdayEnd2,
-                    ThursdayStart = dto.ThursdayStart2,
-                    ThursdayEnd = dto.ThursdayEnd2,
-                    FridayStart = dto.FridayStart2,
-                    FridayEnd = dto.FridayEnd2,
-                    SaturdayStart = dto.SaturdayStart2,
-                    SaturdayEnd = dto.SaturdayEnd2,
-                    SundayStart = dto.SundayStart2,
-                    SundayEnd = dto.SundayEnd2,
-                    BreakTime = dto.BreakTime,
-                    Breaks = dto.Breaks,
-                    LunchTime = dto.LunchTime
+                    FirstName = nh.FirstName,
+                    LastName = nh.LastName,
+                    MiddleInitial = nh.MiddleInitial,
+                    NmciEmail = nh.NmciEmail,
+                    FlankspeedEmail = nh.FlankspeedEmail,
+                    UsnOperatorId = nh.UsnOperatorId,
+                    UsnAdminId = nh.UsnAdminId,
+                    CorporateEmail = nh.CorporateEmail,
+                    CorporateId = nh.CorporateId,
+                    DomainLoginName = nh.DomainLoginName,
+                    // NEW HIRE is always active
+                    IsActive = true
                 };
-                db.Add(shift2);
+
+                db.Employees.Add(emp);
+                await db.SaveChangesAsync(ct);   // emp.Id now populated
+
+                // Point the ACR at the newly created employee
+                vm = vm with { EmployeeId = emp.Id };
+            }
+            else
+            {
+                // For all non-NewHire types we must already have an EmployeeId
+                if (vm.EmployeeId <= 0)
+                    throw new InvalidOperationException("EmployeeId is required for this ACR type.");
+            }
+
+            // ---------- REHIRE / SEPARATION EMPLOYEE FLAGS ----------
+            if (typeKey == AcrTypeKey.Rehire || typeKey == AcrTypeKey.Separation)
+            {
+                var emp = await db.Employees
+                    .FirstOrDefaultAsync(e => e.Id == vm.EmployeeId, ct)
+                    ?? throw new InvalidOperationException($"Employee {vm.EmployeeId} not found for {typeKey} ACR.");
+
+                if (typeKey == AcrTypeKey.Rehire)
+                {
+                    // Rehire → mark active
+                    emp.IsActive = true;
+                }
+                else if (typeKey == AcrTypeKey.Separation)
+                {
+                    // Separation → mark inactive
+                    emp.IsActive = false;
+                }
+            }
+
+            // ---------- Core ACR creation (for all types) ----------
+            var user = CurrentUser; // same pattern as SetStatusAsync
+            var acrId = await CreateAcrCoreAsync(db, vm, user, ct);
+            return acrId;
+        }
+
+        private static async Task<int> CreateAcrCoreAsync(
+            AomDbContext db,
+            AcrCreateVm vm,
+            string? submittedBy,
+            CancellationToken ct)
+        {
+            // ---------- pick status id ----------
+            int statusId;
+
+            // New Hire, Rehire, Separation all start at WfmApproved (3)
+            if (vm.TypeId == (int)AcrTypeKey.NewHire
+                || vm.TypeId == (int)AcrTypeKey.Rehire
+                || vm.TypeId == (int)AcrTypeKey.Separation)
+            {
+                statusId = 3;
+            }
+            else
+            {
+                statusId = await db.AcrStatuses
+                    .Where(s => s.Name == "Submitted")
+                    .Select(s => s.Id)
+                    .FirstOrDefaultAsync(ct);
+
+                if (statusId == 0)
+                    throw new InvalidOperationException("AcrStatus 'Submitted' not found.");
+            }
+
+            // Effective date – use the value from the VM if set; otherwise default to "today" in ET
+            var effectiveDate = vm.EffectiveDate
+                ?? DateOnly.FromDateTime(GetEasternNow().Date);
+
+            var req = new AcrRequest
+            {
+                EmployeeId = vm.EmployeeId,
+                AcrTypeId = vm.TypeId,
+                AcrStatusId = statusId,
+                EffectiveDate = effectiveDate,
+                SubmitterComment = vm.SubmitterComment,
+
+                // Submit time stored in Eastern instead of UTC
+                SubmitTime = GetEasternNow(),
+                SubmittedBy = submittedBy,
+
+                IsActive = vm.TypeId switch
+                {
+                    (int)AcrTypeKey.Separation => false,
+                    (int)AcrTypeKey.Rehire => true,
+                    (int)AcrTypeKey.NewHire => true,
+                    _ => true
+                }
+            };
+
+            db.AcrRequests.Add(req);
+            await db.SaveChangesAsync(ct);
+
+            var acrId = req.Id;
+
+            // ---------- Organization ----------
+            if (vm.Organization is not null)
+            {
+                var o = vm.Organization;
+                db.AcrOrganizations.Add(new AcrOrganization
+                {
+                    AcrRequestId = acrId,
+                    OrganizationId = o.OrganizationId,
+                    SubOrganizationId = o.SubOrganizationId,
+                    SiteId = o.SiteId,
+                    EmployerId = o.EmployerId,
+                    ManagerId = o.ManagerId,
+                    SupervisorId = o.SupervisorId,
+                    IsLoa = o.IsLoa,
+                    IsIntLoa = o.IsIntLoa,
+                    IsRemote = o.IsRemote
+                });
+            }
+
+            // ---------- Schedule (already converted to ET on the page) ----------
+            if (vm.Schedule is not null)
+            {
+                var s = vm.Schedule;
+                db.AcrSchedules.Add(new AcrSchedule
+                {
+                    AcrRequestId = acrId,
+                    ShiftNumber = s.ShiftNumber,
+                    IsSplitSchedule = s.IsSplitSchedule,
+
+                    MondayStart = s.MondayStart,
+                    MondayEnd = s.MondayEnd,
+                    TuesdayStart = s.TuesdayStart,
+                    TuesdayEnd = s.TuesdayEnd,
+                    WednesdayStart = s.WednesdayStart,
+                    WednesdayEnd = s.WednesdayEnd,
+                    ThursdayStart = s.ThursdayStart,
+                    ThursdayEnd = s.ThursdayEnd,
+                    FridayStart = s.FridayStart,
+                    FridayEnd = s.FridayEnd,
+                    SaturdayStart = s.SaturdayStart,
+                    SaturdayEnd = s.SaturdayEnd,
+                    SundayStart = s.SundayStart,
+                    SundayEnd = s.SundayEnd,
+                    IsStaticBreakSchedule = s.IsStaticBreakSchedule,
+                    IsOtAdjustment = s.IsOtAdjustment
+                });
+            }
+
+            // ---------- Overtime ----------
+            if (vm.Overtime is not null)
+            {
+                var o = vm.Overtime;
+                db.AcrOvertimeSchedules.Add(new AcrOvertimeSchedules
+                {
+                    AcrRequestId = acrId,
+                    MondayTypeId = o.MondayTypeId,
+                    TuesdayTypeId = o.TuesdayTypeId,
+                    WednesdayTypeId = o.WednesdayTypeId,
+                    ThursdayTypeId = o.ThursdayTypeId,
+                    FridayTypeId = o.FridayTypeId,
+                    SaturdayTypeId = o.SaturdayTypeId,
+                    SundayTypeId = o.SundayTypeId
+                });
             }
 
             await db.SaveChangesAsync(ct);
-            return acr.Id;
+
+            // ✅ every code path ends up here
+            return acrId;
         }
 
-        // -------------------- CREATE: Org + Schedule Change --------------------
-        public async Task<int> CreateOrgScheduleAsync(OrganizationChangeDto orgDto, ScheduleChangeDto schDto, CancellationToken ct = default)
+        // Small helper to get "now" in Eastern time
+        private static DateTime GetEasternNow()
         {
-            await using var db = await _dbFactory.CreateDbContextAsync();
+            var etZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, etZone);
+        }
 
-            GuardEmployee(orgDto.EmployeeId);
-            if (schDto.EmployeeId != orgDto.EmployeeId)
-                throw new ArgumentException("Org and Schedule DTO EmployeeId must match for combined ACR.");
-
-            var typeId = await GetTypeIdAsync(db, Type_OrganizationAndSchedule, ct);
-            var effective = orgDto.EffectiveDate;
-            var comment = !string.IsNullOrWhiteSpace(orgDto.SubmitterComment) ? orgDto.SubmitterComment : schDto.SubmitterComment;
-
-            var acr = NewAcr(orgDto.EmployeeId, typeId, effective, comment);
-
-            var org = new AcrOrganization
+        private static async Task ApplyEmployeeStateChangesForSpecialTypes(
+            AomDbContext db, AcrCreateVm vm, CancellationToken ct)
+        {
+            switch ((AcrTypeKey)vm.TypeId)
             {
-                AcrRequest = acr,
-                ManagerId = await ResolveManagerIdAsync(db, orgDto.ManagerId, ct),
-                SupervisorId = await ResolveSupervisorIdAsync(db, orgDto.SupervisorId, ct),
-                OrganizationId = orgDto.OrganizationId,
-                SubOrganizationId = orgDto.SubOrganizationId,
-                EmployerId = orgDto.EmployerId,
-                SiteId = orgDto.SiteId,
-                IsActive = orgDto.IsActive,
-                IsLoa = orgDto.IsLoa,
-                IsIntLoa = orgDto.IsIntLoa,
-                IsRemote = orgDto.IsRemote
-            };
+                case AcrTypeKey.Rehire:
+                    {
+                        var emp = await db.Employees
+                            .FirstOrDefaultAsync(e => e.Id == vm.EmployeeId, ct)
+                            ?? throw new InvalidOperationException("Employee not found for Rehire ACR.");
 
-            var shift1 = new AcrSchedule
+                        emp.IsActive = true;   // ✔ REHIRE = ACTIVE
+                        break;
+                    }
+
+                case AcrTypeKey.Separation:
+                    {
+                        var emp = await db.Employees
+                            .FirstOrDefaultAsync(e => e.Id == vm.EmployeeId, ct)
+                            ?? throw new InvalidOperationException("Employee not found for Separation ACR.");
+
+                        emp.IsActive = false;  // ✔ SEPARATION = NOT ACTIVE
+                        break;
+                    }
+            }
+        }
+
+        public async Task UpdateAsync(AcrEditVm vm, CancellationToken ct = default)
+        {
+            await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+            var req = await db.Set<AcrRequest>().FirstOrDefaultAsync(r => r.Id == vm.Id, ct)
+                      ?? throw new InvalidOperationException($"ACR {vm.Id} not found.");
+
+            int effectiveTypeId =
+                vm.TypeId > 0 ? vm.TypeId :
+                vm.GetType().GetProperty("TypeKey")?.GetValue(vm) is AcrTypeKey ek ? (int)ek : 0;
+
+            if (effectiveTypeId <= 0) throw new InvalidOperationException("ACR Type is required.");
+
+            var typeExists = await db.Set<AcrType>().AsNoTracking()
+                .AnyAsync(t => t.Id == effectiveTypeId, ct);
+            if (!typeExists)
+                throw new InvalidOperationException($"Invalid ACR TypeId: {effectiveTypeId}.");
+
+            var typeKey = (AcrTypeKey)effectiveTypeId;
+
+            req.EmployeeId = vm.EmployeeId;
+            req.AcrTypeId = effectiveTypeId;
+            req.EffectiveDate = vm.EffectiveDate ?? req.EffectiveDate;
+            req.LastUpdateTime = DateTime.UtcNow;
+            req.SubmitterComment = vm.SubmitterComment;
+
+            // ORG
+            if (typeKey is AcrTypeKey.OrganizationChange or AcrTypeKey.OrgSchedule)
             {
-                AcrRequest = acr,
-                IsSplitSchedule = schDto.IsSplitSchedule,
-                ShiftNumber = 1,
-                MondayStart = schDto.MondayStart,
-                MondayEnd = schDto.MondayEnd,
-                TuesdayStart = schDto.TuesdayStart,
-                TuesdayEnd = schDto.TuesdayEnd,
-                WednesdayStart = schDto.WednesdayStart,
-                WednesdayEnd = schDto.WednesdayEnd,
-                ThursdayStart = schDto.ThursdayStart,
-                ThursdayEnd = schDto.ThursdayEnd,
-                FridayStart = schDto.FridayStart,
-                FridayEnd = schDto.FridayEnd,
-                SaturdayStart = schDto.SaturdayStart,
-                SaturdayEnd = schDto.SaturdayEnd,
-                SundayStart = schDto.SundayStart,
-                SundayEnd = schDto.SundayEnd,
-                BreakTime = schDto.BreakTime,
-                Breaks = schDto.Breaks,
-                LunchTime = schDto.LunchTime
-            };
-
-            db.Add(acr);
-            db.Add(org);
-            db.Add(shift1);
-
-            if (schDto.IsSplitSchedule)
-            {
-                var shift2 = new AcrSchedule
+                var o = await db.Set<AcrOrganization>().FirstOrDefaultAsync(x => x.AcrRequestId == vm.Id, ct);
+                if (vm.Organization is null)
                 {
-                    AcrRequest = acr,
-                    IsSplitSchedule = true,
-                    ShiftNumber = 2,
-                    MondayStart = schDto.MondayStart2,
-                    MondayEnd = schDto.MondayEnd2,
-                    TuesdayStart = schDto.TuesdayStart2,
-                    TuesdayEnd = schDto.TuesdayEnd2,
-                    WednesdayStart = schDto.WednesdayStart2,
-                    WednesdayEnd = schDto.WednesdayEnd2,
-                    ThursdayStart = schDto.ThursdayStart2,
-                    ThursdayEnd = schDto.ThursdayEnd2,
-                    FridayStart = schDto.FridayStart2,
-                    FridayEnd = schDto.FridayEnd2,
-                    SaturdayStart = schDto.SaturdayStart2,
-                    SaturdayEnd = schDto.SaturdayEnd2,
-                    SundayStart = schDto.SundayStart2,
-                    SundayEnd = schDto.SundayEnd2,
-                    BreakTime = schDto.BreakTime,
-                    Breaks = schDto.Breaks,
-                    LunchTime = schDto.LunchTime
-                };
-                db.Add(shift2);
+                    if (o is not null) db.Remove(o);
+                }
+                else
+                {
+                    o ??= db.Add(new AcrOrganization { AcrRequestId = vm.Id }).Entity;
+                    o.OrganizationId = vm.Organization.OrganizationId;
+                    o.SubOrganizationId = vm.Organization.SubOrganizationId;
+                    o.SiteId = vm.Organization.SiteId;
+                    o.EmployerId = vm.Organization.EmployerId;
+                    o.ManagerId = vm.Organization.ManagerId;
+                    o.SupervisorId = vm.Organization.SupervisorId;
+                    o.IsLoa = vm.Organization.IsLoa;
+                    o.IsIntLoa = vm.Organization.IsIntLoa;
+                    o.IsRemote = vm.Organization.IsRemote;
+                }
+            }
+
+            // SCHEDULE
+            if (typeKey is AcrTypeKey.ScheduleChange or AcrTypeKey.OrgSchedule)
+            {
+                var s = await db.Set<AcrSchedule>().FirstOrDefaultAsync(x => x.AcrRequestId == vm.Id && x.ShiftNumber == 1, ct);
+                if (vm.Schedule is null)
+                {
+                    if (s is not null) db.Remove(s);
+                }
+                else
+                {
+                    s ??= db.Add(new AcrSchedule { AcrRequestId = vm.Id, ShiftNumber = 1 }).Entity;
+                    s.IsSplitSchedule = vm.Schedule.IsSplitSchedule;
+                    s.MondayStart = vm.Schedule.MondayStart; s.MondayEnd = vm.Schedule.MondayEnd;
+                    s.TuesdayStart = vm.Schedule.TuesdayStart; s.TuesdayEnd = vm.Schedule.TuesdayEnd;
+                    s.WednesdayStart = vm.Schedule.WednesdayStart; s.WednesdayEnd = vm.Schedule.WednesdayEnd;
+                    s.ThursdayStart = vm.Schedule.ThursdayStart; s.ThursdayEnd = vm.Schedule.ThursdayEnd;
+                    s.FridayStart = vm.Schedule.FridayStart; s.FridayEnd = vm.Schedule.FridayEnd;
+                    s.SaturdayStart = vm.Schedule.SaturdayStart; s.SaturdayEnd = vm.Schedule.SaturdayEnd;
+                    s.SundayStart = vm.Schedule.SundayStart; s.SundayEnd = vm.Schedule.SundayEnd;
+                    s.IsStaticBreakSchedule = vm.Schedule.IsStaticBreakSchedule;
+
+                    bool wantOt = vm.IncludeOvertimeAdjustment || (vm.Schedule?.IsOtAdjustment ?? false);
+                    s.IsOtAdjustment = wantOt;
+                }
+            }
+
+            // OVERTIME upsert / cleanup
+            bool wantAnyOt =
+                typeKey is AcrTypeKey.OvertimeAdjustment
+                || ((typeKey is AcrTypeKey.ScheduleChange or AcrTypeKey.OrgSchedule)
+                    && (vm.IncludeOvertimeAdjustment || (vm.Schedule?.IsOtAdjustment ?? false)));
+
+            var existingOt = await db.Set<AcrOvertimeSchedules>().FirstOrDefaultAsync(x => x.AcrRequestId == vm.Id, ct);
+
+            if (wantAnyOt)
+            {
+                var ot = vm.Overtime ?? new OvertimeAdjustmentDto(null, null, null, null, null, null, null);
+                existingOt ??= db.Add(new AcrOvertimeSchedules { AcrRequestId = vm.Id }).Entity;
+                existingOt.IsOtAdjustment = true;
+                existingOt.MondayTypeId = ot.MondayTypeId;
+                existingOt.TuesdayTypeId = ot.TuesdayTypeId;
+                existingOt.WednesdayTypeId = ot.WednesdayTypeId;
+                existingOt.ThursdayTypeId = ot.ThursdayTypeId;
+                existingOt.FridayTypeId = ot.FridayTypeId;
+                existingOt.SaturdayTypeId = ot.SaturdayTypeId;
+                existingOt.SundayTypeId = ot.SundayTypeId;
+            }
+            else if (existingOt is not null)
+            {
+                db.Remove(existingOt);
             }
 
             await db.SaveChangesAsync(ct);
-            return acr.Id;
         }
 
-        // -------------------- CREATE: New Hire --------------------
-        public async Task<int> CreateNewHireAsync(NewHireDto dto, CancellationToken ct = default)
+        public async Task<LastOvertimeAdjustment?> GetLastOvertimeAdjustmentAsync(int employeeId, CancellationToken ct = default)
         {
-            await using var db = await _dbFactory.CreateDbContextAsync();
+            await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-            var first = (dto.FirstName ?? "").Trim();
-            var last = (dto.LastName ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(first)) throw new ArgumentException("First name is required.", nameof(dto.FirstName));
-            if (string.IsNullOrWhiteSpace(last)) throw new ArgumentException("Last name is required.", nameof(dto.LastName));
+            var row = await (
+                from req in db.Set<AcrRequest>().AsNoTracking()
+                join ot in db.Set<AcrOvertimeSchedules>().AsNoTracking() on req.Id equals ot.AcrRequestId
+                where req.EmployeeId == employeeId
+                orderby req.EffectiveDate descending
+                select new
+                {
+                    req.EmployeeId,
+                    req.AcrTypeId,
+                    req.EffectiveDate,
+                    ot.MondayTypeId,
+                    ot.TuesdayTypeId,
+                    ot.WednesdayTypeId,
+                    ot.ThursdayTypeId,
+                    ot.FridayTypeId,
+                    ot.SaturdayTypeId,
+                    ot.SundayTypeId
+                }
+            ).FirstOrDefaultAsync(ct);
 
-            var emp = new Employees
-            {
-                FirstName = first,
-                LastName = last,
-                MiddleInitial = string.IsNullOrWhiteSpace(dto.MiddleInitial) ? null : dto.MiddleInitial!.Trim(),
-                NmciEmail = string.IsNullOrWhiteSpace(dto.NmciEmail) ? null : dto.NmciEmail!.Trim(),
-                UsnOperatorId = string.IsNullOrWhiteSpace(dto.UsnOperatorId) ? null : dto.UsnOperatorId!.Trim(),
-                UsnAdminId = string.IsNullOrWhiteSpace(dto.UsnAdminId) ? null : dto.UsnAdminId!.Trim(),
-                FlankspeedEmail = string.IsNullOrWhiteSpace(dto.FlankspeedEmail) ? null : dto.FlankspeedEmail!.Trim(),
-                CorporateEmail = string.IsNullOrWhiteSpace(dto.CorporateEmail) ? null : dto.CorporateEmail!.Trim(),
-                CorporateId = string.IsNullOrWhiteSpace(dto.CorporateId) ? null : dto.CorporateId!.Trim(),
-                DomainLoginName = string.IsNullOrWhiteSpace(dto.DomainLoginName) ? null : dto.DomainLoginName!.Trim()
-                // Do NOT set Employees.IsActive here
-            };
-            db.Employees.Add(emp);
-            await db.SaveChangesAsync(ct); // emp.Id
+            if (row is null) return null;
 
-            var typeId = await GetTypeIdAsync(db, Type_NewHire, ct);
-            var acr = NewAcr(emp.Id, typeId, dto.EffectiveDate, dto.SubmitterComment);
+            var dto = new OvertimeAdjustmentDto(
+                row.MondayTypeId, row.TuesdayTypeId, row.WednesdayTypeId,
+                row.ThursdayTypeId, row.FridayTypeId, row.SaturdayTypeId, row.SundayTypeId);
 
-            // Drive active status via AcrOrganization on this ACR
-            var org = new AcrOrganization
-            {
-                AcrRequest = acr,
-                IsActive = true
-                // other org fields optional for new hire
-            };
-
-            db.AcrRequests.Add(acr);
-            db.Add(org);
-            await db.SaveChangesAsync(ct);
-            return acr.Id;
+            return new LastOvertimeAdjustment(
+                row.EmployeeId, (AcrTypeKey)row.AcrTypeId, row.EffectiveDate, dto);
         }
 
-        // -------------------- CREATE: Separation --------------------
-        public async Task<int> CreateSeparationAsync(SeparationDto dto, CancellationToken ct = default)
+        public async Task SetStatusAsync(int acrRequestId, int newStatusId, CancellationToken ct = default)
         {
-            await using var db = await _dbFactory.CreateDbContextAsync();
+            await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-            GuardEmployee(dto.EmployeeId);
+            var req = await db.AcrRequests
+                .FirstOrDefaultAsync(r => r.Id == acrRequestId, ct)
+                ?? throw new InvalidOperationException($"ACR {acrRequestId} not found.");
 
-            var typeId = await GetTypeIdAsync(db, Type_Separation, ct);
-            var acr = NewAcr(dto.EmployeeId, typeId, dto.EffectiveDate, dto.SubmitterComment);
+            var user = CurrentUser;
 
-            // Status via AcrOrganization
-            var org = new AcrOrganization { AcrRequest = acr, IsActive = false };
+            req.AcrStatusId = newStatusId;
+            req.LastUpdateTime = DateTime.UtcNow;
 
-            db.Add(acr);
-            db.Add(org);
-            await db.SaveChangesAsync(ct);
-            return acr.Id;
-        }
-
-        // -------------------- CREATE: Rehire --------------------
-        public async Task<int> CreateRehireAsync(RehireDto dto)
-        {
-            await using var db = await _dbFactory.CreateDbContextAsync();
-
-            var empExists = await db.Set<Employees>().AnyAsync(e => e.Id == dto.EmployeeId);
-            if (!empExists) throw new InvalidOperationException($"Employee {dto.EmployeeId} not found.");
-
-            // Resolve type "Rehire" (use your seeded value/name)
-            var rehireTypeId = await db.Set<AcrType>()
-                .Where(t => t.Name != null && EF.Functions.Like(t.Name, "%rehire%"))
-                .Select(t => (int?)t.Id)
-                .FirstOrDefaultAsync()
-                ?? throw new InvalidOperationException("ACR Type 'Rehire' not found.");
-
-            var acr = NewAcr(dto.EmployeeId, rehireTypeId, dto.EffectiveDate, dto.SubmitterComment);
-
-            // Flip status here, not in Employees table
-            var org = new AcrOrganization
-            {
-                AcrRequest = acr,
-                IsActive = true
-            };
-
-            db.Add(acr);
-            db.Add(org);
-            await db.SaveChangesAsync();
-            return acr.Id;
-        }
-
-        // -------------------- READ --------------------
-        public async Task<AcrRequest?> GetAsync(int id, CancellationToken ct = default)
-        {
-            await using var db = await _dbFactory.CreateDbContextAsync();
-            return await db.Set<AcrRequest>()
-                           .Include(r => r.Employee)
-                           .Include(r => r.AcrStatus)
-                           .Include(r => r.AcrType)
-                           .FirstOrDefaultAsync(r => r.Id == id, ct);
-        }
-
-        // -------------------- UPDATE STATUS --------------------
-        public async Task UpdateStatusAsync(int id, int newStatusId, CancellationToken ct = default)
-        {
-            await using var db = await _dbFactory.CreateDbContextAsync();
-
-            var acr = await db.Set<AcrRequest>().FirstOrDefaultAsync(r => r.Id == id, ct)
-                      ?? throw new InvalidOperationException($"ACR {id} not found.");
-
-            if (!IsValidTransition(acr.AcrStatusId, newStatusId))
-                throw new InvalidOperationException($"Invalid status transition {acr.AcrStatusId} -> {newStatusId}");
-
-            // Stamp actor field for this transition; reuse LastUpdateTime as the event time
-            var actor = GetActor();
             switch (newStatusId)
             {
-                case Cancelled:
-                    acr.CancelledBy = actor;
-                    break;
-                case Rejected:
-                    acr.RejectedBy = actor;
-                    break;
                 case ManagerApproved:
-                    acr.ManagerApprovedBy = actor;
+                    req.ManagerApprovedBy = user;
                     break;
+
                 case WfmApproved:
-                    acr.WfmApprovedBy = actor;
+                    req.WfmApprovedBy = user;
+                    break;
+
+                case Cancelled:
+                    req.CancelledBy = user;
+                    break;
+
+                case Rejected:
+                    req.RejectedBy = user;
                     break;
             }
-
-            acr.AcrStatusId = newStatusId;
-            acr.LastUpdateTime = Et.Now;
 
             await db.SaveChangesAsync(ct);
         }

@@ -1,4 +1,4 @@
-﻿@page "/tools/operationalimpact"
+﻿@page "/operationalimpact"
 @using System.IO
 @using MudBlazor
 @using MyApplication.Common
@@ -187,13 +187,13 @@
     private List<OiEvent> _rows = new();
     private readonly CancellationTokenSource _cts = new();
 
-    private void GoTo(int id) => Nav.NavigateTo($"/tools/operationalimpact/{id}");
+    private void GoTo(int id) => Nav.NavigateTo($"/operationalimpact/{id}");
 
     private void OnRowClick(TableRowClickEventArgs<OiEvent> e)
     {
         var id = e.Item?.Id;
         if (id.HasValue)
-            Nav.NavigateTo($"/tools/operationalimpact/{id.Value}");
+            Nav.NavigateTo($"/operationalimpact/{id.Value}");
     }
 
     // Posted (ET adapters)

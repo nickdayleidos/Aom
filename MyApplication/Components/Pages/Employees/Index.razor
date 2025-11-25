@@ -1,5 +1,6 @@
 ﻿@page "/employees"
 @using MudBlazor
+@attribute [Authorize(Policy = "Admin")]
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Components.Service.Employee.Dtos
 @inject EmployeesRepository Repo
@@ -9,22 +10,28 @@
 <MudStack Spacing="2">
     <MudPaper Class="pa-4" Outlined>
         <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-    <MudText Typo="Typo.h5">Employees</MudText>
-    <MudSpacer />
-    <MudSwitch @bind-value="_activeOnly" Color="Color.Primary" Class="mr-2" />
-    <MudText Class="mr-4">Active only</MudText>
-    <MudTextField T="string"
-                  Value="@_query"
-                  ValueChanged="@(v => OnQueryChanged(v))"
-                  Placeholder="Search (name, id, supervisor, manager, org, suborg)"
-                  Immediate="true"
-                  DebounceInterval="350"
-                  Adornment="Adornment.Start"
-                  AdornmentIcon="@Icons.Material.Filled.Search"
-                  Class="w-64" />
-</MudStack>
+            <MudText Typo="Typo.h5">Employees</MudText>
+            <MudSpacer />
+            <MudSwitch Value="_activeOnly"
+                       ValueChanged="@(async (bool v) =>
+                                  {
+                           _activeOnly = v;
+                           await RefreshAsync();
+                       })"
+                       Color="Color.Primary"
+                       Class="mr-2" />
+            <MudText Class="mr-4">Active only</MudText>
 
-
+            <MudTextField T="string"
+                          Value="@_query"
+                          ValueChanged="OnQueryChanged"
+                          Placeholder="Search (name, id, supervisor, manager, org, suborg)"
+                          Immediate="true"
+                          DebounceInterval="350"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Class="w-64" />
+        </MudStack>
     </MudPaper>
 
     <MudPaper Class="pa-2" Outlined>
@@ -68,11 +75,8 @@
     private bool _activeOnly = true;
     private List<EmployeeListItem> _items = new();
     private CancellationTokenSource _cts = new();
-    
-
 
     protected override async Task OnInitializedAsync() => await RefreshAsync();
-    protected override async Task OnParametersSetAsync() => await RefreshAsync();
 
     private async Task OnQueryChanged(string value)
     {
@@ -80,29 +84,23 @@
         await RefreshAsync();
     }
 
-    private void GoTo(int id) => Nav.NavigateTo($"/employees/{id}");
+    private bool ActiveOnly
+    {
+        get => _activeOnly;
+        set
+        {
+            if (_activeOnly == value) return;
+            _activeOnly = value;
+            _ = RefreshAsync(); // fire-and-forget is fine here
+        }
+    }
 
     private async Task RefreshAsync()
     {
         _cts.Cancel();
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
-        _items = await Repo.SearchAsync(_query, _activeOnly, take: 200, ct);
-        StateHasChanged();
-    }
 
-    public void Dispose()
-    {
-        _cts.Cancel();
-        _cts.Dispose();
-    }
-}
-
-    private async Task RefreshAsync()
-    {
-        _cts.Cancel();
-        _cts = new CancellationTokenSource();
-        var ct = _cts.Token;
         _items = await Repo.SearchAsync(_query, _activeOnly, take: 200, ct);
         StateHasChanged();
     }

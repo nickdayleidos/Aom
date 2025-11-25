@@ -22,6 +22,26 @@ namespace MyApplication.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.Status", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Statuses", "Aws");
+                });
+
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrOrganization", b =>
                 {
                     b.Property<int>("Id")
@@ -35,9 +55,6 @@ namespace MyApplication.Migrations
 
                     b.Property<int?>("EmployerId")
                         .HasColumnType("int");
-
-                    b.Property<bool?>("IsActive")
-                        .HasColumnType("bit");
 
                     b.Property<bool?>("IsIntLoa")
                         .HasColumnType("bit");
@@ -82,6 +99,83 @@ namespace MyApplication.Migrations
                     b.ToTable("AcrOrganization", "Employee");
                 });
 
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrOvertimeSchedules", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AcrRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FridayTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsOtAdjustment")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MondayTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SaturdayTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SundayTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ThursdayTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TuesdayTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("WednesdayTypeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AcrRequestId")
+                        .IsUnique();
+
+                    b.HasIndex("FridayTypeId");
+
+                    b.HasIndex("MondayTypeId");
+
+                    b.HasIndex("SaturdayTypeId");
+
+                    b.HasIndex("SundayTypeId");
+
+                    b.HasIndex("ThursdayTypeId");
+
+                    b.HasIndex("TuesdayTypeId");
+
+                    b.HasIndex("WednesdayTypeId");
+
+                    b.ToTable("AcrOvertimeSchedules", "Employee");
+                });
+
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrOvertimeTypes", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OvertimeTypes", "Employee");
+                });
+
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrRequest", b =>
                 {
                     b.Property<int>("Id")
@@ -105,14 +199,23 @@ namespace MyApplication.Migrations
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime?>("LastUpdateTime")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ManagerApprovedBy")
                         .HasColumnType("varchar(32)");
 
+                    b.Property<DateTime?>("ProcessedTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("RejectedBy")
                         .HasColumnType("varchar(32)");
+
+                    b.Property<DateTime?>("RevertedTime")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("SubmitTime")
                         .HasColumnType("datetime2");
@@ -139,7 +242,12 @@ namespace MyApplication.Migrations
 
                     b.HasIndex("EmployeeId", "EffectiveDate");
 
-                    b.ToTable("AcrRequest", "Employee");
+                    b.ToTable("AcrRequest", "Employee", t =>
+                        {
+                            t.HasTrigger("tr_AcrRequest_AutoProcess");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrSchedule", b =>
@@ -153,23 +261,20 @@ namespace MyApplication.Migrations
                     b.Property<int>("AcrRequestId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("BreakTime")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Breaks")
-                        .HasColumnType("int");
-
                     b.Property<TimeOnly?>("FridayEnd")
                         .HasColumnType("time");
 
                     b.Property<TimeOnly?>("FridayStart")
                         .HasColumnType("time");
 
+                    b.Property<bool?>("IsOtAdjustment")
+                        .HasColumnType("bit");
+
                     b.Property<bool?>("IsSplitSchedule")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("LunchTime")
-                        .HasColumnType("int");
+                    b.Property<bool?>("IsStaticBreakSchedule")
+                        .HasColumnType("bit");
 
                     b.Property<TimeOnly?>("MondayEnd")
                         .HasColumnType("time");
@@ -183,7 +288,7 @@ namespace MyApplication.Migrations
                     b.Property<TimeOnly?>("SaturdayStart")
                         .HasColumnType("time");
 
-                    b.Property<int>("ShiftNumber")
+                    b.Property<int?>("ShiftNumber")
                         .HasColumnType("int");
 
                     b.Property<TimeOnly?>("SundayEnd")
@@ -210,9 +315,6 @@ namespace MyApplication.Migrations
                     b.Property<TimeOnly?>("WednesdayStart")
                         .HasColumnType("time");
 
-                    b.Property<int>("breakTemplateId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("AcrRequestId");
@@ -227,6 +329,9 @@ namespace MyApplication.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -245,6 +350,9 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -252,6 +360,56 @@ namespace MyApplication.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("AcrType", "Employee");
+                });
+
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivitySubType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActivityTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("AwsStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActivityTypeId");
+
+                    b.HasIndex("AwsStatusId");
+
+                    b.ToTable("ActivitySubType", "Employee");
+                });
+
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivityType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ActivityType", "Employee");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.BreakSchedules", b =>
@@ -262,29 +420,47 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<TimeOnly>("Break1Time")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly>("Break2Time")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly>("Break3Time")
+                        .HasColumnType("time");
+
+                    b.Property<int>("BreakLength")
+                        .HasColumnType("int");
+
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
-                    b.Property<int>("FridayTemplateId")
+                    b.Property<int>("LunchLengh")
                         .HasColumnType("int");
 
-                    b.Property<int>("MondayTemplateId")
-                        .HasColumnType("int");
+                    b.Property<TimeOnly>("LunchTime")
+                        .HasColumnType("time");
 
-                    b.Property<int>("SaturdayTemplateId")
-                        .HasColumnType("int");
+                    b.Property<bool?>("isFriday")
+                        .HasColumnType("bit");
 
-                    b.Property<int>("SundayTemplateId")
-                        .HasColumnType("int");
+                    b.Property<bool?>("isMonday")
+                        .HasColumnType("bit");
 
-                    b.Property<int>("ThursdayTemplateId")
-                        .HasColumnType("int");
+                    b.Property<bool?>("isSaturday")
+                        .HasColumnType("bit");
 
-                    b.Property<int>("TuesdayTemplateId")
-                        .HasColumnType("int");
+                    b.Property<bool?>("isSunday")
+                        .HasColumnType("bit");
 
-                    b.Property<int>("WednesdayTemplateId")
-                        .HasColumnType("int");
+                    b.Property<bool?>("isThursday")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("isTuesday")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("isWednesday")
+                        .HasColumnType("bit");
 
                     b.HasKey("Id");
 
@@ -301,49 +477,98 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<TimeOnly>("Break1Time")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly?>("Break2Time")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly?>("Break3Time")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly?>("Break4Time")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly?>("Break5Time")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly?>("Break6Time")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly?>("Break7Time")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly?>("Break8Time")
-                        .HasColumnType("time");
-
-                    b.Property<int>("BreakTime")
+                    b.Property<int?>("Break1Time")
                         .HasColumnType("int");
 
-                    b.Property<string>("Breaks")
+                    b.Property<int?>("Break2Time")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Break3Time")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Break4Time")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Break5Time")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Break6Time")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Break7Time")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Break8Time")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BreakLength")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Breaks")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("LunchLength")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LunchTime")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<TimeOnly?>("LunchTime")
-                        .HasColumnType("time");
-
-                    b.Property<int>("ShiftLength")
+                    b.Property<int?>("ShiftLength")
                         .HasColumnType("int");
-
-                    b.Property<string>("WfmComment")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
                     b.ToTable("BreakTemplates", "Employee");
+                });
+
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.DetailedSchedule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActivitySubTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ActivityTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("AwsStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool?>("IsImpacting")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("Minutes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActivitySubTypeId");
+
+                    b.HasIndex("ActivityTypeId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("DetailedSchedule", "Employee");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.EmployeeHistory", b =>
@@ -360,40 +585,48 @@ namespace MyApplication.Migrations
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
-                    b.Property<int>("EmployerId")
+                    b.Property<int?>("EmployerId")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsActive")
+                    b.Property<bool?>("IsActive")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsIntLoa")
+                    b.Property<bool?>("IsIntLoa")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsLoa")
+                    b.Property<bool?>("IsLoa")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsRemote")
+                    b.Property<bool?>("IsRemote")
                         .HasColumnType("bit");
 
-                    b.Property<int>("ManagerId")
+                    b.Property<int?>("ManagerId")
                         .HasColumnType("int");
 
                     b.Property<int?>("OrganizationId")
                         .HasColumnType("int");
 
-                    b.Property<int>("ScheduleId")
+                    b.Property<int?>("OvertimeRequestId")
                         .HasColumnType("int");
 
-                    b.Property<int>("SiteId")
+                    b.Property<int?>("ScheduleRequestId")
                         .HasColumnType("int");
 
-                    b.Property<int>("SubOrganizationId")
+                    b.Property<int?>("SiteId")
                         .HasColumnType("int");
 
-                    b.Property<int>("SupervisorId")
+                    b.Property<int?>("SourceAcrId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SubOrganizationId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SupervisorId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
 
                     b.HasIndex("EmployerId");
 
@@ -401,7 +634,9 @@ namespace MyApplication.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.HasIndex("ScheduleId");
+                    b.HasIndex("OvertimeRequestId");
+
+                    b.HasIndex("ScheduleRequestId");
 
                     b.HasIndex("SiteId");
 
@@ -470,6 +705,9 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("varchar(64)");
@@ -490,7 +728,7 @@ namespace MyApplication.Migrations
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsActive")
+                    b.Property<bool?>("IsActive")
                         .HasColumnType("bit");
 
                     b.HasKey("Id");
@@ -508,11 +746,29 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RequestId"));
 
+                    b.Property<int>("ActivitySubTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ActivityTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ApproveBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ApproveTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("Approved")
                         .HasColumnType("bit");
 
                     b.Property<string>("ApprovedBy")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CancelledBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CancelledTime")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
@@ -520,14 +776,14 @@ namespace MyApplication.Migrations
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("OperaSubClassId")
+                    b.Property<int?>("OperaStatusId")
                         .HasColumnType("int");
 
-                    b.Property<int>("OperaSubTypeId")
-                        .HasColumnType("int");
+                    b.Property<string>("RejectedBy")
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("OperaTypeId")
-                        .HasColumnType("int");
+                    b.Property<DateTime?>("RejectedTime")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("ReviewedBy")
                         .HasColumnType("nvarchar(max)");
@@ -553,11 +809,11 @@ namespace MyApplication.Migrations
 
                     b.HasKey("RequestId");
 
-                    b.HasIndex("OperaSubClassId");
+                    b.HasIndex("ActivitySubTypeId");
 
-                    b.HasIndex("OperaSubTypeId");
+                    b.HasIndex("ActivityTypeId");
 
-                    b.HasIndex("OperaTypeId");
+                    b.HasIndex("OperaStatusId");
 
                     b.HasIndex("StartTime");
 
@@ -574,6 +830,9 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -581,76 +840,6 @@ namespace MyApplication.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("OperaStatus", "Employee");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaSubClass", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("OperaSubTypeId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OperaSubTypeId");
-
-                    b.ToTable("OperaSubClass", "Employee");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaSubType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Desc")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsImpacting")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("OperaTypeId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OperaTypeId");
-
-                    b.ToTable("OperaSubType", "Employee");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Desc")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("OperaType", "Employee");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Organization", b =>
@@ -661,81 +850,15 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("IsActive")
+                    b.Property<bool?>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .HasColumnType("varchar(64)");
 
-                    b.Property<string>("ShortName")
-                        .HasColumnType("varchar(128)");
-
                     b.HasKey("Id");
 
                     b.ToTable("Organization", "Employee");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OvertimeSchedules", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<TimeOnly>("AfterShiftFriday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("AfterShiftMonday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("AfterShiftSaturday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("AfterShiftSunday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("AfterShiftThursday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("AfterShiftTuesday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("AfterShiftWednesday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("BeforeShiftFriday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("BeforeShiftMonday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("BeforeShiftSaturday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("BeforeShiftSunday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("BeforeShiftThursday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("BeforeShiftTuesday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("BeforeShiftWednesday")
-                        .HasColumnType("time");
-
-                    b.Property<TimeOnly>("Duration")
-                        .HasColumnType("time");
-
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.ToTable("OvertimeSchedules", "Employee");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Site", b =>
@@ -746,15 +869,73 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Location")
                         .HasColumnType("varchar(64)");
 
                     b.Property<string>("SiteCode")
                         .HasColumnType("varchar(4)");
 
+                    b.Property<string>("TimeZoneIana")
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("TimeZoneWindows")
+                        .HasColumnType("varchar(64)");
+
                     b.HasKey("Id");
 
                     b.ToTable("Site", "Employee");
+                });
+
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.SkillType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SkillType", "Employee");
+                });
+
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Skills", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateOnly>("SkillDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("SkillTypeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("SkillTypeId");
+
+                    b.ToTable("Skills", "Employee");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.SubOrganization", b =>
@@ -765,7 +946,10 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("IsActive")
+                    b.Property<int?>("AwsStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
@@ -774,10 +958,9 @@ namespace MyApplication.Migrations
                     b.Property<int?>("OrganizationId")
                         .HasColumnType("int");
 
-                    b.Property<string>("ShortName")
-                        .HasColumnType("varchar(128)");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("AwsStatusId");
 
                     b.ToTable("SubOrganization", "Employee");
                 });
@@ -793,7 +976,7 @@ namespace MyApplication.Migrations
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsActive")
+                    b.Property<bool?>("IsActive")
                         .HasColumnType("bit");
 
                     b.HasKey("Id");
@@ -1313,6 +1496,73 @@ namespace MyApplication.Migrations
                     b.Navigation("Supervisor");
                 });
 
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrOvertimeSchedules", b =>
+                {
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", "AcrRequest")
+                        .WithMany()
+                        .HasForeignKey("AcrRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrOvertimeTypes", "FridayType")
+                        .WithMany()
+                        .HasForeignKey("FridayTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_AcrOvertimeSchedules_FridayType_OvertimeTypes");
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrOvertimeTypes", "MondayType")
+                        .WithMany()
+                        .HasForeignKey("MondayTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_AcrOvertimeSchedules_MondayType_OvertimeTypes");
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrOvertimeTypes", "SaturdayType")
+                        .WithMany()
+                        .HasForeignKey("SaturdayTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_AcrOvertimeSchedules_SaturdayType_OvertimeTypes");
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrOvertimeTypes", "SundayType")
+                        .WithMany()
+                        .HasForeignKey("SundayTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_AcrOvertimeSchedules_SundayType_OvertimeTypes");
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrOvertimeTypes", "ThursdayType")
+                        .WithMany()
+                        .HasForeignKey("ThursdayTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_AcrOvertimeSchedules_ThursdayType_OvertimeTypes");
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrOvertimeTypes", "TuesdayType")
+                        .WithMany()
+                        .HasForeignKey("TuesdayTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_AcrOvertimeSchedules_TuesdayType_OvertimeTypes");
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrOvertimeTypes", "WednesdayType")
+                        .WithMany()
+                        .HasForeignKey("WednesdayTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_AcrOvertimeSchedules_WednesdayType_OvertimeTypes");
+
+                    b.Navigation("AcrRequest");
+
+                    b.Navigation("FridayType");
+
+                    b.Navigation("MondayType");
+
+                    b.Navigation("SaturdayType");
+
+                    b.Navigation("SundayType");
+
+                    b.Navigation("ThursdayType");
+
+                    b.Navigation("TuesdayType");
+
+                    b.Navigation("WednesdayType");
+                });
+
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrRequest", b =>
                 {
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrStatus", "AcrStatus")
@@ -1350,6 +1600,23 @@ namespace MyApplication.Migrations
                     b.Navigation("AcrRequest");
                 });
 
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivitySubType", b =>
+                {
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.ActivityType", "ActivityType")
+                        .WithMany("SubTypes")
+                        .HasForeignKey("ActivityTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Aws.Status", "AwsStatus")
+                        .WithMany()
+                        .HasForeignKey("AwsStatusId");
+
+                    b.Navigation("ActivityType");
+
+                    b.Navigation("AwsStatus");
+                });
+
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.BreakSchedules", b =>
                 {
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", null)
@@ -1357,6 +1624,33 @@ namespace MyApplication.Migrations
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.DetailedSchedule", b =>
+                {
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.ActivitySubType", "ActivitySubType")
+                        .WithMany()
+                        .HasForeignKey("ActivitySubTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.ActivityType", "ActivityType")
+                        .WithMany()
+                        .HasForeignKey("ActivityTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employees")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ActivitySubType");
+
+                    b.Navigation("ActivityType");
+
+                    b.Navigation("Employees");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.EmployeeHistory", b =>
@@ -1370,43 +1664,42 @@ namespace MyApplication.Migrations
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.Employer", "Employer")
                         .WithMany()
                         .HasForeignKey("EmployerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.Manager", "Manager")
                         .WithMany()
                         .HasForeignKey("ManagerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrSchedule", "Schedule")
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", "OvertimeRequest")
                         .WithMany()
-                        .HasForeignKey("ScheduleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("OvertimeRequestId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", "ScheduleRequest")
+                        .WithMany()
+                        .HasForeignKey("ScheduleRequestId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.Site", "Site")
                         .WithMany()
                         .HasForeignKey("SiteId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.SubOrganization", "SubOrganization")
                         .WithMany()
                         .HasForeignKey("SubOrganizationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.Supervisor", "Supervisor")
                         .WithMany()
                         .HasForeignKey("SupervisorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Employee");
 
@@ -1416,7 +1709,9 @@ namespace MyApplication.Migrations
 
                     b.Navigation("Organization");
 
-                    b.Navigation("Schedule");
+                    b.Navigation("OvertimeRequest");
+
+                    b.Navigation("ScheduleRequest");
 
                     b.Navigation("Site");
 
@@ -1436,67 +1731,63 @@ namespace MyApplication.Migrations
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaRequest", b =>
                 {
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.ActivitySubType", "ActivitySubType")
+                        .WithMany()
+                        .HasForeignKey("ActivitySubTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.ActivityType", "ActivityType")
+                        .WithMany()
+                        .HasForeignKey("ActivityTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employees")
                         .WithMany()
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaSubClass", "OperaSubClass")
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaStatus", "OperaStatus")
                         .WithMany()
-                        .HasForeignKey("OperaSubClassId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("OperaStatusId");
 
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaSubType", "OperaSubType")
-                        .WithMany()
-                        .HasForeignKey("OperaSubTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                    b.Navigation("ActivitySubType");
 
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaType", "OperaType")
-                        .WithMany()
-                        .HasForeignKey("OperaTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                    b.Navigation("ActivityType");
 
                     b.Navigation("Employees");
 
-                    b.Navigation("OperaSubClass");
-
-                    b.Navigation("OperaSubType");
-
-                    b.Navigation("OperaType");
+                    b.Navigation("OperaStatus");
                 });
 
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaSubClass", b =>
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Skills", b =>
                 {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaSubType", "OperaSubType")
-                        .WithMany("SubClasses")
-                        .HasForeignKey("OperaSubTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("OperaSubType");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaSubType", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaType", "OperaType")
-                        .WithMany("SubTypes")
-                        .HasForeignKey("OperaTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("OperaType");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OvertimeSchedules", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", null)
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employee")
                         .WithMany()
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.SkillType", "SkillType")
+                        .WithMany()
+                        .HasForeignKey("SkillTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("SkillType");
+                });
+
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.SubOrganization", b =>
+                {
+                    b.HasOne("MyApplication.Components.Model.AOM.Aws.Status", "AwsStatus")
+                        .WithMany()
+                        .HasForeignKey("AwsStatusId");
+
+                    b.Navigation("AwsStatus");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Supervisor", b =>
@@ -1508,12 +1799,7 @@ namespace MyApplication.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaSubType", b =>
-                {
-                    b.Navigation("SubClasses");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaType", b =>
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivityType", b =>
                 {
                     b.Navigation("SubTypes");
                 });

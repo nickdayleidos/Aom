@@ -1,0 +1,264 @@
+﻿
+<MudPaper Class="pa-4 prev-card" Style="--row-h:40px"
+          @key="(EmployeeId, ShowOrg, ShowSchedule, ShowOvertime, Mode)">
+          <MudText Typo="Typo.h6">Current Employee Information</MudText>
+
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate />
+    }
+    else if (_prev is null)
+    {
+        <MudText Typo="Typo.caption" Class="opacity-70">No Employee History found.</MudText>
+    }
+    else
+    {
+        <MudStack Spacing="2">
+
+            @* ---- Effective Date *@
+            @if (_prev?.EffectiveDate is not null)
+            {
+                <div class="prev-section">
+                    <div class="prev-title">Effective</div>
+                    <div class="prev-grid">
+                        <div class="prev-label">Effective Date</div>
+                        <div class="prev-value">@_prev!.EffectiveDate.Value.ToString("yyyy-MM-dd")</div>
+                    </div>
+                </div>
+            }
+
+            @* --- Organization *@
+            @if (_showOrgCard)
+            {
+                <div class="prev-section">
+                    <div class="prev-title">Organization</div>
+                    <div class="prev-grid">
+                        <div class="prev-label">Employer</div>
+                        <div class="prev-value">@(_prev?.EmployerName ?? "-")</div>
+
+                        <div class="prev-label">Site</div>
+                        <div class="prev-value">@(_prev?.SiteCode ?? "-")</div>
+
+                        <div class="prev-label">Organization</div>
+                        <div class="prev-value">@(_prev?.OrganizationName ?? "-")</div>
+
+                        <div class="prev-label">Sub-Organization</div>
+                        <div class="prev-value">@(_prev?.SubOrganizationName ?? "-")</div>
+
+                        <div class="prev-label">Manager</div>
+                        <div class="prev-value">@(_prev?.ManagerName ?? "-")</div>
+
+                        <div class="prev-label">Supervisor</div>
+                        <div class="prev-value">@(_prev?.SupervisorName ?? "-")</div>
+
+                        <div class="prev-label">LOA</div>
+                        <div class="prev-value">@((_prev?.IsLoa ?? false) ? "Yes" : "No")</div>
+
+                        <div class="prev-label">Int LOA</div>
+                        <div class="prev-value">@((_prev?.IsIntLoa ?? false) ? "Yes" : "No")</div>
+
+                        <div class="prev-label">Remote</div>
+                        <div class="prev-value">@((_prev?.IsRemote ?? false) ? "Yes" : "No")</div>
+                    </div>
+                </div>
+            }
+
+            @* --- Schedule *@
+            @if (_showScheduleCard)
+            {
+                <div class="prev-section">
+                    <div class="prev-title">Schedule</div>
+                    <div class="prev-grid">
+                        <div class="prev-label">Shift #</div>
+                        <div class="prev-value">@(_prev?.ShiftNumber?.ToString() ?? "-")</div>
+                        <div class="prev-label">Mon</div><div class="prev-value">@(_prev?.SchMon ?? "-")</div>
+                        <div class="prev-label">Tue</div><div class="prev-value">@(_prev?.SchTue ?? "-")</div>
+                        <div class="prev-label">Wed</div><div class="prev-value">@(_prev?.SchWed ?? "-")</div>
+                        <div class="prev-label">Thu</div><div class="prev-value">@(_prev?.SchThu ?? "-")</div>
+                        <div class="prev-label">Fri</div><div class="prev-value">@(_prev?.SchFri ?? "-")</div>
+                        <div class="prev-label">Sat</div><div class="prev-value">@(_prev?.SchSat ?? "-")</div>
+                        <div class="prev-label">Sun</div><div class="prev-value">@(_prev?.SchSun ?? "-")</div>
+                        <div class="prev-label">Break Time</div><div class="prev-value">@(_prev?.IsStaticBreakSchedule?.ToString() ?? "-")</div>
+                    </div>
+                </div>
+            }
+
+            @* --- Overtime *@
+            @if (_showOtCard)
+            {
+                <div class="prev-section">
+                    <div class="prev-title">Overtime Adjustment</div>
+
+                    <div class="prev-grid">
+                        <div class="prev-label">Mon</div><div class="prev-value">@(_prev?.OTMon ?? "-")</div>
+                        <div class="prev-label">Tue</div><div class="prev-value">@(_prev?.OTTue ?? "-")</div>
+                        <div class="prev-label">Wed</div><div class="prev-value">@(_prev?.OTWed ?? "-")</div>
+                        <div class="prev-label">Thu</div><div class="prev-value">@(_prev?.OTThu ?? "-")</div>
+                        <div class="prev-label">Fri</div><div class="prev-value">@(_prev?.OTFri ?? "-")</div>
+                        <div class="prev-label">Sat</div><div class="prev-value">@(_prev?.OTSat ?? "-")</div>
+                        <div class="prev-label">Sun</div><div class="prev-value">@(_prev?.OTSun ?? "-")</div>
+                    </div>
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_prev?.SubmitterComment))
+            {
+                <div class="prev-section">
+                    <div class="prev-title">Submitter Comment</div>
+                    <div class="prev-grid">
+                        <div class="prev-label">Comment</div>
+                        <div class="prev-value">@_prev!.SubmitterComment</div>
+                    </div>
+                </div>
+            }
+        </MudStack>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public int EmployeeId { get; set; }
+    [Parameter] public bool ShowOrg { get; set; }
+    [Parameter] public bool ShowSchedule { get; set; }
+    [Parameter] public bool ShowOvertime { get; set; }
+    [Parameter] public object? Value { get; set; }
+
+    [Parameter] public TimeDisplayMode Mode { get; set; } = TimeDisplayMode.EmployeeLocal;
+
+    [Inject] public IAcrQueryService Query { get; set; } = default!;
+
+    private bool _loading;
+    private PrevDetailsVm? _prev;
+    private bool _showOvertimeEffective;
+    private bool _showOtCard;
+    private bool _hasOtStrings;
+    private bool _showOrgCard;
+    private bool _showScheduleCard;
+
+    private CancellationTokenSource? _cts;
+    private int _lastLoadedEmpId;
+    private TimeDisplayMode _lastMode;
+
+    private static int GetTypeId(object? vm) => vm switch
+    {
+        AcrCreateVm c => c.TypeId,
+        AcrEditVm e => e.TypeId,
+        _ => 0
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var typeId = GetTypeId(Value);
+
+        _showOrgCard = ShowOrg
+            || typeId == (int)AcrTypeKey.OrganizationChange
+            || typeId == (int)AcrTypeKey.OrgSchedule;
+
+        _showScheduleCard = ShowSchedule
+            || typeId == (int)AcrTypeKey.ScheduleChange
+            || typeId == (int)AcrTypeKey.OrgSchedule;
+
+        _showOvertimeEffective = ShowOvertime || ShouldShowOvertime(Value);
+
+        if (EmployeeId <= 0)
+        {
+            CancelInFlight();
+            _prev = null;
+            _hasOtStrings = false;
+            _showOtCard = false;
+            _loading = false;
+            StateHasChanged();
+            return;
+        }
+
+        // 🚩 re-fetch if either EmployeeId OR Mode changes
+        if (EmployeeId == _lastLoadedEmpId && _prev is not null && Mode == _lastMode)
+            return;
+
+        CancelInFlight();
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            _prev = await Query.GetPrevDetailsAsync(EmployeeId, Mode, token);
+            if (token.IsCancellationRequested) return;
+
+            _lastLoadedEmpId = EmployeeId;
+            _lastMode = Mode;
+
+            _hasOtStrings = _prev is not null && new[]
+            {
+                _prev!.OTMon, _prev.OTTue, _prev.OTWed, _prev.OTThu, _prev.OTFri, _prev.OTSat, _prev.OTSun
+            }.Any(s => s is not null);
+
+            _showOtCard = _showOvertimeEffective || _hasOtStrings;
+        }
+        finally
+        {
+            if (!token.IsCancellationRequested)
+            {
+                _loading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private static bool ShouldShowOvertime(object? vm) => vm switch
+    {
+        AcrCreateVm c => c.TypeId == (int)AcrTypeKey.OvertimeAdjustment
+                         || c.IncludeOvertimeAdjustment
+                         || (c.Schedule?.IsOtAdjustment ?? false)
+                         || c.Overtime is not null,
+
+        AcrEditVm e => e.TypeId == (int)AcrTypeKey.OvertimeAdjustment
+                       || e.IncludeOvertimeAdjustment
+                       || (e.Schedule?.IsOtAdjustment ?? false)
+                       || e.Overtime is not null,
+
+        _ => false
+    };
+
+    private void CancelInFlight()
+    {
+        try { _cts?.Cancel(); } catch { }
+        _cts?.Dispose();
+        _cts = null;
+    }
+}
+
+
+<style>
+    .prev-card {
+        font-size: 1rem;
+    }
+
+    .prev-section {
+        margin-top: 1rem;
+    }
+
+    .prev-title {
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .prev-grid {
+        display: grid;
+        margin: 25px;
+        grid-template-columns: 160px 1fr;
+        grid-auto-rows: var(--row-h, 60px);
+        align-items: center;
+        gap: 2px 12px;
+    }
+
+    .prev-label {
+        opacity: .8;
+    }
+
+    .prev-value {
+        white-space: pre-wrap;
+    }
+</style>

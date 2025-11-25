@@ -3,15 +3,23 @@
     @* <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink> *@
     <MudNavLink Href="/employees" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Employees</MudNavLink>
     <MudNavGroup Icon="@Icons.Material.Filled.Assignment" Title="ACR" Expanded="true">
-        <MudNavLink Href="/tools/acr" Icon="@Icons.Material.Filled.ManageSearch">ACR Lookup</MudNavLink>
-        <MudNavLink Href="/tools/acr/new" Icon="@Icons.Material.Filled.NoteAdd">New ACR</MudNavLink>
+        <MudNavLink Href="/acr" Icon="@Icons.Material.Filled.ManageSearch">ACR Lookup</MudNavLink>
+        <MudNavLink Href="/acr/new" Icon="@Icons.Material.Filled.NoteAdd">New ACR</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup Icon="@Icons.Material.Filled.Assignment" Title="Opera" Expanded="true">
+        <MudNavLink Href="/Opera" Icon="@Icons.Material.Filled.ManageSearch">OPERA Views</MudNavLink>
+        <MudNavLink Href="/Opera/new" Icon="@Icons.Material.Filled.NoteAdd">New Opera</MudNavLink>
     </MudNavGroup>
     
     <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="true">
         <MudNavLink Href="/tools/emailtemplates" Icon="@Icons.Material.Filled.Mail">Email Templates</MudNavLink>
         <MudNavLink Href="/tools/intervalsummary" Icon="@Icons.Material.Filled.Timeline">Interval Summary</MudNavLink>
-        <MudNavLink Href="/tools/operationalimpact" Icon="@Icons.Material.Filled.HeadsetOff">Operational Impact</MudNavLink>
+        <MudNavLink Href="/operationalimpact" Icon="@Icons.Material.Filled.HeadsetOff">Operational Impact</MudNavLink>
         <MudNavLink Href="/tools/proactive" Icon="@Icons.Material.Filled.Campaign">Proactive</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup  Title="Training" Expanded="true">
+        <MudNavLink Href="/training/skills" >EmployeeSkills</MudNavLink>
+        <MudNavLink Href="/training/skills/new" >Add Skilling</MudNavLink>
     </MudNavGroup>
 </MudNavMenu>
 

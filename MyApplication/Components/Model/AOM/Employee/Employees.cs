@@ -30,4 +30,38 @@ namespace MyApplication.Components.Model.AOM.Employee
 
       
     }
+
+    public class EmployeeHistory
+    {
+        public int Id { get; set; }
+        public int EmployeeId { get; set; }
+        public Employees? Employee { get; set; }
+
+        public int? SupervisorId { get; set; }
+        public Supervisor? Supervisor { get; set; }
+        public int? ManagerId { get; set; }
+        public Manager? Manager { get; set; }
+        public int? SiteId { get; set; }
+        public Site? Site { get; set; }
+        public int? EmployerId { get; set; }
+        public Employer? Employer { get; set; }
+        public int? OrganizationId { get; set; }
+        public Organization? Organization { get; set; }
+        public int? SubOrganizationId { get; set; }
+        public SubOrganization? SubOrganization { get; set; }
+
+        public DateTime EffectiveDate { get; set; }
+        public bool? IsActive { get; set; }
+        public bool? IsLoa { get; set; }
+        public bool? IsIntLoa { get; set; }
+        public bool? IsRemote { get; set; }
+        // 👇 point to the ACR that carries the schedules for this snapshot
+        public int? ScheduleRequestId { get; set; }
+        public AcrRequest? ScheduleRequest { get; set; }
+        public int? OvertimeRequestId { get; set; }
+        public AcrRequest? OvertimeRequest { get; set; }
+
+        public int? SourceAcrId { get; set; } // provenance
+    }
+
 }

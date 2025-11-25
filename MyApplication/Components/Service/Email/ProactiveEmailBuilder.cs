@@ -20,38 +20,71 @@ namespace MyApplication.Components.Services.Email
 
             var subject = $"{subjectBase} - {et.ToString(Et.SubjectFormat)} ET";
 
+            // Encode + convert newlines to <br> so Outlook preserves breaks
+            static string EncodeWithBr(string? s)
+            {
+                if (string.IsNullOrEmpty(s)) return string.Empty;
+                var enc = WebUtility.HtmlEncode(s);
+                // Normalize newlines then convert to <br>
+                enc = enc.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "<br>");
+                return enc;
+            }
+
+            // Render an Outlook-safe “card” using a simple table + inline styles
+            static string RenderCard(string heading, string contentHtml)
+            {
+                const string bodyStyle =
+                    "font-family:Segoe UI,Roboto,Arial,sans-serif;" +
+                    "font-size:14px;line-height:1.4;" +
+                    "word-wrap:break-word;overflow-wrap:break-word;" +
+                    "word-break:break-word;-ms-word-break:break-all;" + // Outlook/IE
+                    "margin:0;";
+
+                var sb = new StringBuilder();
+                sb.Append("<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"border-collapse:collapse;margin:0 0 14px 0;\">");
+                sb.Append("<tr><td style=\"border:1px solid #e3e3e3;padding:12px 14px;mso-padding-alt:12px 14px;\">");
+                sb.Append($"<h3 style=\"margin:0 0 8px 0;font-size:16px;font-family:Segoe UI,Roboto,Arial,sans-serif;font-weight:600;\">{heading}</h3>");
+                sb.Append($"<div style=\"{bodyStyle}\">{contentHtml}</div>");
+                sb.Append("</td></tr></table>");
+                return sb.ToString();
+            }
+
             var sb = new StringBuilder();
             sb.Append("""
                 <html>
-                <head>
-                  <meta charset="utf-8" />
-                  <style>
-                    body { font-family: Segoe UI, Roboto, Arial, sans-serif; }
-                    .meta { font-size:12px; color:#555; margin-bottom:18px; }
-                    .card { border:1px solid #e3e3e3; border-radius:6px; padding:12px 14px; margin-bottom:14px; }
-                    h3 { margin:0 0 8px 0; font-size:16px; }
-                    pre { white-space:pre-wrap; font-family:inherit; margin:0; }
-                  </style>
-                </head>
-                <body>
+                  <head>
+                    <meta charset="utf-8" />
+                    <meta name="x-apple-disable-message-reformatting" />
+                    <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no" />
+                  </head>
+                  <body style="margin:0;padding:0;word-wrap:break-word;overflow-wrap:break-word;">
             """);
 
-            // Single meta line in ET (idempotent formatting)
-            sb.Append($@"<div class=""meta"">Proactive Time (ET): {et.ToString(Et.BodyFormat)} ET</div>");
+            // Outer container table
+            sb.Append("<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" style=\"border-collapse:collapse;\">");
+            sb.Append("<tr><td style=\"font-family:Segoe UI,Roboto,Arial,sans-serif;\">");
 
-            sb.Append("<div class=\"card\"><h3>USN Injection Announcement</h3><pre>");
-            sb.Append(WebUtility.HtmlEncode(ctx.UsnInjectionAnnouncement));
-            sb.Append("</pre></div>");
+            // Meta line
+            sb.Append($@"<div style=""font-size:12px;color:#555;margin:0 0 18px 0;font-family:Segoe UI,Roboto,Arial,sans-serif;"">
+                           Proactive Time (ET): {et.ToString(Et.BodyFormat)} ET
+                         </div>");
 
-            sb.Append("<div class=\"card\"><h3>USN Site Announcement</h3><pre>");
-            sb.Append(WebUtility.HtmlEncode(ctx.UsnSiteAnnouncement));
-            sb.Append("</pre></div>");
+            void AppendSection(string heading, string? content)
+            {
+                if (!string.IsNullOrWhiteSpace(content))
+                {
+                    var html = EncodeWithBr(content);
+                    sb.Append(RenderCard(heading, html));
+                }
+            }
 
-            sb.Append("<div class=\"card\"><h3>USN Status Announcement</h3><pre>");
-            sb.Append(WebUtility.HtmlEncode(ctx.UsnStatusAnnouncement));
-            sb.Append("</pre></div>");
+            AppendSection("USN Injection Announcement", ctx.UsnInjectionAnnouncement);
+            AppendSection("USN Site Announcement", ctx.UsnSiteAnnouncement);
+            AppendSection("USN Status Announcement", ctx.UsnStatusAnnouncement);
 
+            sb.Append("</td></tr></table>");
             sb.Append("</body></html>");
+
             return (subject, sb.ToString());
         }
     }

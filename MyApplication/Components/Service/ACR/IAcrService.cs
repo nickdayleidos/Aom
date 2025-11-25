@@ -1,20 +1,28 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
-using MyApplication.Components.Model.AOM.Employee;
 
 namespace MyApplication.Components.Service.Acr
 {
     public interface IAcrService
     {
-        Task<int> CreateOrganizationChangeAsync(OrganizationChangeDto dto, CancellationToken ct = default);
-        Task<int> CreateScheduleChangeAsync(ScheduleChangeDto dto, CancellationToken ct = default);
-        Task<int> CreateOrgScheduleAsync(OrganizationChangeDto org, ScheduleChangeDto sch, CancellationToken ct = default);
-        Task<int> CreateNewHireAsync(NewHireDto dto, CancellationToken ct = default);
-        Task<int> CreateSeparationAsync(SeparationDto dto, CancellationToken ct = default);
-        Task<int> CreateRehireAsync(RehireDto dto); // returns new ACR Id
+        /// <summary>Create a new ACR and any applicable child rows (Org, Schedule, OvertimeSchedules).</summary>
+        Task<int> CreateAsync(AcrCreateVm vm, CancellationToken ct = default);
 
-        // Details / workflow
-        Task<AcrRequest?> GetAsync(int id, CancellationToken ct = default);
-        Task UpdateStatusAsync(int id, int newStatusId, CancellationToken ct = default);
+        /// <summary>Update an existing ACR and any applicable child rows (Org, Schedule, OvertimeSchedules).</summary>
+        Task UpdateAsync(AcrEditVm vm, CancellationToken ct = default);
+
+        /// <summary>
+        /// Return the last ACR for this employee that contains any overtime adjustment in AcrOvertimeSchedules.
+        /// Returns null if none exists.
+        /// </summary>
+        Task<LastOvertimeAdjustment?> GetLastOvertimeAdjustmentAsync(int employeeId, CancellationToken ct = default);
+        Task SetStatusAsync(int acrRequestId, int newStatusId, CancellationToken ct = default);
     }
+
+    public sealed record LastOvertimeAdjustment(
+        int AcrRequestId,
+        AcrTypeKey TypeKey,
+        DateOnly EffectiveDate,
+        OvertimeAdjustmentDto Overtime
+    );
 }

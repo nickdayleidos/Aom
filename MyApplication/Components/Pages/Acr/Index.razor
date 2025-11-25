@@ -1,196 +1,270 @@
-﻿@page "/tools/acr"
+﻿@page "/acr"
+@attribute [Authorize(Policy = "Admin")]
 @using System.Linq
+@using MudBlazor
 @using MyApplication.Components.Service.Acr
-@using MyApplication.Common.Time
+
 @inject IAcrQueryService Query
 @inject NavigationManager Nav
 
 <MudStack Spacing="2">
-    <MudPaper Class="pa-3" Outlined="true">
-        <MudGrid>
-            <MudItem xs="12" md="2">
-                <MudSelect T="int?" @bind-Value="_typeId" Label="Type" Clearable="true" Dense="true">
+    <MudPaper Class="pa-4" Outlined>
+
+        <!-- Header ---------------------------------------------------------->
+        <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudText Typo="Typo.h5">ACRs</MudText>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Outlined.Add"
+                       OnClick="@(() => Nav.NavigateTo("/acr/new"))">
+                New
+            </MudButton>
+        </MudStack>
+
+        <!-- Tabs ------------------------------------------------------------>
+        <MudTabs @bind-ActivePanelIndex="TabIndex"
+                 Rounded="true"
+                 Elevation="0"
+                 Class="mt-2">
+            <MudTabPanel Text="All ACRs"
+                         Icon="@Icons.Material.Outlined.ListAlt" />
+            <MudTabPanel Text="Manager Approve"
+                         Icon="@Icons.Material.Outlined.Badge" />
+            <MudTabPanel Text="WFM Approve"
+                         Icon="@Icons.Material.Outlined.CheckCircleOutline" />
+        </MudTabs>
+        <!-- Filter bar ------------------------------------------------------>
+        <MudGrid Class="mt-3 mb-2" AlignItems="Center" GutterSize="2">
+            <!-- Search -->
+            <MudItem xs="12" md="5">
+                <MudTextField T="string"
+                              Label="Employee"
+                              Placeholder="Search by employee name or id"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Outlined.Search"
+                              @bind-Value="_searchText"
+                              Immediate="true"
+                              DebounceInterval="200"
+                              OnDebounceIntervalElapsed="OnSearchChanged" />
+            </MudItem>
+
+            <!-- Type filter -->
+            <MudItem xs="12" md="3">
+                <MudSelect T="int?" Label="Type"
+                           Dense="true"
+                           Clearable="true"
+                           Value="_selectedTypeId"
+                           ValueChanged="OnTypeChanged"
+                           Class="w-100">
+                    <MudSelectItem Value="@((int?)null)">All Types</MudSelectItem>
                     @foreach (var kv in _types)
                     {
-                        <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                        <MudSelectItem Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
 
-            <MudItem xs="12" md="2">
-                <MudSelect T="int?" @bind-Value="_statusId" Label="Status" Clearable="true" Dense="true">
+            <!-- Status filter (disabled on Manager/WFM tabs) -->
+            <MudItem xs="12" md="3">
+                <MudSelect T="int?" Label="Status"
+                           Dense="true"
+                           Clearable="true"
+                           Disabled="@(TabIndex != 0)"
+                           Value="_selectedStatusId"
+                           ValueChanged="OnStatusChanged"
+                           Class="w-100">
+                    <MudSelectItem Value="@((int?)null)">All Statuses</MudSelectItem>
                     @foreach (var kv in _statuses)
                     {
-                        <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                        <MudSelectItem Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
                     }
                 </MudSelect>
             </MudItem>
 
-            <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="_empSearch" Label="Employee (Id or name)" Dense="true" />
-            </MudItem>
-
-            <MudItem xs="6" md="2">
-                <MudDatePicker @bind-Date="_from" Label="Effective from" Dense="true" />
-            </MudItem>
-            <MudItem xs="6" md="2">
-                <MudDatePicker @bind-Date="_to" Label="Effective to" Dense="true" />
-            </MudItem>
-
-            <MudItem xs="12" md="1" Class="d-flex align-center">
-                <MudButton OnClick="Load" Variant="Variant.Filled">Filter</MudButton>
-            </MudItem>
-
-            <!-- Rows selector -->
-            <MudItem xs="12" md="1">
-                <MudSelect T="int" @bind-Value="PageSize" Label="Rows" Dense="true">
-                    <MudSelectItem Value="50">50</MudSelectItem>
-                    <MudSelectItem Value="100">100</MudSelectItem>
-                    <MudSelectItem Value="200">200</MudSelectItem>
-                </MudSelect>
+            <!-- Clear filters -->
+            <MudItem xs="12" md="1" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Outlined.ClearAll"
+                           OnClick="ClearFilters">
+                    Clear
+                </MudButton>
             </MudItem>
         </MudGrid>
-    </MudPaper>
 
-    <MudPaper Outlined="true">
-        <MudTable Items="_rows" Hover="true" Dense="true">
+        <!-- Table ----------------------------------------------------------->
+        <MudTable Items="_rows"
+                  Hover="true"
+                  Dense="true"
+                  Bordered="true"
+                  Loading="_loading"
+                  RowClick="OnRowClick">
+
             <HeaderContent>
-                <MudTh>Id</MudTh>
                 <MudTh>Employee</MudTh>
                 <MudTh>Type</MudTh>
                 <MudTh>Status</MudTh>
                 <MudTh>Effective</MudTh>
-                <MudTh>Submitted (ET)</MudTh>
+                <MudTh>Submitted</MudTh>
                 <MudTh></MudTh>
             </HeaderContent>
+
             <RowTemplate>
-                <MudTd DataLabel="Id">@context.Id</MudTd>
-                <MudTd>@context.EmployeeName (@context.EmployeeId)</MudTd>
+                <MudTd>@context.EmployeeName</MudTd>
                 <MudTd>@context.AcrType</MudTd>
-                <MudTd>@context.AcrStatus</MudTd>
-                <MudTd>@context.EffectiveDate.ToString("yyyy-MM-dd")</MudTd>
-                <MudTd>@FormatEt(context.SubmitTime)</MudTd>
+                <MudTd>@(context.AcrStatus ?? "-")</MudTd>
+                <MudTd>@context.EffectiveDate</MudTd>
+                <MudTd>@(context.SubmitTime?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudTd>
                 <MudTd>
-                    <MudButton Size="Size.Small" OnClick="@(() => Nav.NavigateTo($"/tools/acr/{context.Id}"))">
-                        Details
-                    </MudButton>
+                    <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                   OnClick="@(e => Nav.NavigateTo($"/acr/{context.Id}"))"
+                                   OnClick:stopPropagation="true" />
                 </MudTd>
             </RowTemplate>
+
+            <LoadingContent>
+                <MudStack AlignItems="AlignItems.Center" Class="pa-4">
+                    <MudProgressCircular Indeterminate="true" />
+                </MudStack>
+            </LoadingContent>
         </MudTable>
-        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="pa-2">
-            <MudText Typo="Typo.body2">
-                Page @_currentPage of @_pageCount (@_all.Count total)
-            </MudText>
-
-            <MudStack Row="true" Spacing="1">
-                <MudButton Variant="Variant.Outlined" Disabled="@(_currentPage <= 1)" OnClick="PrevPage">
-                    <MudIcon Icon="@Icons.Material.Filled.NavigateBefore" /> Prev
-                </MudButton>
-                <MudButton Variant="Variant.Outlined" Disabled="@(_currentPage >= _pageCount)" OnClick="NextPage">
-                    Next <MudIcon Icon="@Icons.Material.Filled.NavigateNext" />
-                </MudButton>
-            </MudStack>
-        </MudStack>
-    </MudPaper>
-
-    <MudPaper Class="pa-3" Outlined="true">
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="@(() => Nav.NavigateTo("/tools/acr/new"))">
-            New ACR
-        </MudButton>
     </MudPaper>
 </MudStack>
 
-@code {
-    Dictionary<int, string> _types = new();
-    Dictionary<int, string> _statuses = new();
+@code
+{
+    private const int StatusSubmitted = 1;
+    private const int StatusManagerApproved = 2;
 
-    int? _typeId;
-    int? _statusId;
-    string? _empSearch;
-    DateTime? _from;
-    DateTime? _to;
-
-    List<AcrRequestListItem> _all = new();
-    List<AcrRequestListItem> _rows = new();
-
-    private int _pageSize = 50;
-    private int PageSize
+    private int _tabIndex;
+    private int TabIndex
     {
-        get => _pageSize;
+        get => _tabIndex;
         set
         {
-            _pageSize = value;
-            _currentPage = 1;
-            ApplyPagination();
+            if (_tabIndex == value) return;
+            _tabIndex = value;
+            _ = ReloadAsync();
         }
     }
 
-    private int _currentPage = 1;
-    private int _pageCount = 1;
+    private bool _loading;
+    private string _searchText = string.Empty;
+
+    private Dictionary<int, string> _types = new();
+    private Dictionary<int, string> _statuses = new();
+
+    private int? _selectedTypeId;
+    private int? _selectedStatusId;
+
+    private AcrIndexFilter _filter = new(null, null, null, null, null);
+    private List<AcrRequestListItem> _rows = new();
 
     protected override async Task OnInitializedAsync()
     {
         _types = await Query.GetTypesAsync();
         _statuses = await Query.GetStatusesAsync();
-        await Load();
+        await ReloadAsync();
     }
 
-    private async Task Load()
+    // --- Filters / search ---------------------------------------------------
+
+    private Task OnSearchChanged(string text)
     {
-        var f = new AcrIndexFilter(
-            _typeId,
-            _statusId,
-            _empSearch,
-            _from is null ? null : DateOnly.FromDateTime(_from.Value),
-            _to is null ? null : DateOnly.FromDateTime(_to.Value)
-        );
-
-        _all = (await Query.QueryAsync(f))
-            .OrderByDescending(r => r.EffectiveDate)
-            .ThenByDescending(r => r.SubmitTime)
-            .Take(1000)
-            .ToList();
-
-        _currentPage = 1;
-        ApplyPagination();
+        _searchText = text;
+        return ReloadAsync();
     }
 
-    private void ApplyPagination()
+    private Task OnTypeChanged(int? value)
     {
-        _pageCount = (int)Math.Ceiling(_all.Count / (double)_pageSize);
-        _currentPage = Math.Clamp(_currentPage, 1, Math.Max(1, _pageCount));
+        _selectedTypeId = value;
+        return ReloadAsync();
+    }
 
-        _rows = _all
-            .Skip((_currentPage - 1) * _pageSize)
-            .Take(_pageSize)
-            .ToList();
+    private Task OnStatusChanged(int? value)
+    {
+        _selectedStatusId = value;
+        return ReloadAsync();
+    }
 
+    private async Task ClearFilters()
+    {
+        _searchText = string.Empty;
+        _selectedTypeId = null;
+        _selectedStatusId = null;
+
+        _filter = _filter with
+        {
+            AcrTypeId = null,
+            AcrStatusId = null,
+            EmployeeSearch = null,
+            EffectiveFrom = null,
+            EffectiveTo = null
+        };
+
+        await ReloadAsync();
+    }
+
+    // --- Data load ----------------------------------------------------------
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        int? statusId = null;
+
+        if (TabIndex == 1)
+        {
+            // Manager Approve tab
+            statusId = StatusSubmitted;
+        }
+        else if (TabIndex == 2)
+        {
+            // WFM Approve tab
+            statusId = StatusManagerApproved;
+        }
+        else
+        {
+            // All tab = whatever user picked in Status dropdown
+            statusId = _selectedStatusId;
+        }
+
+        var search = string.IsNullOrWhiteSpace(_searchText)
+            ? null
+            : _searchText.Trim();
+
+        // Send filters to the query service
+        _filter = _filter with
+        {
+            AcrTypeId = _selectedTypeId,
+            AcrStatusId = statusId,
+            EmployeeSearch = search
+        };
+
+        var rows = await Query.QueryAsync(_filter, take: 1000);
+
+        // 🔍 Extra safety: client-side filter by Employee name or id
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+
+            rows = rows
+                .Where(r =>
+                    (!string.IsNullOrWhiteSpace(r.EmployeeName) &&
+                     r.EmployeeName.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    || r.EmployeeId.ToString().Contains(term, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        _rows = rows;
+
+        _loading = false;
         StateHasChanged();
     }
 
-    private void NextPage()
-    {
-        if (_currentPage < _pageCount)
-        {
-            _currentPage++;
-            ApplyPagination();
-        }
-    }
 
-    private void PrevPage()
-    {
-        if (_currentPage > 1)
-        {
-            _currentPage--;
-            ApplyPagination();
-        }
-    }
-
-    private static string? FormatEt(DateTime? dt)
-    {
-        if (dt is null) return null;
-        return dt.Value.Kind == DateTimeKind.Utc
-            ? Et.FromUtc(dt.Value).ToString("g")
-            : dt.Value.ToString("g");
-    }
+    private void OnRowClick(TableRowClickEventArgs<AcrRequestListItem> e)
+        => Nav.NavigateTo($"/acr/{e.Item.Id}");
 }

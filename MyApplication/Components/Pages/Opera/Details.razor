@@ -1,134 +1,329 @@
 ﻿@page "/opera/{id:int}"
+@attribute [Authorize(Policy = "Admin")]
 @using MyApplication.Components.Model.AOM.Employee
 @using MudBlazor
 @using Microsoft.EntityFrameworkCore
+@using MyApplication.Common.Time
 @inject IOperaRepository Repo
 @inject AomDbContext Db
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
+@inject UserProfileService UserProfile
+@using MyApplication.Components.Service
 
 <MudStack Spacing="2">
-    <MudPaper Class="pa-3" Outlined="true">
-        <MudText Typo="Typo.h6">Opera Request @id</MudText>
-
+    <MudPaper Class="pa-4" Outlined="true">
         @if (_req is null)
         {
             <MudText>Loading...</MudText>
         }
         else
         {
-            <MudGrid Spacing="2">
-                <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_req.SubmitterComments" Label="Submitter Comments" Lines="3" />
-                </MudItem>
+            <MudStack Spacing="3">
 
-                <MudItem xs="12" md="3">
-                    <MudDatePicker @bind-Date="_startDateEt" Label="Start Date (ET)" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTimePicker @bind-Time="_startTimeEt" Label="Start Time (ET)" />
-                </MudItem>
+                <!-- Header: title / employee / status -->
+                <MudGrid Spacing="2" AlignItems="Center">
+                    <MudItem xs="12" md="8">
+                        <MudText Typo="Typo.h6">
+                            Opera Request @_req.RequestId
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="opacity-75">
+                            Employee: @_employeeLabel
+                        </MudText>
+                    </MudItem>
 
-                <MudItem xs="12" md="3">
-                    <MudDatePicker @bind-Date="_endDateEt" Label="End Date (ET)" />
-                </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudTimePicker @bind-Time="_endTimeEt" Label="End Time (ET)" />
-                </MudItem>
+                    <MudItem xs="12" md="4" Class="d-flex justify-end align-center">
+                        <MudChip T="int" Color="Color.Info"
+                                 Variant="Variant.Outlined"
+                                 Class="mr-2">
+                            @_statuses.FirstOrDefault(s => s.Id == _req.OperaStatusId)?.Name
+                        </MudChip>
+                    </MudItem>
+                </MudGrid>
 
-                <MudItem xs="12" md="4">
-                    <MudSelect @bind-Value="_req.OperaTypeId" Label="Type">
-                        @foreach (var t in _types)
-                        {
-                            <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudSelect @bind-Value="_req.OperaSubTypeId" Label="SubType">
-                        @foreach (var t in _subTypes.Where(s => s.OperaTypeId == _req.OperaTypeId))
-                        {
-                            <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="4">
-                    <MudSelect @bind-Value="_req.OperaSubClassId" Label="SubClass" Clearable="true">
-                        @foreach (var t in _subClasses.Where(s => s.OperaSubTypeId == _req.OperaSubTypeId))
-                        {
-                            <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
+                <!-- Two main cards: When + Details -->
+                <MudGrid Spacing="2">
 
-                <MudItem xs="12" md="12" Class="d-flex gap-2">
-                    <MudButton Variant="Variant.Outlined" OnClick="Save" Disabled="@_busy">Save</MudButton>
-                    <MudButton Color="Color.Success" OnClick="@(() => SetStatus(2))" Disabled="@_busy">Approve</MudButton>
-                    <MudButton Color="Color.Error" OnClick="@(() => SetStatus(3))" Disabled="@_busy">Reject</MudButton>
-                    <MudButton Variant="Variant.Text" OnClick="@(() => Nav.NavigateTo("/tools/opera"))">Back</MudButton>
-                </MudItem>
-            </MudGrid>
+                    <!-- WHEN (local) -->
+                    <MudItem xs="12" md="6">
+                        <MudPaper Class="pa-3 h-100" Outlined="true">
+                            <MudText Typo="Typo.subtitle2">When (Local)</MudText>
+                            <MudText Typo="Typo.caption" Class="opacity-75">
+                                Times are shown in the employee’s local site time.
+                            </MudText>
+
+                            <MudDivider Class="my-2" />
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" md="6">
+                                    <MudDatePicker @bind-Date="_startDateLocal"
+                                                   Label="Start Date"
+                                                   Variant="Variant.Outlined"
+                                                   Editable="true"
+                                                   Clearable="true"
+                                                   Dense="true" 
+                                                   ReadOnly="@(!_isEditMode)" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudTimePicker @bind-Time="_startTimeLocal"
+                                                   Label="Start Time"
+                                                   Variant="Variant.Outlined"
+                                                   Editable="true"
+                                                   Clearable="true"
+                                                   Dense="true" 
+                                                   ReadOnly="@(!_isEditMode)" />
+                                </MudItem>
+
+                                <MudItem xs="12" md="6">
+                                    <MudDatePicker @bind-Date="_endDateLocal"
+                                                   Label="End Date"
+                                                   Variant="Variant.Outlined"
+                                                   Editable="true"
+                                                   Clearable="true"
+                                                   Dense="true" 
+                                                   ReadOnly="@(!_isEditMode)" />
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudTimePicker @bind-Time="_endTimeLocal"
+                                                   Label="End Time"
+                                                   Variant="Variant.Outlined"
+                                                   Editable="true"
+                                                   Clearable="true"
+                                                   Dense="true" 
+                                                   ReadOnly="@(!_isEditMode)" />
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudTextField @bind-Value="_req.SubmittedBy"
+                                                  Label="Submitted By"
+                                                  Variant="Variant.Outlined"
+                                                  Lines="1"
+                                                  FullWidth="true"
+                                                  ReadOnly="@(!_isEditMode)" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+
+                    <!-- WHAT (type / subtype / comments) -->
+                    <MudItem xs="12" md="6">
+                        <MudPaper Class="pa-3 h-100" Outlined="true">
+                            <MudText Typo="Typo.subtitle2">Request details</MudText>
+
+                            <MudDivider Class="my-2" />
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" md="6">
+                                    <MudSelect @bind-Value="_req.ActivityTypeId"
+                                               Label="Type"
+                                               Variant="Variant.Outlined"
+                                               Dense="true"
+                                               ReadOnly="@(!_isEditMode)">
+                                        @foreach (var t in _types)
+                                        {
+                                            <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+
+                                <MudItem xs="12" md="6">
+                                    <MudSelect @bind-Value="_req.ActivitySubTypeId"
+                                               Label="SubType"
+                                               Variant="Variant.Outlined"
+                                               Dense="true"
+                                               ReadOnly="@(!_isEditMode)">
+                                        @foreach (var t in _subTypes.Where(s => s.ActivityTypeId == _req.ActivityTypeId))
+                                        {
+                                            <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudTextField @bind-Value="_req.SubmitterComments"
+                                                  Label="Submitter Comments"
+                                                  Variant="Variant.Outlined"
+                                                  Lines="4"
+                                                  FullWidth="true"
+                                                  ReadOnly="@(!_isEditMode)" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider />
+
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.caption" Class="opacity-50">
+                        Request ID: @_req.RequestId
+                    </MudText>
+
+                    <MudStack Row="true" Spacing="1">
+                        <!-- Edit toggle only affects inputs -->
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   OnClick="@ToggleEdit">
+                            @(_isEditMode ? "DONE EDITING" : "EDIT")
+                        </MudButton>
+
+                        <MudButton Variant="Variant.Outlined"
+                                   OnClick="Save"
+                                   Disabled="@_busy">
+                            SAVE
+                        </MudButton>
+
+                        <MudButton Color="Color.Success"
+                                   OnClick="@(() => SetStatus(ApprovedStatusId))"
+                                   Disabled="@(_busy || !CanApprove)">
+                            APPROVE
+                        </MudButton>
+
+                        <MudButton Color="Color.Error"
+                                   OnClick="@(() => SetStatus(RejectedStatusId))"
+                                   Disabled="@(_busy || !CanReject)">
+                            REJECT
+                        </MudButton>
+
+                        <MudButton Color="Color.Warning"
+                                   OnClick="@(() => SetStatus(CancelledStatusId))"
+                                   Disabled="@(_busy || !CanCancel)">
+                            CANCEL
+                        </MudButton>
+
+                        <MudButton Variant="Variant.Text"
+                                   OnClick="@(() => Nav.NavigateTo("/opera"))">
+                            BACK
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+
+          </MudStack>
+
         }
     </MudPaper>
 </MudStack>
 
 @code {
     [Parameter] public int id { get; set; }
+    private bool _isEditMode = false;
 
     private OperaRequest? _req;
     private bool _busy;
 
-    private List<OperaType> _types = new();
-    private List<OperaSubType> _subTypes = new();
-    private List<OperaSubClass> _subClasses = new();
+    private List<ActivityType> _types = new();
+    private List<ActivitySubType> _subTypes = new();
+    private List<OperaStatus> _statuses = new();
 
-    // ET date+time fields for binding
-    private DateTime? _startDateEt;
-    private TimeSpan? _startTimeEt;
-    private DateTime? _endDateEt;
-    private TimeSpan? _endTimeEt;
+    private string? _employeeLabel;
+    private string? _employeeSiteTzId; // IANA or Windows id for this employee's site
+
+    // Local (site) date+time fields for binding
+    private DateTime? _startDateLocal;
+    private TimeSpan? _startTimeLocal;
+    private DateTime? _endDateLocal;
+    private TimeSpan? _endTimeLocal;
+
+    private const int SubmittedStatusId = 1;
+    private const int ApprovedStatusId = 2;
+    private const int ProcessedStatusId = 3;
+    private const int CancelledStatusId = 4;
+    private const int RejectedStatusId = 5;
+
+    private void ToggleEdit() => _isEditMode = !_isEditMode;
 
 
-    private static readonly TimeZoneInfo EtTz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+    private int CurrentStatus => _req?.OperaStatusId ?? SubmittedStatusId;
+
+    private bool CanApprove =>
+        _req is not null && CurrentStatus == SubmittedStatusId;
+
+    private bool CanReject =>
+        _req is not null && CurrentStatus == SubmittedStatusId;
+
+    private bool CanCancel =>
+        _req is not null &&
+        (CurrentStatus == SubmittedStatusId
+         || CurrentStatus == ApprovedStatusId
+         || CurrentStatus == ProcessedStatusId);
+
 
     protected override async Task OnParametersSetAsync()
     {
         _req = await Repo.GetAsync(id);
         if (_req == null) return;
 
-        _types = await Db.OperaType.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        _subTypes = await Db.OperaSubType.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        _subClasses = await Db.OperaSubClass.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+        // employee display
+        var emp = await Db.Employees.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == _req.EmployeeId);
+        _employeeLabel = emp is null
+            ? $"#{_req.EmployeeId}"
+            : $"{emp.LastName}, {emp.FirstName} (#{emp.Id})";
 
-        // Convert stored UTC to ET for editing
-        var startEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(_req.StartTime, DateTimeKind.Utc), EtTz);
-        var endEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(_req.EndTime, DateTimeKind.Utc), EtTz);
+        // current EmployeeHistory with Site for timezone
+        var history = await Db.EmployeeHistory
+            .AsNoTracking()
+            .Include(h => h.Site)
+            .Where(h => h.EmployeeId == _req.EmployeeId)
+            .ToListAsync();
 
-        _startDateEt = startEt.Date;
-        _startTimeEt = startEt.TimeOfDay;
-        _endDateEt = endEt.Date;
-        _endTimeEt = endEt.TimeOfDay;
+        var currentHistory =
+            history.Where(h => h.IsActive == true)
+                   .OrderByDescending(h => h.EffectiveDate)
+                   .FirstOrDefault()
+            ?? history.OrderByDescending(h => h.EffectiveDate)
+                      .FirstOrDefault();
+
+        var site = currentHistory?.Site;
+        _employeeSiteTzId = site?.TimeZoneIana
+                            ?? site?.TimeZoneWindows
+                            ?? null;
+
+        _types = await Db.ActivityTypes
+            .AsNoTracking()
+            .OrderBy(x => x.Name)
+            .ToListAsync();
+
+        _subTypes = await Db.ActivitySubTypes
+            .AsNoTracking()
+            .OrderBy(x => x.Name)
+            .ToListAsync();
+
+        _statuses = (await Repo.GetStatusesAsync()).ToList();
+
+        // Times in DB are ET-local; convert ET -> site local for display/edit
+        var startLocal = Tz.FromEtToSite(_req.StartTime, _employeeSiteTzId);
+        var endLocal = Tz.FromEtToSite(_req.EndTime, _employeeSiteTzId);
+
+        _startDateLocal = startLocal.Date;
+        _startTimeLocal = startLocal.TimeOfDay;
+        _endDateLocal = endLocal.Date;
+        _endTimeLocal = endLocal.TimeOfDay;
     }
 
     private async Task Save()
     {
         if (_req is null) return;
-        if (!_startDateEt.HasValue || !_startTimeEt.HasValue || !_endDateEt.HasValue || !_endTimeEt.HasValue)
+        if (!_startDateLocal.HasValue || !_startTimeLocal.HasValue ||
+            !_endDateLocal.HasValue || !_endTimeLocal.HasValue)
         {
             Snackbar.Add("Provide start and end date/time.", Severity.Warning);
             return;
         }
 
-        // Back to UTC for persistence
-        var startEt = _startDateEt.Value.Date + _startTimeEt.Value;
-        var endEt = _endDateEt.Value.Date + _endTimeEt.Value;
-        if (endEt <= startEt)
+        // Local site times from the pickers
+        var startLocal = _startDateLocal.Value.Date + _startTimeLocal.Value;
+        var endLocal = _endDateLocal.Value.Date + _endTimeLocal.Value;
+
+        if (endLocal <= startLocal)
         {
             Snackbar.Add("End must be after start.", Severity.Warning);
             return;
         }
-        _req.StartTime = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(startEt, DateTimeKind.Unspecified), EtTz);
-        _req.EndTime = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(endEt, DateTimeKind.Unspecified), EtTz);
+
+        // Convert local (site) -> ET for storage
+        _req.StartTime = Tz.FromSiteToEt(startLocal, _employeeSiteTzId);
+        _req.EndTime = Tz.FromSiteToEt(endLocal, _employeeSiteTzId);
 
         _busy = true;
         try
@@ -142,13 +337,27 @@
     private async Task SetStatus(int statusId)
     {
         if (_req is null) return;
+
         _busy = true;
         try
         {
-            await Repo.SetStatusAsync(_req.RequestId, statusId, "actor"); // TODO: current user
-            Snackbar.Add(statusId == 2 ? "Approved." : "Rejected.", Severity.Success);
-            Nav.NavigateTo("/tools/opera");
+            var profile = await UserProfile.GetAsync();
+            var actor = profile.UserName;
+
+            await Repo.SetStatusAsync(_req.RequestId, statusId, actor);
+
+            string msg = statusId switch
+            {
+                ApprovedStatusId => "Approved.",
+                RejectedStatusId => "Rejected.",
+                CancelledStatusId => "Cancelled.",
+                _ => "Status updated."
+            };
+
+            Snackbar.Add(msg, Severity.Success);
+            Nav.NavigateTo("/opera");
         }
         finally { _busy = false; }
     }
+
 }

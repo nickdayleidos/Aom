@@ -7,18 +7,22 @@ namespace MyApplication.Components.Model.AOM.Employee
     {
         
         public int Id { get; set; }
-        public string Breaks { get; set; }
-        public int BreakTime { get; set; }
-        public int ShiftLength { get; set; }
-        public TimeOnly Break1Time { get; set; }
-        public TimeOnly? Break2Time { get; set; }
-        public TimeOnly? Break3Time { get; set; }
-        public TimeOnly? Break4Time { get; set; }
-        public TimeOnly? Break5Time { get; set; }
-        public TimeOnly? Break6Time { get; set; }
-        public TimeOnly? Break7Time { get; set; }
-        public TimeOnly? Break8Time { get; set; }
-        public TimeOnly? LunchTime { get; set; }
-        public string? WfmComment { get; set; }
+        public string Name { get; set; }
+        public int? ShiftLength { get; set; }
+        public int? Breaks { get; set; }
+        public int? BreakLength { get; set; }
+        public int? LunchLength { get; set; }
+        public int? LunchTime { get; set; }
+        public int? Break1Time { get; set; }
+        public int? Break2Time { get; set; }
+        public int? Break3Time { get; set; }
+        public int? Break4Time { get; set; }
+        public int? Break5Time { get; set; }
+        public int? Break6Time { get; set; }
+        public int? Break7Time { get; set; }
+        public int? Break8Time { get; set; }
+
+        public bool? IsActive { get; set; } = true;
+
     }
 }

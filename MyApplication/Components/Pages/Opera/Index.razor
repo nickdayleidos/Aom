@@ -1,14 +1,25 @@
 ﻿@page "/opera"
+@attribute [Authorize(Policy = "Admin")]
 @using MyApplication.Components.Model.AOM.Employee
+@using Microsoft.EntityFrameworkCore
+@using MudBlazor
+@using MyApplication.Common.Time
 @inject IOperaRepository Repo
 @inject NavigationManager Nav
+@inject AomDbContext Db
+@inject ISnackbar Snackbar
+@inject UserProfileService UserProfile
+@using MyApplication.Components.Service
 
 <MudStack Spacing="2">
+
+    <!-- Filters (shared across all tabs) -->
     <MudPaper Class="pa-3" Outlined="true">
         <MudGrid Spacing="2">
             <MudItem xs="12" md="3">
                 <MudTextField @bind-Value="_filterText" Label="Search (name, EmployeeId, OperaId)" />
             </MudItem>
+
             <MudItem xs="12" md="2">
                 <MudSelect @bind-Value="_statusId" Label="Status" Clearable="true">
                     <MudSelectItem Value="@((int?)null)">All</MudSelectItem>
@@ -18,86 +29,407 @@
                     }
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" md="4">
+
+            <MudItem xs="12" md="3">
                 <MudDateRangePicker @bind-DateRange="_range" Label="Date filter (ET)" />
             </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudSelect T="TimeDisplayMode"
+                           @bind-Value="_displayMode"
+                           Label="Times shown in">
+                    <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">
+                        Local (employee site)
+                    </MudSelectItem>
+                    <MudSelectItem Value="TimeDisplayMode.Eastern">
+                        Eastern (ET)
+                    </MudSelectItem>
+                    <MudSelectItem Value="TimeDisplayMode.Mountain">
+                        Mountain (MT)
+                    </MudSelectItem>
+                </MudSelect>
+            </MudItem>
+
             <MudItem xs="12" md="1" Class="d-flex align-center">
                 <MudButton Variant="Variant.Filled" OnClick="Reload">Search</MudButton>
             </MudItem>
-            <MudItem xs="12" md="2" Class="d-flex align-center justify-end">
+
+            <MudItem xs="12" md="12" Class="d-flex align-center justify-end mt-2">
                 <MudButton Variant="Variant.Outlined" OnClick="GoSubmit">New Requests</MudButton>
             </MudItem>
         </MudGrid>
     </MudPaper>
 
-    <MudPaper Class="pa-0" Outlined="true">
-        <MudTable Items="_items" Hover="true" Dense="true">
-            <HeaderContent>
-                <MudTh>OperaId</MudTh>
-                <MudTh>Employee</MudTh>
-                <MudTh>Start (ET)</MudTh>
-                <MudTh>End (ET)</MudTh>
-                <MudTh>Type / Subtype / Subclass</MudTh>
-                <MudTh>Status</MudTh>
-                <MudTh></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="OperaId">@context.RequestId</MudTd>
-                <MudTd DataLabel="Employee">@($"{context.Employees?.LastName}, {context.Employees?.FirstName} (#{context.EmployeeId})")</MudTd>
-                <MudTd DataLabel="Start">@ToEt(context.StartTime).ToString("yyyy-MM-dd HH:mm")</MudTd>
-                <MudTd DataLabel="End">@ToEt(context.EndTime).ToString("yyyy-MM-dd HH:mm")</MudTd>
-                <MudTd DataLabel="Type">@context.OperaType?.Name / @context.OperaSubType?.Name / @context.OperaSubClass?.Name</MudTd>
-                <MudTd DataLabel="Status">@_statuses.FirstOrDefault(s => s.Id == GetStatusId(context))?.Name</MudTd>
-                <MudTd>
-                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Nav.NavigateTo($"/tools/opera/{context.RequestId}"))">Open</MudButton>
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudPaper>
+    <!-- Tabs -->
+    <MudTabs @bind-ActivePanelIndex="_activeTab" Rounded="true">
+        <!-- Tab 0: All -->
+        <MudTabPanel Text="All Requests">
+            @TableBlock(AllItems)
+        </MudTabPanel>
+
+        <!-- Tab 1: Pending Approval - Today -->
+        <MudTabPanel Text="Pending Approval - Today">
+            @TableBlock(PendingTodayItems)
+        </MudTabPanel>
+
+        <!-- Tab 2: Pending Approval - Future -->
+        <MudTabPanel Text="Pending Approval - Future">
+            @TableBlock(PendingFutureItems)
+        </MudTabPanel>
+
+        <!-- Tab 3: Today's Approved Requests -->
+        <MudTabPanel Text="Today's Approved Requests">
+            @TableBlock(TodaysApprovedItems)
+        </MudTabPanel>
+    </MudTabs>
 </MudStack>
 
 @code {
     private List<OperaRequest> _items = new();
     private List<OperaStatus> _statuses = new();
+    private Dictionary<int, string> _types = new();
+    private Dictionary<int, string> _subTypes = new();
+
+    // EmployeeId -> site's timezone id (IANA or Windows)
+    private Dictionary<int, string?> _employeeSiteTz = new();
+
     private string? _filterText;
     private int? _statusId;
     private DateRange? _range;
 
-    private static readonly TimeZoneInfo EtTz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+    private int _activeTab;
+
+    private const int SubmittedStatusId = 1;
+    private const int ApprovedStatusId = 2;
+    private const int ProcessedStatusId = 3;
+    private const int CancelledStatusId = 4;
+    private const int RejectedStatusId = 5;
+
+    private enum StatusAction
+    {
+        Approve,
+        Reject,
+        Cancel
+    }
+
+    private TimeDisplayMode _displayMode = TimeDisplayMode.EmployeeLocal;
+
+    private string DisplayTzLabel => _displayMode switch
+    {
+        TimeDisplayMode.Eastern => "Eastern (ET)",
+        TimeDisplayMode.Mountain => "Mountain (MT)",
+        TimeDisplayMode.EmployeeLocal => "Local (employee site)",
+        _ => "Local (employee site)"
+    };
+
+    // "Today" in ET & MT for tab logic
+    private DateTime _todayEt;
+    private DateTime _todayMt;
 
     protected override async Task OnInitializedAsync()
     {
         _statuses = (await Repo.GetStatusesAsync()).ToList();
+
+        _types = (await Db.ActivityTypes.AsNoTracking().ToListAsync())
+            .ToDictionary(x => x.Id, x => x.Name);
+
+        _subTypes = (await Db.ActivitySubTypes.AsNoTracking().ToListAsync())
+            .ToDictionary(x => x.Id, x => x.Name);
+
         await LoadAsync();
     }
 
     private async Task LoadAsync()
     {
-        // Convert ET date range to UTC for querying
-        DateTime? fromUtc = null, toUtc = null;
-        if (_range?.Start is DateTime s) fromUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(s.Date, DateTimeKind.Unspecified), EtTz);
-        if (_range?.End is DateTime e) toUtc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(e.Date.AddDays(1), DateTimeKind.Unspecified), EtTz);
+        // Date range interpreted as ET; DB times are ET-local
+        DateTime? fromEt = null, toEt = null;
+        if (_range?.Start is DateTime s) fromEt = s.Date;
+        if (_range?.End is DateTime e) toEt = e.Date.AddDays(1);
 
         var q = new OperaQuery
         {
             NameOrId = _filterText,
             StatusId = _statusId,
-            FromUtc = fromUtc,
-            ToUtc = toUtc,
+            FromUtc = fromEt,   // naming is legacy; values are ET
+            ToUtc = toEt,
             Take = 1000
         };
 
         var (items, _) = await Repo.SearchAsync(q);
         _items = items.ToList();
+
+        // compute "today" in ET and MT once per load
+        var nowUtc = DateTime.UtcNow;
+        _todayEt = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Et.Zone).Date;
+        _todayMt = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Mt.Zone).Date;
+
+        await LoadEmployeeSiteTimezonesAsync();
+    }
+
+    private async Task LoadEmployeeSiteTimezonesAsync()
+    {
+        _employeeSiteTz.Clear();
+
+        var empIds = _items.Select(i => i.EmployeeId).Distinct().ToList();
+        if (empIds.Count == 0) return;
+
+        var histories = await Db.EmployeeHistory
+            .AsNoTracking()
+            .Include(h => h.Site)
+            .Where(h => empIds.Contains(h.EmployeeId))
+            .ToListAsync();
+
+        var byEmp = histories
+            .GroupBy(h => h.EmployeeId)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    // Prefer active, most recent; otherwise just most recent
+                    var candidate =
+                        g.Where(h => h.IsActive == true)
+                         .OrderByDescending(h => h.EffectiveDate)
+                         .FirstOrDefault()
+                        ?? g.OrderByDescending(h => h.EffectiveDate).FirstOrDefault();
+
+                    var site = candidate?.Site;
+                    return site?.TimeZoneIana
+                           ?? site?.TimeZoneWindows
+                           ?? null;
+                });
+
+        _employeeSiteTz = byEmp;
     }
 
     private Task Reload() => LoadAsync();
-    private void GoSubmit() => Nav.NavigateTo("/opera/submit");
 
-    private static DateTime ToEt(DateTime utc)
-        => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), EtTz);
+    private void GoSubmit() => Nav.NavigateTo("/opera/new");
 
-    // If you add OperaStatusId to OperaRequest, replace this helper with r.OperaStatusId
-    private static int GetStatusId(OperaRequest r)
-        => (int)(r.GetType().GetProperty("OperaStatusId")?.GetValue(r) ?? 1);
+    // ---------- helpers for display time & status ----------
+
+    private DateTime ToDisplayTime(DateTime etStored, int employeeId)
+    {
+        string? tzId = _displayMode switch
+        {
+            TimeDisplayMode.Eastern => "Eastern Standard Time",
+            TimeDisplayMode.Mountain => "Mountain Standard Time",
+            TimeDisplayMode.EmployeeLocal => GetEmployeeSiteTz(employeeId),
+            _ => GetEmployeeSiteTz(employeeId)
+        };
+
+        return Tz.FromEtToSite(etStored, tzId);
+    }
+
+    private string? GetEmployeeSiteTz(int employeeId)
+    {
+        if (_employeeSiteTz.TryGetValue(employeeId, out var tz))
+            return tz;
+
+        return null; // Tz.Resolve will fall back to ET
+    }
+
+    private static int GetStatusId(OperaRequest r) =>
+        (int)(r.GetType().GetProperty("OperaStatusId")?.GetValue(r) ?? SubmittedStatusId);
+
+    private bool CanApprove(OperaRequest r)
+    {
+        var s = GetStatusId(r);
+        return s == SubmittedStatusId;
+    }
+
+    private bool CanReject(OperaRequest r)
+    {
+        var s = GetStatusId(r);
+        return s == SubmittedStatusId;
+    }
+
+    private bool CanCancel(OperaRequest r)
+    {
+        var s = GetStatusId(r);
+        return s == SubmittedStatusId
+            || s == ApprovedStatusId
+            || s == ProcessedStatusId;
+    }
+
+    // ---------- tab-specific views ----------
+
+    private IEnumerable<OperaRequest> AllItems => _items;
+
+    private bool IsTodayInEtOrMt(DateTime etStored)
+    {
+        var etDate = etStored.Date;
+        var mtDate = Et.ToMt(etStored).Date;
+        return etDate == _todayEt || mtDate == _todayMt;
+    }
+
+    private IEnumerable<OperaRequest> PendingTodayItems =>
+        _items.Where(r =>
+            GetStatusId(r) == SubmittedStatusId &&
+            IsTodayInEtOrMt(r.StartTime));
+
+    private IEnumerable<OperaRequest> PendingFutureItems =>
+        _items.Where(r =>
+        {
+            var s = GetStatusId(r);
+            if (s != SubmittedStatusId) return false;
+
+            var etDate = r.StartTime.Date;
+            var mtDate = Et.ToMt(r.StartTime).Date;
+
+            // Future if both ET and MT dates are after "today"
+            return etDate > _todayEt && mtDate > _todayMt;
+        });
+
+    private IEnumerable<OperaRequest> TodaysApprovedItems =>
+        _items.Where(r =>
+        {
+            var s = GetStatusId(r);
+            if (s != ApprovedStatusId && s != ProcessedStatusId)
+                return false;
+
+            return IsTodayInEtOrMt(r.StartTime);
+        });
+
+    // ---------- status update ----------
+
+    private async Task SetStatusAsync(OperaRequest req, StatusAction action)
+    {
+        if (req is null) return;
+
+        string keyword = action switch
+        {
+            StatusAction.Approve => "Approv",
+            StatusAction.Reject => "Reject",
+            StatusAction.Cancel => "Cancel",
+            _ => ""
+        };
+
+        var status = _statuses.FirstOrDefault(
+            s => s.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+
+        if (status is null)
+        {
+            Snackbar.Add($"Status for '{action}' not found.", Severity.Error);
+            return;
+        }
+
+        var profile = await UserProfile.GetAsync();
+        var actor = profile.UserName;
+
+        await Repo.SetStatusAsync(req.RequestId, status.Id, actor);
+
+        Snackbar.Add($"Request #{req.RequestId} set to {status.Name}.", Severity.Success);
+
+        await LoadAsync();
+    }
+
+    // ---------- shared table render fragment (sortable headers) ----------
+
+    RenderFragment TableBlock(IEnumerable<OperaRequest> items) => @<MudPaper Class="pa-0 mt-2" Outlined="true">
+        <MudStack Spacing="1" Class="pa-2 pb-0">
+            <MudText Typo="Typo.caption" Class="opacity-75">
+                Times shown in: <b>@DisplayTzLabel</b>
+            </MudText>
+        </MudStack>
+
+        <MudTable T="OperaRequest" Items="items" Hover="true" Dense="true">
+            <HeaderContent>
+                <MudTh>
+                    <MudTableSortLabel T="OperaRequest"
+                                       SortBy="new Func<OperaRequest, object>(x => x.RequestId)">
+                        OperaId
+                    </MudTableSortLabel>
+                </MudTh>
+
+                <MudTh>
+                    <MudTableSortLabel T="OperaRequest"
+                                       SortBy="@((OperaRequest x) =>
+                                                              x.Employees != null
+                                                                  ? $"{x.Employees.LastName}, {x.Employees.FirstName}"
+                                                                  : string.Empty)">
+                        Employee
+                    </MudTableSortLabel>
+                </MudTh>
+
+                <MudTh>
+                    <MudTableSortLabel T="OperaRequest"
+                                       SortBy="new Func<OperaRequest, object>(x => ToDisplayTime(x.StartTime, x.EmployeeId))">
+                        Start
+                    </MudTableSortLabel>
+                </MudTh>
+
+                <MudTh>
+                    <MudTableSortLabel T="OperaRequest"
+                                       SortBy="new Func<OperaRequest, object>(x => ToDisplayTime(x.EndTime, x.EmployeeId))">
+                        End
+                    </MudTableSortLabel>
+                </MudTh>
+
+                <MudTh>
+                    <MudTableSortLabel T="OperaRequest"
+                                       SortBy="new Func<OperaRequest, object>(x => (_types.TryGetValue(x.ActivityTypeId, out var tName) ? tName : string.Empty))">
+                        Type / SubType
+                    </MudTableSortLabel>
+                </MudTh>
+
+                <MudTh>
+                    <MudTableSortLabel T="OperaRequest"
+                                       SortBy="new Func<OperaRequest, object>(x => GetStatusId(x))">
+                        Status
+                    </MudTableSortLabel>
+                </MudTh>
+
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+
+            <RowTemplate>
+                <MudTd DataLabel="OperaId">@context.RequestId</MudTd>
+
+                <MudTd DataLabel="Employee">
+                    @($"{context.Employees?.LastName}, {context.Employees?.FirstName} (#{context.EmployeeId})")
+                </MudTd>
+
+                <MudTd DataLabel="Start">
+                    @ToDisplayTime(context.StartTime, context.EmployeeId).ToString("yyyy-MM-dd HH:mm")
+                </MudTd>
+
+                <MudTd DataLabel="End">
+                    @ToDisplayTime(context.EndTime, context.EmployeeId).ToString("yyyy-MM-dd HH:mm")
+                </MudTd>
+
+                <MudTd DataLabel="Type/SubType">
+                    @(_types.TryGetValue(context.ActivityTypeId, out var tName) ? tName : "")
+                    /
+                    @(_subTypes.TryGetValue(context.ActivitySubTypeId, out var stName) ? stName : "")
+                </MudTd>
+
+                <MudTd DataLabel="Status">
+                    @_statuses.FirstOrDefault(s => s.Id == GetStatusId(context))?.Name
+                </MudTd>
+
+                <MudTd DataLabel="Actions">
+                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true">
+                        <MudMenuItem OnClick="@(() => Nav.NavigateTo($"/opera/{context.RequestId}"))">
+                            Open
+                        </MudMenuItem>
+
+                        <MudMenuItem OnClick="@(() => SetStatusAsync(context, StatusAction.Approve))"
+                                     Disabled="@(!CanApprove(context))">
+                            Approve
+                        </MudMenuItem>
+
+                        <MudMenuItem OnClick="@(() => SetStatusAsync(context, StatusAction.Reject))"
+                                     Disabled="@(!CanReject(context))">
+                            Reject
+                        </MudMenuItem>
+
+                        <MudMenuItem OnClick="@(() => SetStatusAsync(context, StatusAction.Cancel))"
+                                     Disabled="@(!CanCancel(context))">
+                            Cancel
+                        </MudMenuItem>
+                    </MudMenu>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>;
 }

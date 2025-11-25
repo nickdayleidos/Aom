@@ -299,7 +299,7 @@ namespace MyApplication.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "OperaType",
+                name: "ActivityType",
                 schema: "Employee",
                 columns: table => new
                 {
@@ -310,7 +310,7 @@ namespace MyApplication.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_OperaType", x => x.Id);
+                    table.PrimaryKey("PK_ActivityType", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -477,25 +477,25 @@ namespace MyApplication.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "OperaSubType",
+                name: "ActivitySubType",
                 schema: "Employee",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    OperaTypeId = table.Column<int>(type: "int", nullable: false),
+                    ActivityTypeId = table.Column<int>(type: "int", nullable: false),
                     IsImpacting = table.Column<bool>(type: "bit", nullable: false),
                     Desc = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_OperaSubType", x => x.Id);
+                    table.PrimaryKey("PK_ActivitySubType", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_OperaSubType_OperaType_OperaTypeId",
-                        column: x => x.OperaTypeId,
+                        name: "FK_ActivitySubType_ActivityType_ActivityTypeId",
+                        column: x => x.ActivityTypeId,
                         principalSchema: "Employee",
-                        principalTable: "OperaType",
+                        principalTable: "ActivityType",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -703,16 +703,16 @@ namespace MyApplication.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    OperaSubTypeId = table.Column<int>(type: "int", nullable: false)
+                    ActivitySubTypeId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_OperaSubClass", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_OperaSubClass_OperaSubType_OperaSubTypeId",
-                        column: x => x.OperaSubTypeId,
+                        name: "FK_OperaSubClass_ActivitySubType_ActivitySubTypeId",
+                        column: x => x.ActivitySubTypeId,
                         principalSchema: "Employee",
-                        principalTable: "OperaSubType",
+                        principalTable: "ActivitySubType",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -728,8 +728,8 @@ namespace MyApplication.Migrations
                     StartTime = table.Column<DateTime>(type: "datetime2", nullable: false),
                     EndTime = table.Column<DateTime>(type: "datetime2", nullable: false),
                     SubmittedBy = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    OperaTypeId = table.Column<int>(type: "int", nullable: false),
-                    OperaSubTypeId = table.Column<int>(type: "int", nullable: false),
+                    ActivityTypeId = table.Column<int>(type: "int", nullable: false),
+                    ActivitySubTypeId = table.Column<int>(type: "int", nullable: false),
                     OperaSubClassId = table.Column<int>(type: "int", nullable: true),
                     SubmitterComments = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Approved = table.Column<bool>(type: "bit", nullable: false),
@@ -757,17 +757,17 @@ namespace MyApplication.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_OperaRequest_OperaSubType_OperaSubTypeId",
-                        column: x => x.OperaSubTypeId,
+                        name: "FK_OperaRequest_ActivitySubType_ActivitySubTypeId",
+                        column: x => x.ActivitySubTypeId,
                         principalSchema: "Employee",
-                        principalTable: "OperaSubType",
+                        principalTable: "ActivitySubType",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_OperaRequest_OperaType_OperaTypeId",
-                        column: x => x.OperaTypeId,
+                        name: "FK_OperaRequest_ActivityType_ActivityTypeId",
+                        column: x => x.ActivityTypeId,
                         principalSchema: "Employee",
-                        principalTable: "OperaType",
+                        principalTable: "ActivityType",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -911,16 +911,16 @@ namespace MyApplication.Migrations
                 column: "OperaSubClassId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_OperaRequest_OperaSubTypeId",
+                name: "IX_OperaRequest_ActivitySubTypeId",
                 schema: "Employee",
                 table: "OperaRequest",
-                column: "OperaSubTypeId");
+                column: "ActivitySubTypeId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_OperaRequest_OperaTypeId",
+                name: "IX_OperaRequest_ActivityTypeId",
                 schema: "Employee",
                 table: "OperaRequest",
-                column: "OperaTypeId");
+                column: "ActivityTypeId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OperaRequest_StartTime",
@@ -929,16 +929,16 @@ namespace MyApplication.Migrations
                 column: "StartTime");
 
             migrationBuilder.CreateIndex(
-                name: "IX_OperaSubClass_OperaSubTypeId",
+                name: "IX_OperaSubClass_ActivitySubTypeId",
                 schema: "Employee",
                 table: "OperaSubClass",
-                column: "OperaSubTypeId");
+                column: "ActivitySubTypeId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_OperaSubType_OperaTypeId",
+                name: "IX_ActivitySubType_ActivityTypeId",
                 schema: "Employee",
-                table: "OperaSubType",
-                column: "OperaTypeId");
+                table: "ActivitySubType",
+                column: "ActivityTypeId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Supervisor_EmployeeId",
@@ -1051,11 +1051,11 @@ namespace MyApplication.Migrations
                 schema: "Employee");
 
             migrationBuilder.DropTable(
-                name: "OperaSubType",
+                name: "ActivitySubType",
                 schema: "Employee");
 
             migrationBuilder.DropTable(
-                name: "OperaType",
+                name: "ActivityType",
                 schema: "Employee");
         }
     }

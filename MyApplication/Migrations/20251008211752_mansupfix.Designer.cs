@@ -416,10 +416,10 @@ namespace MyApplication.Migrations
                     b.Property<int?>("OperaSubClassId")
                         .HasColumnType("int");
 
-                    b.Property<int>("OperaSubTypeId")
+                    b.Property<int>("ActivitySubTypeId")
                         .HasColumnType("int");
 
-                    b.Property<int>("OperaTypeId")
+                    b.Property<int>("ActivityTypeId")
                         .HasColumnType("int");
 
                     b.Property<string>("ReviewedBy")
@@ -448,9 +448,9 @@ namespace MyApplication.Migrations
 
                     b.HasIndex("OperaSubClassId");
 
-                    b.HasIndex("OperaSubTypeId");
+                    b.HasIndex("ActivitySubTypeId");
 
-                    b.HasIndex("OperaTypeId");
+                    b.HasIndex("ActivityTypeId");
 
                     b.HasIndex("StartTime");
 
@@ -488,17 +488,17 @@ namespace MyApplication.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("OperaSubTypeId")
+                    b.Property<int>("ActivitySubTypeId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OperaSubTypeId");
+                    b.HasIndex("ActivitySubTypeId");
 
                     b.ToTable("OperaSubClass", "Employee");
                 });
 
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaSubType", b =>
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivitySubType", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -516,17 +516,17 @@ namespace MyApplication.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("OperaTypeId")
+                    b.Property<int>("ActivityTypeId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OperaTypeId");
+                    b.HasIndex("ActivityTypeId");
 
-                    b.ToTable("OperaSubType", "Employee");
+                    b.ToTable("ActivitySubType", "Employee");
                 });
 
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaType", b =>
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivityType", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -543,7 +543,7 @@ namespace MyApplication.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("OperaType", "Employee");
+                    b.ToTable("ActivityType", "Employee");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Organization", b =>
@@ -1278,15 +1278,15 @@ namespace MyApplication.Migrations
                         .HasForeignKey("OperaSubClassId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaSubType", "OperaSubType")
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.ActivitySubType", "ActivitySubType")
                         .WithMany()
-                        .HasForeignKey("OperaSubTypeId")
+                        .HasForeignKey("ActivitySubTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaType", "OperaType")
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.ActivityType", "ActivityType")
                         .WithMany()
-                        .HasForeignKey("OperaTypeId")
+                        .HasForeignKey("ActivityTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1294,31 +1294,31 @@ namespace MyApplication.Migrations
 
                     b.Navigation("OperaSubClass");
 
-                    b.Navigation("OperaSubType");
+                    b.Navigation("ActivitySubType");
 
-                    b.Navigation("OperaType");
+                    b.Navigation("ActivityType");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaSubClass", b =>
                 {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaSubType", "OperaSubType")
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.ActivitySubType", "ActivitySubType")
                         .WithMany("SubClasses")
-                        .HasForeignKey("OperaSubTypeId")
+                        .HasForeignKey("ActivitySubTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("OperaSubType");
+                    b.Navigation("ActivitySubType");
                 });
 
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaSubType", b =>
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivitySubType", b =>
                 {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaType", "OperaType")
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.ActivityType", "ActivityType")
                         .WithMany("SubTypes")
-                        .HasForeignKey("OperaTypeId")
+                        .HasForeignKey("ActivityTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("OperaType");
+                    b.Navigation("ActivityType");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Supervisor", b =>
@@ -1330,12 +1330,12 @@ namespace MyApplication.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaSubType", b =>
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivitySubType", b =>
                 {
                     b.Navigation("SubClasses");
                 });
 
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaType", b =>
+            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivityType", b =>
                 {
                     b.Navigation("SubTypes");
                 });

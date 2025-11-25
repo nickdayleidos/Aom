@@ -1,9 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-
-// Employee / ACR / Opera models
+using MyApplication.Components.Model.AOM.Aws;
 using MyApplication.Components.Model.AOM.Employee;
-
-// Tools models
 using MyApplication.Components.Model.AOM.Tools;
 
 namespace MyApplication.Components.Data
@@ -12,109 +9,173 @@ namespace MyApplication.Components.Data
     {
         public AomDbContext(DbContextOptions<AomDbContext> options) : base(options) { }
 
-        // ---------- Employee schema ----------
-        public DbSet<Employees>        Employees          { get; set; } = default!;
-        public DbSet<Employer>         Employers          { get; set; } = default!;
-        public DbSet<Manager>          Managers           { get; set; } = default!;
-        public DbSet<Supervisor>       Supervisors        { get; set; } = default!;
-        public DbSet<Site>             Sites              { get; set; } = default!;
-        public DbSet<Organization>     Organizations      { get; set; } = default!;
-        public DbSet<SubOrganization>  SubOrganizations   { get; set; } = default!;
-        public DbSet<EmployeeHistory>  EmployeeHistories  { get; set; } = default!;
-       
-        // ---------- Opera (Employee schema) ----------
-        public DbSet<OperaType>        OperaType          { get; set; } = default!;
-        public DbSet<OperaSubType>     OperaSubType       { get; set; } = default!;
-        public DbSet<OperaSubClass>    OperaSubClass      { get; set; } = default!;
-        public DbSet<OperaStatus>      OperaStatus        { get; set; } = default!;
-        public DbSet<OperaRequest>     OperaRequest       { get; set; } = default!;
+        // =========================
+        // Employee schema
+        // =========================
+        public DbSet<Employees> Employees { get; set; } = default!;
+        public DbSet<Employer> Employers { get; set; } = default!;
+        public DbSet<Manager> Managers { get; set; } = default!;
+        public DbSet<Supervisor> Supervisors { get; set; } = default!;
+        public DbSet<Site> Sites { get; set; } = default!;
+        public DbSet<Organization> Organizations { get; set; } = default!;
+        public DbSet<SubOrganization> SubOrganizations { get; set; } = default!;
+        public DbSet<EmployeeHistory> EmployeeHistory { get; set; } = default!;
 
-        // ---------- ACR (Employee schema) ----------
-        public DbSet<AcrType>          AcrTypes           { get; set; } = default!;
-        public DbSet<AcrStatus>        AcrStatus          { get; set; } = default!;
-        public DbSet<AcrRequest>       AcrRequests        { get; set; } = default!;
-        public DbSet<AcrSchedule>      AcrSchedule        { get; set; } = default!;
-        public DbSet<AcrOrganization>  AcrOrganization    { get; set; } = default!;
-
-        // ---------- WFM (Employee schema) ----------
+        // WFM (Employee schema)
         public DbSet<BreakTemplates> BreakTemplates { get; set; } = default!;
-        public DbSet<OvertimeSchedules> OvertimeSchedules { get; set; } = default!;
+        public DbSet<AcrOvertimeSchedules> AcrOvertimeSchedules { get; set; } = default!;
+        public DbSet<AcrOvertimeTypes> AcrOvertimeTypes { get; set; } = default!; // <- added
         public DbSet<BreakSchedules> BreakSchedules { get; set; } = default!;
+        public DbSet<DetailedSchedule> DetailedSchedule { get; set; } = default!;
 
-        // ---------- Tools schema ----------
-        public DbSet<EmailTemplates>         EmailTemplates         { get; set; } = default!;
-        public DbSet<IntervalSummary>        IntervalSummaries      { get; set; } = default!;
-        public DbSet<OiCategory>             OiCategories           { get; set; } = default!;
-        public DbSet<OiSeverity>             OiSeverities           { get; set; } = default!;
-        public DbSet<OiEvent>                OiEvents               { get; set; } = default!;
-        public DbSet<OiEventUpdate>          OiEventUpdates         { get; set; } = default!;
-        public DbSet<OiStatus>               OiStatuses             { get; set; } = default!;
-        public DbSet<ProactiveAnnouncement>  ProactiveAnnouncements { get; set; } = default!;
+        // Opera (Employee schema)
+        public DbSet<ActivityType> ActivityTypes { get; set; } = default!;
+        public DbSet<ActivitySubType> ActivitySubTypes { get; set; } = default!;
+        public DbSet<OperaStatus> OperaStatuses { get; set; } = default!;
+        public DbSet<OperaRequest> OperaRequests { get; set; } = default!;
+
+        // ACR (Employee schema)
+        public DbSet<AcrType> AcrTypes { get; set; } = default!;
+        public DbSet<AcrStatus> AcrStatuses { get; set; } = default!;
+        public DbSet<AcrRequest> AcrRequests { get; set; } = default!;
+        public DbSet<AcrSchedule> AcrSchedules { get; set; } = default!;
+        public DbSet<AcrOrganization> AcrOrganizations { get; set; } = default!;
+
+        // Skills (Employee schema)
+        public DbSet<Skills> Skills { get; set; } = default!;
+        public DbSet<SkillType> SkillType { get; set; } = default!;
+
+        // =========================
+        // Tools schema
+        // =========================
+        public DbSet<EmailTemplates> EmailTemplates { get; set; } = default!;
+        public DbSet<IntervalSummary> IntervalSummaries { get; set; } = default!;
+        public DbSet<OiCategory> OiCategories { get; set; } = default!;
+        public DbSet<OiSeverity> OiSeverities { get; set; } = default!;
+        public DbSet<OiEvent> OiEvents { get; set; } = default!;
+        public DbSet<OiEventUpdate> OiEventUpdates { get; set; } = default!;
+        public DbSet<OiStatus> OiStatuses { get; set; } = default!;
+        public DbSet<ProactiveAnnouncement> ProactiveAnnouncements { get; set; } = default!;
+
+        // =========================
+        // AWS schema
+        // =========================
+
+        public DbSet<Status> Statuses { get; set; } = default!;
+
 
         protected override void OnModelCreating(ModelBuilder b)
         {
             base.OnModelCreating(b);
 
-            // =========================
-            // Tables + Primary Keys
-            // =========================
-            b.Entity<Employees>(e           => { e.ToTable(nameof(Employees), "Employee");       e.HasKey(x => x.Id); });
-            b.Entity<Employer>(e            => { e.ToTable(nameof(Employer), "Employee");        e.HasKey(x => x.Id); });
-            b.Entity<Manager>(e             => { e.ToTable(nameof(Manager), "Employee");         e.HasKey(x => x.Id); });
-            b.Entity<Supervisor>(e          => { e.ToTable(nameof(Supervisor), "Employee");      e.HasKey(x => x.Id); });
-            b.Entity<Site>(e                => { e.ToTable(nameof(Site), "Employee");            e.HasKey(x => x.Id); });
-            b.Entity<Organization>(e        => { e.ToTable(nameof(Organization), "Employee");    e.HasKey(x => x.Id); });
-            b.Entity<SubOrganization>(e     => { e.ToTable(nameof(SubOrganization), "Employee"); e.HasKey(x => x.Id); });
-            b.Entity<EmployeeHistory>(e     => { e.ToTable(nameof(EmployeeHistory), "Employee"); e.HasKey(x => x.Id); });
+            // ------------------------------------------------------------
+            // EMPLOYEE core tables
+            // ------------------------------------------------------------
+            b.Entity<Employees>().ToTable(nameof(Employees), "Employee").HasKey(x => x.Id);
+            b.Entity<Employer>().ToTable(nameof(Employer), "Employee").HasKey(x => x.Id);
+            b.Entity<Manager>().ToTable(nameof(Manager), "Employee").HasKey(x => x.Id);
+            b.Entity<Supervisor>().ToTable(nameof(Supervisor), "Employee").HasKey(x => x.Id);
+            b.Entity<Site>().ToTable(nameof(Site), "Employee").HasKey(x => x.Id);
+            b.Entity<Organization>().ToTable(nameof(Organization), "Employee").HasKey(x => x.Id);
+            b.Entity<SubOrganization>().ToTable(nameof(SubOrganization), "Employee").HasKey(x => x.Id);
+            b.Entity<EmployeeHistory>().ToTable(nameof(EmployeeHistory), "Employee").HasKey(x => x.Id);
 
-            b.Entity<BreakTemplates>(e  => { e.ToTable(nameof(BreakTemplates), "Employee");        e.HasKey(x => x.Id); });
-            b.Entity<OvertimeSchedules>(e => { e.ToTable(nameof(OvertimeSchedules), "Employee"); e.HasKey(x => x.Id); });
-            b.Entity<BreakSchedules>(e => { e.ToTable(nameof(BreakSchedules), "Employee"); e.HasKey(x => x.Id); });
+            // ------------------------------------------------------------
+            // WFM
+            // ------------------------------------------------------------
+            b.Entity<BreakTemplates>().ToTable(nameof(BreakTemplates), "Employee").HasKey(x => x.Id);
+            b.Entity<AcrOvertimeTypes>().ToTable("OvertimeTypes", "Employee").HasKey(x => x.Id);
+            b.Entity<AcrOvertimeSchedules>().ToTable(nameof(AcrOvertimeSchedules), "Employee").HasKey(x => x.Id);
+            b.Entity<BreakSchedules>().ToTable(nameof(BreakSchedules), "Employee").HasKey(x => x.Id);
+            b.Entity<DetailedSchedule>().ToTable(nameof(DetailedSchedule), "Employee").HasKey(x => x.Id);
 
-            b.Entity<OperaType>(e        => { e.ToTable(nameof(OperaType), "Employee");       e.HasKey(x => x.Id); });
-            b.Entity<OperaSubType>(e     => { e.ToTable(nameof(OperaSubType), "Employee");    e.HasKey(x => x.Id); });
-            b.Entity<OperaSubClass>(e    => { e.ToTable(nameof(OperaSubClass), "Employee");   e.HasKey(x => x.Id); });
-            b.Entity<OperaStatus>(e      => { e.ToTable(nameof(OperaStatus), "Employee");     e.HasKey(x => x.Id); });
-            b.Entity<OperaRequest>(e     => { e.ToTable(nameof(OperaRequest), "Employee");    e.HasKey(x => x.RequestId); });
+            // ------------------------------------------------------------
+            // OPERA
+            // ------------------------------------------------------------
+            b.Entity<ActivityType>().ToTable(nameof(ActivityType), "Employee").HasKey(x => x.Id);
+            b.Entity<ActivitySubType>().ToTable(nameof(ActivitySubType), "Employee").HasKey(x => x.Id);
+            b.Entity<OperaStatus>().ToTable(nameof(OperaStatus), "Employee").HasKey(x => x.Id);
+            b.Entity<OperaRequest>()
+                 .ToTable(nameof(OperaRequest), "Employee", tb =>
+                 {
+                     tb.HasTrigger("tr_OperaRequest_ToDetailedSchedule");
+                 })
+                 .HasKey(x => x.RequestId);
 
-            b.Entity<AcrType>(e          => { e.ToTable(nameof(AcrType), "Employee");         e.HasKey(x => x.Id); });
-            b.Entity<AcrStatus>(e        => { e.ToTable(nameof(AcrStatus), "Employee");       e.HasKey(x => x.Id); });
-            b.Entity<AcrRequest>(e       => { e.ToTable(nameof(AcrRequest), "Employee");      e.HasKey(x => x.Id); });
-            b.Entity<AcrSchedule>(e      => { e.ToTable(nameof(AcrSchedule), "Employee");     e.HasKey(x => x.Id); });
-            b.Entity<AcrOrganization>(e  => { e.ToTable(nameof(AcrOrganization), "Employee"); e.HasKey(x => x.Id); });
+            // ------------------------------------------------------------
+            // ACR
+            // ------------------------------------------------------------
+            b.Entity<AcrType>().ToTable(nameof(AcrType), "Employee").HasKey(x => x.Id);
+            b.Entity<AcrStatus>().ToTable(nameof(AcrStatus), "Employee").HasKey(x => x.Id);
+            b.Entity<AcrRequest>().ToTable(nameof(AcrRequest), "Employee", tb =>
+            {
+                tb.HasTrigger("tr_AcrRequest_AutoProcess");
+            }).HasKey(x => x.Id);
 
-            b.Entity<EmailTemplates>(e         => { e.ToTable(nameof(EmailTemplates), "Tools");         e.HasKey(x => x.Id); });
-            b.Entity<IntervalSummary>(e        => { e.ToTable(nameof(IntervalSummary), "Tools");        e.HasKey(x => x.Id); });
-            b.Entity<OiCategory>(e             => { e.ToTable(nameof(OiCategory), "Tools");             e.HasKey(x => x.Id); });
-            b.Entity<OiSeverity>(e             => { e.ToTable(nameof(OiSeverity), "Tools");             e.HasKey(x => x.Id); });
-            b.Entity<OiEvent>(e                => { e.ToTable(nameof(OiEvent), "Tools");                e.HasKey(x => x.Id); });
-            b.Entity<OiEventUpdate>(e          => { e.ToTable(nameof(OiEventUpdate), "Tools");          e.HasKey(x => x.Id); });
-            b.Entity<OiStatus>(e               => { e.ToTable(nameof(OiStatus), "Tools");               e.HasKey(x => x.Id); });
-            b.Entity<ProactiveAnnouncement>(e  => { e.ToTable(nameof(ProactiveAnnouncement), "Tools");  e.HasKey(x => x.Id); });
+            b.Entity<AcrSchedule>().ToTable(nameof(AcrSchedule), "Employee").HasKey(x => x.Id);
+            b.Entity<AcrOrganization>().ToTable(nameof(AcrOrganization), "Employee").HasKey(x => x.Id);
 
-            // =========================
-            // Relationships: Employee / HR
-            // =========================
+            // ------------------------------------------------------------
+            // Skills
+            // ------------------------------------------------------------
+            b.Entity<Skills>().ToTable(nameof(Skills), "Employee").HasKey(x => x.Id);
+            b.Entity<SkillType>().ToTable(nameof(SkillType), "Employee").HasKey(x => x.Id);
+            // ------------------------------------------------------------
+            // TOOLS
+            // ------------------------------------------------------------
+            b.Entity<EmailTemplates>().ToTable(nameof(EmailTemplates), "Tools").HasKey(x => x.Id);
+            b.Entity<IntervalSummary>().ToTable(nameof(IntervalSummary), "Tools").HasKey(x => x.Id);
+            b.Entity<OiCategory>().ToTable(nameof(OiCategory), "Tools").HasKey(x => x.Id);
+            b.Entity<OiSeverity>().ToTable(nameof(OiSeverity), "Tools").HasKey(x => x.Id);
+            b.Entity<OiEvent>().ToTable(nameof(OiEvent), "Tools").HasKey(x => x.Id);
+            b.Entity<OiEventUpdate>().ToTable(nameof(OiEventUpdate), "Tools").HasKey(x => x.Id);
+            b.Entity<OiStatus>().ToTable(nameof(OiStatus), "Tools").HasKey(x => x.Id);
+            b.Entity<ProactiveAnnouncement>().ToTable(nameof(ProactiveAnnouncement), "Tools").HasKey(x => x.Id);
+
+            // ------------------------------------------------------------
+            // AWS
+            // ------------------------------------------------------------
+
+            b.Entity<Status>().ToTable(nameof(Statuses), "Aws").HasKey(x => x.Id);
+
+
+            // ============================================================
+            // RELATIONSHIPS: EMPLOYEE / WFM
+            // ============================================================
             b.Entity<Manager>()
              .HasOne<Employees>()
              .WithMany()
              .HasForeignKey(x => x.EmployeeId)
              .OnDelete(DeleteBehavior.Restrict);
 
-           
-            b.Entity<OvertimeSchedules>()
-             .HasOne<Employees> ()
-             .WithMany()
-             .HasForeignKey(x => x.EmployeeId)
-             .OnDelete(DeleteBehavior.Restrict); 
-
-            b.Entity<BreakSchedules>()
+            b.Entity<Supervisor>()
              .HasOne<Employees>()
              .WithMany()
              .HasForeignKey(x => x.EmployeeId)
-             .OnDelete(DeleteBehavior.Restrict); 
+             .OnDelete(DeleteBehavior.Restrict);
 
-            b.Entity<Supervisor>()
+            b.Entity<DetailedSchedule>(e =>
+            { 
+                e.HasOne(x => x.Employees)
+                .WithMany()
+                .HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.ActivityType)
+                .WithMany()
+                .HasForeignKey(x => x.ActivityTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.ActivitySubType)
+                .WithMany()
+                .HasForeignKey(x => x.ActivitySubTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+            }
+            ); 
+
+            // Removed: AcrOvertimeSchedules -> Employees (there is no EmployeeId on this table)
+
+            b.Entity<BreakSchedules>()
              .HasOne<Employees>()
              .WithMany()
              .HasForeignKey(x => x.EmployeeId)
@@ -157,49 +218,48 @@ namespace MyApplication.Components.Data
                  .HasForeignKey(x => x.SubOrganizationId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                e.HasOne(x => x.Schedule)
+                // Schedule FK → AcrRequest (ScheduleRequestId holds the ACR id for schedule)
+                e.HasOne(x => x.ScheduleRequest)
                  .WithMany()
-                 .HasForeignKey(x => x.ScheduleId)
+                 .HasForeignKey(x => x.ScheduleRequestId)
                  .OnDelete(DeleteBehavior.Restrict);
+                
+                e.HasOne(x => x.OvertimeRequest)                        // NEW
+                   .WithMany()
+                   .HasForeignKey(x => x.OvertimeRequestId)
+                   .OnDelete(DeleteBehavior.NoAction);
 
+
+                e.HasIndex(x => x.EmployeeId);
+                e.HasIndex(x => x.OvertimeRequestId);                  // NEW (lookup speed)
                 e.HasIndex(x => new { x.EmployeeId, x.EffectiveDate });
             });
 
-            // =========================
-            // Relationships: Opera
-            // =========================
-            b.Entity<OperaSubType>()
-             .HasOne(st => st.OperaType)
-             .WithMany(t => t.SubTypes)                  // bind to real collection
-             .HasForeignKey(st => st.OperaTypeId)
-             .OnDelete(DeleteBehavior.Restrict);
-
-            b.Entity<OperaSubClass>()
-             .HasOne(sc => sc.OperaSubType)
-             .WithMany(st => st.SubClasses)              // bind to real collection
-             .HasForeignKey(sc => sc.OperaSubTypeId)
+            // ============================================================
+            // RELATIONSHIPS: OPERA
+            // ============================================================
+            b.Entity<ActivitySubType>()
+             .HasOne(st => st.ActivityType)
+             .WithMany(t => t.SubTypes)
+             .HasForeignKey(st => st.ActivityTypeId)
              .OnDelete(DeleteBehavior.Restrict);
 
             b.Entity<OperaRequest>()
-             .HasOne(r => r.OperaType)
+             .HasOne(r => r.ActivityType)
              .WithMany()
-             .HasForeignKey(r => r.OperaTypeId)
+             .HasForeignKey(r => r.ActivityTypeId)
              .OnDelete(DeleteBehavior.Restrict);
 
             b.Entity<OperaRequest>()
-             .HasOne(r => r.OperaSubType)
+             .HasOne(r => r.ActivitySubType)
              .WithMany()
-             .HasForeignKey(r => r.OperaSubTypeId)
+             .HasForeignKey(r => r.ActivitySubTypeId)
              .OnDelete(DeleteBehavior.Restrict);
 
-            b.Entity<OperaRequest>()
-             .HasOne(r => r.OperaSubClass)
-             .WithMany()
-             .HasForeignKey(r => r.OperaSubClassId)
-             .OnDelete(DeleteBehavior.Restrict);
+           
 
             b.Entity<OperaRequest>()
-             .HasOne(r => r.Employees)                   // nav is named Employees (single)
+             .HasOne(r => r.Employees)
              .WithMany()
              .HasForeignKey(r => r.EmployeeId)
              .OnDelete(DeleteBehavior.Restrict);
@@ -207,30 +267,26 @@ namespace MyApplication.Components.Data
             b.Entity<OperaRequest>().HasIndex(r => r.StartTime);
             b.Entity<OperaRequest>().HasIndex(r => new { r.EmployeeId, r.StartTime });
 
-            // =========================
-            // Relationships: ACR
-            // =========================
+            // ============================================================
+            // RELATIONSHIPS: ACR
+            // ============================================================
             b.Entity<AcrRequest>(e =>
             {
-                e.ToTable(nameof(AcrRequest), "Employee");
-                e.HasKey(x => x.Id);
-
-                e.HasOne(r => r.Employee)     // ✅ bind to NAV
+                e.HasOne(r => r.Employee)
                  .WithMany()
                  .HasForeignKey(r => r.EmployeeId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                e.HasOne(r => r.AcrType)      // ✅ bind to NAV
+                e.HasOne(r => r.AcrType)
                  .WithMany()
                  .HasForeignKey(r => r.AcrTypeId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                e.HasOne(r => r.AcrStatus)    // ✅ bind to NAV
+                e.HasOne(r => r.AcrStatus)
                  .WithMany()
                  .HasForeignKey(r => r.AcrStatusId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-                // helpful indexes for your filters
                 e.HasIndex(r => r.EffectiveDate);
                 e.HasIndex(r => r.AcrTypeId);
                 e.HasIndex(r => r.AcrStatusId);
@@ -244,7 +300,6 @@ namespace MyApplication.Components.Data
                  .HasForeignKey(o => o.AcrRequestId)
                  .OnDelete(DeleteBehavior.Cascade);
 
-                // Optional lookup FKs (uncomment if those entities exist and you want FKs enforced)
                 e.HasOne(o => o.Manager).WithMany().HasForeignKey(o => o.ManagerId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
                 e.HasOne(o => o.Supervisor).WithMany().HasForeignKey(o => o.SupervisorId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
                 e.HasOne(o => o.Organization).WithMany().HasForeignKey(o => o.OrganizationId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
@@ -255,21 +310,90 @@ namespace MyApplication.Components.Data
 
             b.Entity<AcrSchedule>(e =>
             {
-                e.Property(x => x.ShiftNumber).IsRequired(); // 1 or 2
+                // Keep ShiftNumber optional if you allow "null or 1" for first segment; otherwise make required.
+                // e.Property(x => x.ShiftNumber).IsRequired();
 
                 e.HasOne(s => s.AcrRequest)
-                 .WithMany()                                  // allows two rows per request (split)
+                 .WithMany()
                  .HasForeignKey(s => s.AcrRequestId)
                  .OnDelete(DeleteBehavior.Cascade);
 
-                // Optional uniqueness guard (would require a migration):
                 // e.HasIndex(s => new { s.AcrRequestId, s.ShiftNumber }).IsUnique();
             });
 
-            // =========================
-            // Tools schema tables only (no relationships defined here)
-            // =========================
-            // Already configured above with table + key
+            // ============================================================
+            // RELATIONSHIPS: Skills
+            // ============================================================
+
+            b.Entity<Skills>(e =>
+            {
+                e.HasOne(s => s.Employee)
+                 .WithMany()
+                 .HasForeignKey(s => s.EmployeeId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(s => s.SkillType)
+                 .WithMany()
+                 .HasForeignKey(s => s.SkillTypeId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ============================================================
+            // RELATIONSHIPS: OVERTIME SCHEDULES
+            // ============================================================
+            b.Entity<AcrOvertimeSchedules>(e =>
+            {
+                // 1:1 to AcrRequest via unique AcrRequestId
+                e.HasOne(x => x.AcrRequest)
+                 .WithMany()
+                 .HasForeignKey(x => x.AcrRequestId)
+                 .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasIndex(x => x.AcrRequestId).IsUnique();
+
+                // Each day → OvertimeTypes (optional; Restrict deletions)
+                e.HasOne(x => x.MondayType)
+                 .WithMany()
+                 .HasForeignKey(x => x.MondayTypeId)
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .HasConstraintName("FK_AcrOvertimeSchedules_MondayType_OvertimeTypes");
+
+                e.HasOne(x => x.TuesdayType)
+                 .WithMany()
+                 .HasForeignKey(x => x.TuesdayTypeId)
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .HasConstraintName("FK_AcrOvertimeSchedules_TuesdayType_OvertimeTypes");
+
+                e.HasOne(x => x.WednesdayType)
+                 .WithMany()
+                 .HasForeignKey(x => x.WednesdayTypeId)
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .HasConstraintName("FK_AcrOvertimeSchedules_WednesdayType_OvertimeTypes");
+
+                e.HasOne(x => x.ThursdayType)
+                 .WithMany()
+                 .HasForeignKey(x => x.ThursdayTypeId)
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .HasConstraintName("FK_AcrOvertimeSchedules_ThursdayType_OvertimeTypes");
+
+                e.HasOne(x => x.FridayType)
+                 .WithMany()
+                 .HasForeignKey(x => x.FridayTypeId)
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .HasConstraintName("FK_AcrOvertimeSchedules_FridayType_OvertimeTypes");
+
+                e.HasOne(x => x.SaturdayType)
+                 .WithMany()
+                 .HasForeignKey(x => x.SaturdayTypeId)
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .HasConstraintName("FK_AcrOvertimeSchedules_SaturdayType_OvertimeTypes");
+
+                e.HasOne(x => x.SundayType)
+                 .WithMany()
+                 .HasForeignKey(x => x.SundayTypeId)
+                 .OnDelete(DeleteBehavior.Restrict)
+                 .HasConstraintName("FK_AcrOvertimeSchedules_SundayType_OvertimeTypes");
+            });
         }
     }
 }

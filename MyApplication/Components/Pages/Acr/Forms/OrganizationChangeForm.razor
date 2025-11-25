@@ -1,0 +1,216 @@
+﻿
+@inject IAcrQueryService Query
+
+<MudStack Spacing="2">
+    <MudText Typo="Typo.subtitle2">Organization</MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Organization" Dense ReadOnly="@ReadOnly" @bind-Value="_orgId"
+                       Clearable="true" ResetValueOnEmptyText="true">
+                @foreach (var kv in _orgs)
+                {
+                    <!-- cast to int? so MudSelectItem<T> matches MudSelect<int?> -->
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Sub-Organization" Dense ReadOnly="@ReadOnly" @bind-Value="_subOrgId"
+                       Clearable="true" ResetValueOnEmptyText="true">
+                @foreach (var kv in _subOrgs)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Site" Dense ReadOnly="@ReadOnly" @bind-Value="_siteId"
+                       Clearable="true" ResetValueOnEmptyText="true">
+                @foreach (var kv in _sites)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudSelect T="int?" Label="Employer" Dense ReadOnly="@ReadOnly" @bind-Value="_employerId"
+                       Clearable="true" ResetValueOnEmptyText="true">
+                @foreach (var kv in _employers)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudAutocomplete T="KeyValuePair<int, string>"
+                             Label="Manager"
+                             Dense Clearable ResetValueOnEmptyText="true" CoerceText="true"
+                             ToStringFunc="kv => kv.Value"
+                             @bind-Value="_manager"
+                             SearchFunc="SearchManagers" />
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudAutocomplete T="KeyValuePair<int, string>"
+                             Label="Supervisor"
+                             Dense Clearable ResetValueOnEmptyText="true" CoerceText="true"
+                             ToStringFunc="kv => kv.Value"
+                             @bind-Value="_supervisor"
+                             SearchFunc="SearchSupervisors" />
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudSwitch Label="LOA" Disabled="@ReadOnly" @bind-Value="_isLoa" Color="Color.Primary" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudSwitch Label="Int LOA" Disabled="@ReadOnly" @bind-Value="_isIntLoa" Color="Color.Primary" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudSwitch Label="Remote" Disabled="@ReadOnly" @bind-Value="_isRemote" Color="Color.Primary" />
+        </MudItem>
+    </MudGrid>
+</MudStack>
+
+@code {
+    [Parameter] public OrganizationChangeDto? Value { get; set; }
+    [Parameter] public EventCallback<OrganizationChangeDto?> ValueChanged { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+
+    // lookups (dicts work fine with foreach var kv in _orgs)
+    private Dictionary<int, string> _orgs = new();
+    // was: private Dictionary<int, string> _subOrgs = new();
+    private List<KeyValuePair<int, string>> _subOrgs = new();
+
+    private Dictionary<int, string> _sites = new();
+    private Dictionary<int, string> _employers = new();
+    private List<KeyValuePair<int, string>> _managers = new();
+    private List<KeyValuePair<int, string>> _supervisors = new();
+
+    private static OrganizationChangeDto NewEmpty()
+        => new(null, null, null, null, null, null, null, null, null);
+
+    // Organization — when it changes, reload Sub-Orgs and clear current selection
+    private int? _orgId
+    {
+        get => Value?.OrganizationId;
+        set
+        {
+            Value ??= NewEmpty();
+            Value = Value with { OrganizationId = value, SubOrganizationId = null };
+            ValueChanged.InvokeAsync(Value);
+            _ = LoadSubOrgsAsync(value);
+        }
+    }
+
+    private int? _subOrgId
+    {
+        get => Value?.SubOrganizationId;
+        set { Value = (Value ?? NewEmpty()) with { SubOrganizationId = value }; ValueChanged.InvokeAsync(Value); }
+    }
+
+    private int? _siteId
+    {
+        get => Value?.SiteId;
+        set { Value = (Value ?? NewEmpty()) with { SiteId = value }; ValueChanged.InvokeAsync(Value); }
+    }
+
+    private int? _employerId
+    {
+        get => Value?.EmployerId;
+        set { Value = (Value ?? NewEmpty()) with { EmployerId = value }; ValueChanged.InvokeAsync(Value); }
+    }
+
+    private KeyValuePair<int, string> _manager
+    {
+        get => Value?.ManagerId is int id ? _managers.FirstOrDefault(x => x.Key == id) : default;
+        set
+        {
+            Value = (Value ?? NewEmpty()) with
+            {
+                ManagerId = value.Equals(default(KeyValuePair<int, string>)) ? null : value.Key
+            };
+            ValueChanged.InvokeAsync(Value);
+        }
+    }
+
+    private KeyValuePair<int, string> _supervisor
+    {
+        get => Value?.SupervisorId is int id ? _supervisors.FirstOrDefault(x => x.Key == id) : default;
+        set
+        {
+            Value = (Value ?? NewEmpty()) with
+            {
+                SupervisorId = value.Equals(default(KeyValuePair<int, string>)) ? null : value.Key
+            };
+            ValueChanged.InvokeAsync(Value);
+        }
+    }
+
+    private bool? _isLoa
+    {
+        get => Value?.IsLoa;
+        set { Value = (Value ?? NewEmpty()) with { IsLoa = value }; ValueChanged.InvokeAsync(Value); }
+    }
+
+    private bool? _isIntLoa
+    {
+        get => Value?.IsIntLoa;
+        set { Value = (Value ?? NewEmpty()) with { IsIntLoa = value }; ValueChanged.InvokeAsync(Value); }
+    }
+
+    private bool? _isRemote
+    {
+        get => Value?.IsRemote;
+        set { Value = (Value ?? NewEmpty()) with { IsRemote = value }; ValueChanged.InvokeAsync(Value); }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // load static lookups
+        _orgs = (await Query.GetOrganizationsAsync()).ToDictionary(k => k.Key, v => v.Value);
+        _sites = (await Query.GetSitesAsync()).ToDictionary(k => k.Key, v => v.Value);
+        _employers = (await Query.GetEmployersAsync()).ToDictionary(k => k.Key, v => v.Value);
+        _managers = await Query.GetManagersAsync();
+        _supervisors = await Query.GetSupervisorsAsync();
+
+        // load sub-orgs for incoming value
+        await LoadSubOrgsAsync(Value?.OrganizationId);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // keep sub-orgs in sync if parent passes a different Value
+        await LoadSubOrgsAsync(Value?.OrganizationId);
+    }
+
+    private async Task LoadSubOrgsAsync(int? orgId, CancellationToken ct = default)
+    {
+        _subOrgs = await Query.GetSubOrganizationsAsync(orgId, ct);
+
+        // if currently selected sub-org no longer valid, clear it
+        if (Value?.SubOrganizationId is int sid && !_subOrgs.Any(kv => kv.Key == sid))
+        {
+            Value = Value with { SubOrganizationId = null };
+            await ValueChanged.InvokeAsync(Value);
+        }
+        StateHasChanged();
+    }
+
+    private Task<IEnumerable<KeyValuePair<int, string>>> SearchManagers(string term, CancellationToken ct)
+        => Task.FromResult(FilterAuto(_managers, term));
+
+    private Task<IEnumerable<KeyValuePair<int, string>>> SearchSupervisors(string term, CancellationToken ct)
+        => Task.FromResult(FilterAuto(_supervisors, term));
+
+    private static IEnumerable<KeyValuePair<int, string>> FilterAuto(List<KeyValuePair<int, string>> src, string term)
+    {
+        if (string.IsNullOrWhiteSpace(term)) return src.Take(20);
+        var v = term.ToLowerInvariant();
+        return src.Where(kv => kv.Value.ToLowerInvariant().Contains(v)).Take(20);
+    }
+}

@@ -1,0 +1,413 @@
+﻿@using MudBlazor
+@using Microsoft.AspNetCore.Components.Web
+@using MyApplication.Components.Service.Acr
+@using MyApplication.Components.Pages.Acr.Forms
+@using MyApplication.Common.Time
+@using MyApplication.Components.Service.Acr.MyApplication.Components.Service.Acr
+
+<MudPaper Class="pa-4 h-full" Outlined="true">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.h6">ACR Form</MudText>
+
+        <MudGrid Class="mt-2">
+            <MudItem xs="12" md="6">
+                <MudDatePicker T="DateTime?" Label="Effective Date" Dense
+                               @bind-Date="_effectiveDateDT"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.Event"
+                               DateFormat="yyyy-MM-dd"
+                               PickerVariant="PickerVariant.Inline"
+                               OpenTo="OpenTo.Date"
+                               Disabled="@ReadOnly"
+                               Immediate="true"
+                               CloseOnOutsideClick="true" />
+
+            </MudItem>
+        </MudGrid>
+
+        @switch (Value)
+        {
+            case AcrCreateVm createVm:
+                {
+                    // init mirrors from VM once, but NEVER invent a date
+                    if (!_mirrorsInitialized)
+                    {
+                        _effectiveDate = createVm.EffectiveDate;
+                        _comment = createVm.SubmitterComment;
+                        _mirrorsInitialized = true;
+                    }
+
+                    // ensure DTO shells if caller forces sections
+                    if (ForceShowOrg && _org is null)
+                    {
+                        _org = NewOrganization();
+                        createVm = createVm with { Organization = _org };
+                        _ = ValueChanged.InvokeAsync(createVm);
+                    }
+                    if (ForceShowSchedule && _sch is null)
+                    {
+                        _sch = NewSchedule();
+                        createVm = createVm with { Schedule = _sch };
+                        _ = ValueChanged.InvokeAsync(createVm);
+                    }
+                    if (ForceShowOvertimeOnly && _ot is null)
+                    {
+                        _ot = NewOvertime();
+                        createVm = createVm with { Overtime = _ot, IncludeOvertimeAdjustment = true };
+                        _ = ValueChanged.InvokeAsync(createVm);
+                    }
+
+                    var typeKey = (AcrTypeKey)createVm.TypeId;
+
+                    // ensure DTO shell for New Hire
+                    if (typeKey == AcrTypeKey.NewHire && _newHire is null)
+                    {
+                        _newHire = createVm.NewHire ?? new NewHireDto(null, null, null, null, null, null, null, null, null, null);
+                        createVm = createVm with { NewHire = _newHire };
+                        _ = ValueChanged.InvokeAsync(createVm);
+                    }
+
+                    // === NEW HIRE FIRST ===
+                    if (typeKey == AcrTypeKey.NewHire)
+                    {
+                        // This EffectiveDate is purely for display in the NewHireForm.
+                        var eff = _effectiveDate ?? createVm.EffectiveDate ?? DateOnly.FromDateTime(DateTime.Today);
+
+                        <NewHireForm EffectiveDate="@eff"
+                                     ReadOnly="@ReadOnly"
+                                     Value="@_newHire"
+                                     ValueChanged="@(nh => OnNewHireChanged(nh, createVm))" />
+
+                        <MudDivider Class="my-2" />
+                    }
+
+                    // Organization
+                    if (createVm.Organization is not null)
+                    {
+                        _org ??= createVm.Organization;
+                        <OrganizationChangeForm Value="@_org"
+                                                ValueChanged="@(o => OnOrgChanged(o, createVm))"
+                                                ReadOnly="@ReadOnly" />
+                    }
+
+                    // Schedule (owns IsOtAdjustment when present)
+                    var hasSchedule = createVm.Schedule is not null;
+                    if (hasSchedule)
+                    {
+                        _sch ??= createVm.Schedule;
+                        <ScheduleChangeForm Value="@_sch"
+                                            ValueChanged="@(s => OnSchChanged(s, createVm))"
+                                            OvertimeOnly="@ForceShowOvertimeOnly"
+                                            OvertimeAdjustment="@_ot"
+                                            OvertimeAdjustmentChanged="@(o => OnOtChanged(o, createVm))"
+                                            ReadOnly="@ReadOnly" />
+                    }
+
+                    // OT visibility (computed after handlers normalize state)
+                    bool otOn = ForceShowOvertimeOnly
+                    || createVm.IncludeOvertimeAdjustment
+                    || (createVm.Schedule?.IsOtAdjustment == true)
+                    || createVm.Overtime is not null;
+
+                    // Show standalone OT block only when no schedule or in OT-only
+                    bool showStandaloneOt = ForceShowOvertimeOnly || !hasSchedule;
+
+                    if (otOn && showStandaloneOt)
+                    {
+                        _ot ??= createVm.Overtime ?? NewOvertime();
+                        <OvertimeAdjustmentForm Value="@_ot"
+                                                ValueChanged="@(o => OnOtChanged(o, createVm))"
+                                                ReadOnly="@ReadOnly" />
+                    }
+
+                    if (createVm.Organization is null && !hasSchedule && !otOn)
+                    {
+                        <MudText Typo="Typo.body2">Select an ACR type to load the proper form.</MudText>
+                        ;
+                    }
+
+                    break;
+                }
+
+            case AcrEditVm editVm:
+                {
+                    if (!_mirrorsInitialized)
+                    {
+                        _effectiveDate = editVm.EffectiveDate;
+                        _comment = editVm.SubmitterComment;
+                        _mirrorsInitialized = true;
+                    }
+
+                    if (ForceShowOrg && _org is null)
+                    {
+                        _org = NewOrganization();
+                        editVm = editVm with { Organization = _org };
+                        _ = ValueChanged.InvokeAsync(editVm);
+                    }
+                    if (ForceShowSchedule && _sch is null)
+                    {
+                        _sch = NewSchedule();
+                        editVm = editVm with { Schedule = _sch };
+                        _ = ValueChanged.InvokeAsync(editVm);
+                    }
+                    if (ForceShowOvertimeOnly && _ot is null)
+                    {
+                        _ot = NewOvertime();
+                        editVm = editVm with { Overtime = _ot, IncludeOvertimeAdjustment = true };
+                        _ = ValueChanged.InvokeAsync(editVm);
+                    }
+
+                    if (editVm.Organization is not null)
+                    {
+                        _org ??= editVm.Organization;
+                        <OrganizationChangeForm Value="@_org"
+                                                ValueChanged="@(o => OnOrgChanged(o, editVm))"
+                                                ReadOnly="@ReadOnly" />
+                    }
+
+                    var hasSchedule = editVm.Schedule is not null;
+                    if (hasSchedule)
+                    {
+                        _sch ??= editVm.Schedule;
+                        <ScheduleChangeForm Value="@_sch"
+                                            ValueChanged="@(s => OnSchChanged(s, editVm))"
+                                            OvertimeOnly="@ForceShowOvertimeOnly"
+                                            OvertimeAdjustment="@_ot"
+                                            OvertimeAdjustmentChanged="@(o => OnOtChanged(o, editVm))"
+                                            ReadOnly="@ReadOnly" />
+                    }
+
+                    bool otOn = ForceShowOvertimeOnly
+                    || editVm.IncludeOvertimeAdjustment
+                    || (editVm.Schedule?.IsOtAdjustment == true)
+                    || editVm.Overtime is not null;
+
+                    bool showStandaloneOt = ForceShowOvertimeOnly || !hasSchedule;
+
+                    if (otOn && showStandaloneOt)
+                    {
+                        _ot ??= editVm.Overtime ?? NewOvertime();
+                        <OvertimeAdjustmentForm Value="@_ot"
+                                                ValueChanged="@(o => OnOtChanged(o, editVm))"
+                                                ReadOnly="@ReadOnly" />
+                    }
+
+                    if (editVm.Organization is null && !hasSchedule && !otOn)
+                    {
+                        <MudText Typo="Typo.body2">No editable sections for this ACR.</MudText>
+                        ;
+                    }
+
+                    break;
+                }
+
+            default:
+                <MudText>No ACR data found.</MudText>
+                break;
+        }
+
+        <MudDivider Class="my-2" />
+        <MudText Typo="Typo.subtitle2">Submitter Comment</MudText>
+        <MudTextField Label="Optional notes for approvers"
+                      Lines="3"
+                      FullWidth="true"
+                      ReadOnly="@ReadOnly"
+                      @bind-Value="_comment"
+                      Immediate="true"
+                      OnBlur="OnCommentBlur" />
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter] public object? Value { get; set; }
+    [Parameter] public EventCallback<object?> ValueChanged { get; set; }
+
+    [Parameter] public bool ForceShowOrg { get; set; }
+    [Parameter] public bool ForceShowSchedule { get; set; }
+    [Parameter] public bool ForceShowOvertimeOnly { get; set; }
+    [Parameter] public bool ReadOnly { get; set; } = false;
+    private NewHireDto? _newHire;
+
+    [Parameter] public TimeDisplayMode Mode { get; set; } = TimeDisplayMode.EmployeeLocal;
+
+    private DateOnly? _effectiveDate;
+
+    // Picker-facing value (DateTime?), bridges to/from _effectiveDate
+    private DateTime? _effectiveDateDT
+    {
+        get => _effectiveDate.HasValue
+            ? _effectiveDate.Value.ToDateTime(TimeOnly.MinValue)
+            : (DateTime?)null;
+        set
+        {
+            _effectiveDate = value.HasValue
+                ? DateOnly.FromDateTime(value.Value.Date)
+                : (DateOnly?)null;
+
+            // Immediately push the change into the parent VM
+            if (Value is AcrCreateVm c)
+            {
+                if (c.EffectiveDate != _effectiveDate)
+                    _ = ValueChanged.InvokeAsync(c with { EffectiveDate = _effectiveDate });
+            }
+            else if (Value is AcrEditVm e)
+            {
+                if (e.EffectiveDate != _effectiveDate)
+                    _ = ValueChanged.InvokeAsync(e with { EffectiveDate = _effectiveDate });
+            }
+        }
+    }
+
+    private string? _comment;
+    private bool _mirrorsInitialized;
+
+    private OrganizationChangeDto? _org;
+    private ScheduleChangeDto? _sch;
+    private OvertimeAdjustmentDto? _ot;
+
+    protected override void OnParametersSet()
+    {
+        (_org, _sch, _ot) = Value switch
+        {
+            AcrCreateVm c => (c.Organization, c.Schedule, c.Overtime),
+            AcrEditVm e => (e.Organization, e.Schedule, e.Overtime),
+            _ => (_org, _sch, _ot)
+        };
+
+        if (Value is AcrCreateVm cVm)
+            _newHire = cVm.NewHire ?? _newHire;
+    }
+
+    private Task OnNewHireChanged(NewHireDto? next, AcrCreateVm vm)
+    {
+        _newHire = next;
+
+        var updated = vm with { NewHire = _newHire };
+        return ValueChanged.InvokeAsync(updated);
+    }
+
+    private Task OnEffectiveDateClosed()
+    {
+        if (Value is AcrCreateVm c)
+        {
+            if (_effectiveDate.HasValue && c.EffectiveDate != _effectiveDate)
+                return ValueChanged.InvokeAsync(c with { EffectiveDate = _effectiveDate });
+            return Task.CompletedTask;
+        }
+
+        if (Value is AcrEditVm e)
+        {
+            if (_effectiveDate.HasValue && e.EffectiveDate != _effectiveDate)
+                return ValueChanged.InvokeAsync(e with { EffectiveDate = _effectiveDate });
+            return Task.CompletedTask;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnCommentBlur(FocusEventArgs _)
+    {
+        if (Value is AcrCreateVm c && c.SubmitterComment != _comment)
+            return ValueChanged.InvokeAsync(c with { SubmitterComment = _comment });
+
+        if (Value is AcrEditVm e && e.SubmitterComment != _comment)
+            return ValueChanged.InvokeAsync(e with { SubmitterComment = _comment });
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnOrgChanged(OrganizationChangeDto? next, object vm)
+    {
+        _org = next ?? NewOrganization();
+        var updated = vm switch
+        {
+            AcrCreateVm c => c with { Organization = _org },
+            AcrEditVm e => e with { Organization = _org },
+            _ => vm
+        };
+        return ValueChanged.InvokeAsync(updated);
+    }
+
+    private static bool HasAnyOt(OvertimeAdjustmentDto? v)
+        => v is not null && (
+               v.MondayTypeId is not null ||
+               v.TuesdayTypeId is not null ||
+               v.WednesdayTypeId is not null ||
+               v.ThursdayTypeId is not null ||
+               v.FridayTypeId is not null ||
+               v.SaturdayTypeId is not null ||
+               v.SundayTypeId is not null
+           );
+
+    private Task OnSchChanged(ScheduleChangeDto? next, object vm)
+    {
+        _sch = next ?? NewSchedule();
+
+        bool nowOt = _sch.IsOtAdjustment ?? false;
+
+        if (!nowOt) _ot = null;
+        else if (_ot is null) _ot = NewOvertime();
+
+        var updated = vm switch
+        {
+            AcrCreateVm c => c with
+            {
+                Schedule = _sch,
+                IncludeOvertimeAdjustment = nowOt,
+                Overtime = nowOt ? (_ot ?? c.Overtime ?? NewOvertime()) : null
+            },
+            AcrEditVm e => e with
+            {
+                Schedule = _sch,
+                IncludeOvertimeAdjustment = nowOt,
+                Overtime = nowOt ? (_ot ?? e.Overtime ?? NewOvertime()) : null
+            },
+            _ => vm
+        };
+
+        return ValueChanged.InvokeAsync(updated);
+    }
+
+    private Task OnOtChanged(OvertimeAdjustmentDto? next, object vm)
+    {
+        _ot = next;
+
+        bool scheduleOt = _sch?.IsOtAdjustment ?? false;
+        bool inOtOnly = ForceShowOvertimeOnly;
+        bool hasSched = _sch is not null;
+
+        bool include =
+            inOtOnly
+            || (hasSched ? scheduleOt : HasAnyOt(_ot));
+
+        if (!include) _ot = null;
+
+        var updated = vm switch
+        {
+            AcrCreateVm c => c with
+            {
+                IncludeOvertimeAdjustment = include,
+                Overtime = include ? (_ot ?? c.Overtime ?? NewOvertime()) : null
+            },
+            AcrEditVm e => e with
+            {
+                IncludeOvertimeAdjustment = include,
+                Overtime = include ? (_ot ?? e.Overtime ?? NewOvertime()) : null
+            },
+            _ => vm
+        };
+
+        return ValueChanged.InvokeAsync(updated);
+    }
+
+    private static OrganizationChangeDto NewOrganization()
+        => new(null, null, null, null, null, null, false, null, null);
+
+    private static ScheduleChangeDto NewSchedule()
+        => new(false, 1,
+               null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+               false, false);
+
+    private static OvertimeAdjustmentDto NewOvertime()
+        => new(null, null, null, null, null, null, null);
+}

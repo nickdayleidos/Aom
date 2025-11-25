@@ -1,190 +1,341 @@
-﻿@page "/tools/acr/new"
-@using MudBlazor
-@using MyApplication.Components.Pages.Acr.Forms
-@using MyApplication.Components.Service.Acr
-@using MyApplication.Components.Model.AOM.Employee
+﻿@page "/acr/new"
+@attribute [Authorize(Policy = "Admin")]
+@inject ITimeDisplayService TimeDisp
+
 @inject IAcrService Acr
 @inject IAcrQueryService Query
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 
-<MudStack Spacing="2">
-    <MudPaper Outlined="true" Class="pa-4">
-        <MudText Typo="Typo.h6">Create ACR</MudText>
+<MudPaper Class="pa-2" Outlined="true">
+    <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.subtitle2">Time display</MudText>
+        <MudSelect T="TimeDisplayMode" Dense @bind-Value="_mode">
+            <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (employee site)</MudSelectItem>
+            <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern</MudSelectItem>
+            <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain</MudSelectItem>
+        </MudSelect>
+    </MudStack>
+</MudPaper>
 
+<MudStack Spacing="2">
+
+    @* === ACR Type + Employee selectors === *@
+    <MudPaper Class="pa-4" Outlined="true">
         <MudGrid Class="mt-2">
             <MudItem xs="12" md="4">
-                <MudAutocomplete T="KeyValuePair<int,string>"
-                                 Label="Type"
-                                 Dense Clearable
-                                 ResetValueOnEmptyText="true" CoerceText="true"
+                <MudAutocomplete T="KeyValuePair<int, string>"
+                                 Label="ACR Type"
+                                 Dense
+                                 Clearable
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
                                  ToStringFunc="kv => kv.Value"
-                                 SearchFunc="@((string v, CancellationToken ct) => SearchTypes(v, ct))"
-                                 @bind-Value="SelectedType" />
+                                 Value="_selectedType"
+                                 ValueChanged="OnTypeChanged"
+                                 SearchFunc="@((string term, CancellationToken ct) => SearchTypes(term, ct))" />
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                @if (!IsNewHire)
+                {
+                    <MudAutocomplete T="KeyValuePair<int, string>"
+                                     Label="Employee"
+                                     Dense
+                                     Clearable
+                                     ResetValueOnEmptyText="true"
+                                     CoerceText="true"
+                                     ToStringFunc="kv => kv.Value"
+                                     Value="_selectedEmployee"
+                                     ValueChanged="OnEmployeeChanged"
+                                     SearchFunc="SearchEmployees" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption" Class="opacity-70">
+                        New Hire: employee will be defined in the form.
+                    </MudText>
+                }
             </MudItem>
         </MudGrid>
     </MudPaper>
 
-    @switch (GetTypeKind(_selectedTypeId))
-    {
-        case TypeKind.OrgChange:
-            <OrgForm Employees="_employeesActive"
-                     ManagerEmployees="_managers"
-                     SupervisorEmployees="_supervisors"
-                     Organizations="_organizations"
-                     SubOrganizations="_subOrganizations"
-                     Sites="_sites"
-                     Employers="_employers"
-                     OnSubmit="SubmitOrg" />
-            break;
+    @* === Left: Previous details | Right: ACR form === *@
+    <MudGrid Class="mt-2">
+        <MudItem xs="12" md="6">
+            <PreviousDetails @key="(_selectedEmployee.Key, _selectedType.Key, _mode)"
+                             Value="_vm"
+                             EmployeeId="_vm.EmployeeId"
+                             ShowOrg="@(_showOrg || _showNewHire || _showRehire)"
+                             ShowSchedule="@(_showSchedule || _showNewHire || _showRehire)"
+                             ShowOvertime="@(_vm.IncludeOvertimeAdjustment || _selectedType.Key == OvertimeOnlyTypeId)"
+                             Mode="_mode" />
+        </MudItem>
 
-        case TypeKind.ScheduleChange:
-            <ScheduleForm Employees="_employeesActive"
-                          OnSubmit="SubmitSchedule" />
-            break;
+        <MudItem xs="12" md="6">
+            <AcrFormHost @key="(_selectedEmployee.Key, _selectedType.Key, _mode)"
+                         Value="_vm"
+                         ValueChanged="OnVmChanged"
+                         ForceShowOrg="_showOrg"
+                         ForceShowSchedule="_showSchedule"
+                         ForceShowOvertimeOnly="@(_selectedType.Key == OvertimeOnlyTypeId)"
+                         Mode="_mode" />
+        </MudItem>
+    </MudGrid>
 
-        case TypeKind.OrgAndSchedule:
-            <OrgScheduleForm Employees="_employeesActive"
-                             ManagerEmployees="_managers"
-                             SupervisorEmployees="_supervisors"
-                             Organizations="_organizations"
-                             SubOrganizations="_subOrganizations"
-                             Employers="_employers"
-                             Sites="_sites"
-                             OnSubmit="SubmitOrgSchedule" />
-            break;
+    @* === Actions === *@
+    <MudStack Row Justify="Justify.FlexEnd" Class="mt-4" Spacing="2">
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Secondary"
+                   OnClick="@Cancel">
+            Cancel
+        </MudButton>
 
-        case TypeKind.Rehire:  @* if you have a Rehire form *@
-            <RehireForm Employees="_employeesInactive"
-                        OnSubmit="SubmitRehire" />
-            break;
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@IsSubmitDisabled"
+                   OnClick="SaveAsync">
+            Submit ACR
+        </MudButton>
+    </MudStack>
 
-        case TypeKind.NewHire:
-            <NewHireForm OnSubmit="SubmitNewHire" />
-            break;
-
-        case TypeKind.Separation:
-            @* If you also want Separation to be active-only, swap _employees -> _employeesActive *@
-            <SeparationForm Employees="_employees"
-                            OnSubmit="SubmitSeparation" />
-            break;
-
-        default:
-            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
-                Pick a Type to continue.
-            </MudAlert>
-            break;
-    }
 </MudStack>
 
 @code {
-    // lookups
+    private AcrCreateVm _vm = new();
+    private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
+
     private Dictionary<int, string> _types = new();
-    private List<Employees> _employees = new();
-    private List<Employees> _employeesActive = new();
-    private List<Employees> _employeesInactive = new();
-    private List<Site> _sites = new();
-    private List<Employees> _managers = new();
-    private List<Employees> _supervisors = new();
-    private List<Organization> _organizations = new();
-    private List<SubOrganization> _subOrganizations = new();
-    private List<Employer> _employers = new();
+    private List<KeyValuePair<int, string>> _empOptions = new();
 
-    // selection state
-    private KeyValuePair<int, string> _selType;
-    private int _selectedTypeId => _selType.Key;
+    private KeyValuePair<int, string> _selectedType = default;
+    private KeyValuePair<int, string> _selectedEmployee = default;
 
-    private enum TypeKind { Unknown, OrgChange, ScheduleChange, NewHire, Separation, OrgAndSchedule, Rehire }
+    private bool _showOrg, _showSchedule, _showOvertime, _showNewHire, _showSeparation, _showRehire;
 
-    private TypeKind GetTypeKind(int typeId)
-    {
-        if (typeId == 0 || !_types.TryGetValue(typeId, out var raw) || string.IsNullOrWhiteSpace(raw))
-            return TypeKind.Unknown;
+    private string? _siteWindowsTz;
+    private const int OvertimeOnlyTypeId = 7; // matches your DB/type list
 
-        var name = raw.Trim().ToLowerInvariant();
-        if (name.Contains("organization and schedule")) return TypeKind.OrgAndSchedule;
-        if (name.Contains("organization") && name.Contains("change")) return TypeKind.OrgChange;
-        if (name.Contains("schedule") && name.Contains("change")) return TypeKind.ScheduleChange;
-        if (name.Contains("re-hire")) return TypeKind.Rehire;          // <-- added
-        if (name.Contains("new hire")) return TypeKind.NewHire;
-        if (name.Contains("separ") || name.Contains("seper")) return TypeKind.Separation;
-        return TypeKind.Unknown;
-    }
+    // 🔒 Guard: type and employee (where applicable) must be selected.
+    private bool IsSubmitDisabled =>
+        _vm.TypeId == 0 || (!IsNewHire && _vm.EmployeeId == 0);
+
+    private void Cancel()
+        => Nav.NavigateTo("/acr");
 
     protected override async Task OnInitializedAsync()
     {
         _types = await Query.GetTypesAsync();
-        _employees = await Query.GetEmployeesLookupAsync();
-
-        // Filter safely even if IsActive is nullable
-        _employeesActive   = _employees.Where(e => e.IsActive == true).ToList();
-        _employeesInactive = _employees.Where(e => e.IsActive != true).ToList();
-
-        _managers = await Query.GetManagerEmployeesAsync();
-        _supervisors = await Query.GetSupervisorEmployeesAsync();
-        _organizations = await Query.GetOrganizationsAsync();
-        _subOrganizations = await Query.GetSubOrganizationsAsync();
-        _sites = await Query.GetSitesAsync();
-        _employers = await Query.GetEmployersAsync();
     }
 
-    // ---- Type autocomplete plumbing ----
-    private Task<IEnumerable<KeyValuePair<int, string>>> SearchTypes(string value, CancellationToken ct)
+    private static bool? EmployeeActiveFilterForType(int typeId) => (AcrTypeKey)typeId switch
     {
-        var q = (value ?? string.Empty).Trim();
-        IEnumerable<KeyValuePair<int, string>> data = _types;
-        if (!string.IsNullOrWhiteSpace(q))
-            data = data.Where(kv => kv.Value.Contains(q, StringComparison.OrdinalIgnoreCase));
-        return Task.FromResult(data);
+        AcrTypeKey.Rehire => false,
+        AcrTypeKey.Separation => true,
+        AcrTypeKey.OrganizationChange => true,
+        AcrTypeKey.ScheduleChange => true,
+        AcrTypeKey.OrgSchedule => true,
+        AcrTypeKey.OvertimeAdjustment => true,
+        AcrTypeKey.NewHire => null,
+        _ => null
+    };
+
+    private Task<IEnumerable<KeyValuePair<int, string>>> SearchTypes(string term, CancellationToken _)
+        => Task.FromResult(_types
+            .Where(kv => string.IsNullOrWhiteSpace(term) || kv.Value.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .Select(kv => new KeyValuePair<int, string>(kv.Key, kv.Value)));
+
+    private bool IsNewHire => _selectedType.Key == (int)AcrTypeKey.NewHire;
+
+    private async Task<IEnumerable<KeyValuePair<int, string>>> SearchEmployees(string term, CancellationToken ct)
+    {
+        if (IsNewHire) return Array.Empty<KeyValuePair<int, string>>();
+
+        if (_empOptions.Count == 0)
+        {
+            var typeId = _selectedType.Key;
+            var isActive = EmployeeActiveFilterForType(typeId);
+            var emps = await Query.GetEmployeesLookupAsync(isActive, ct);
+
+            _empOptions = emps
+                .Select(e => new KeyValuePair<int, string>(e.Id, $"{e.LastName}, {e.FirstName} ({e.Id})"))
+                .OrderBy(kv => kv.Value)
+                .ToList();
+        }
+
+        if (string.IsNullOrWhiteSpace(term)) return _empOptions;
+
+        return _empOptions.Where(kv =>
+            kv.Value.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+            kv.Key.ToString().Contains(term, StringComparison.OrdinalIgnoreCase));
     }
 
-    private KeyValuePair<int, string> SelectedType
+    private void OnTypeChanged(KeyValuePair<int, string> v)
     {
-        get => _selType;
-        set { _selType = value; StateHasChanged(); }
+        _selectedType = v;
+        _vm = _vm with { TypeId = v.Key };
+
+        _empOptions.Clear();
+        _selectedEmployee = default;
+
+        _showNewHire = _showSeparation = _showRehire = _showOrg = _showSchedule = _showOvertime = false;
+
+        switch ((AcrTypeKey)v.Key)
+        {
+            case AcrTypeKey.NewHire:
+                _showNewHire = true;
+                // New Hire also fills Org + Schedule
+                _showOrg = true;
+                _showSchedule = true;
+                break;
+
+            case AcrTypeKey.OrganizationChange:
+                _showOrg = true;
+                _vm = _vm with { Schedule = null, Overtime = null };
+                break;
+
+            case AcrTypeKey.ScheduleChange:
+                _showSchedule = true;
+                _vm = _vm with { Organization = null };
+                break;
+
+            case AcrTypeKey.OrgSchedule:
+                _showOrg = true;
+                _showSchedule = true;
+                break;
+
+            case AcrTypeKey.OvertimeAdjustment:
+                _showOvertime = true;
+                _vm = _vm with
+                {
+                    Organization = null,
+                    Schedule = null,
+                    IncludeOvertimeAdjustment = true,
+                    Overtime = _vm.Overtime ?? new OvertimeAdjustmentDto(null, null, null, null, null, null, null)
+                };
+                break;
+
+            case AcrTypeKey.Separation:
+                _showSeparation = true;
+                _vm = _vm with { Organization = null, Schedule = null, IncludeOvertimeAdjustment = false, Overtime = null };
+                break;
+
+            case AcrTypeKey.Rehire:
+                _showRehire = true;
+                break;
+        }
+
+        StateHasChanged();
     }
 
-    // ---------- Submit handlers (add SubmitRehire if you have a Rehire form) ----------
-    private async Task SubmitOrg(OrganizationChangeDto dto)
+    private void OnEmployeeChanged(KeyValuePair<int, string> v)
     {
-        var id = await Acr.CreateOrganizationChangeAsync(dto);
-        Snackbar.Add($"Created ACR #{id} (Organization).", Severity.Success);
-        Nav.NavigateTo($"/tools/acr/{id}");
+        _showNewHire = _showSeparation = _showRehire = _showOrg = _showSchedule = _showOvertime = false;
+        _selectedEmployee = v;
+        _vm = _vm with { EmployeeId = v.Key };
+        StateHasChanged();
     }
 
-    private async Task SubmitSchedule(ScheduleChangeDto dto)
+    private Task OnVmChanged(object? v)
     {
-        var id = await Acr.CreateScheduleChangeAsync(dto);
-        Snackbar.Add($"Created ACR #{id} (Schedule).", Severity.Success);
-        Nav.NavigateTo($"/tools/acr/{id}");
+        if (v is AcrCreateVm c)
+        {
+            if (_vm?.Organization?.SiteId != c.Organization?.SiteId)
+                _siteWindowsTz = null;
+
+            _vm = c;
+        }
+        return Task.CompletedTask;
     }
 
-    private async Task SubmitOrgSchedule((OrganizationChangeDto Org, ScheduleChangeDto Sch) payload)
+    // --- Save & TZ conversion (EffectiveDate must be set) ---
+
+    private async Task SaveAsync()
     {
-        var id = await Acr.CreateOrgScheduleAsync(payload.Org, payload.Sch);
-        Snackbar.Add($"Created ACR #{id} (Org + Schedule).", Severity.Success);
-        Nav.NavigateTo($"/tools/acr/{id}");
+        if (_vm is null) return;
+
+        if (!_vm.EffectiveDate.HasValue)
+        {
+            Snackbar.Add("Effective Date is required.", Severity.Error);
+            return;
+        }
+
+        _siteWindowsTz ??= await ResolveSiteWindowsTzAsync();
+        var vmToSave = ConvertScheduleToEastern(_vm, _siteWindowsTz);
+
+        await Acr.CreateAsync(vmToSave);
+        Snackbar.Add("ACR created.", Severity.Success);
+        Nav.NavigateTo("/acr");
     }
 
-    private async Task SubmitNewHire(NewHireDto dto)
+
+    private async Task<string> ResolveSiteWindowsTzAsync()
     {
-        var id = await Acr.CreateNewHireAsync(dto);
-        Snackbar.Add($"Created ACR #{id} (New Hire).", Severity.Success);
-        Nav.NavigateTo($"/tools/acr/{id}");
+        if (_vm?.Organization?.SiteId is int siteId1)
+        {
+            var tz = await Query.GetSiteTimeZoneAsync(siteId1);
+            if (!string.IsNullOrWhiteSpace(tz)) return tz!;
+        }
+
+        if (_vm?.EmployeeId is int empId)
+        {
+            var hist = await Query.GetLatestEmployeeHistoryAsync(empId);
+            if (hist?.SiteId is int siteId2)
+            {
+                var tz = await Query.GetSiteTimeZoneAsync(siteId2);
+                if (!string.IsNullOrWhiteSpace(tz)) return tz!;
+            }
+        }
+
+        return "Eastern Standard Time";
     }
 
-    // Only if you have a Rehire form:
-    private async Task SubmitRehire(RehireDto dto)
+    private static TimeOnly? LocalToEastern(DateOnly date, TimeOnly? local, string siteWindowsTz)
     {
-        var id = await Acr.CreateRehireAsync(dto);
-        Snackbar.Add($"Created ACR #{id} (Rehire).", Severity.Success);
-        Nav.NavigateTo($"/tools/acr/{id}");
+        if (local is null) return null;
+
+        var tzLocal = TimeZoneInfo.FindSystemTimeZoneById(siteWindowsTz);
+        var tzEast = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+        var localDt = new DateTime(date.Year, date.Month, date.Day,
+                                   local.Value.Hour, local.Value.Minute, 0,
+                                   DateTimeKind.Unspecified);
+
+        var utc = TimeZoneInfo.ConvertTimeToUtc(localDt, tzLocal);
+        var et = TimeZoneInfo.ConvertTimeFromUtc(utc, tzEast);
+
+        return new TimeOnly(et.Hour, et.Minute);
     }
 
-    private async Task SubmitSeparation(SeparationDto dto)
+    private AcrCreateVm ConvertScheduleToEastern(AcrCreateVm src, string siteWindowsTz)
     {
-        var id = await Acr.CreateSeparationAsync(dto);
-        Snackbar.Add($"Created ACR #{id} (Separation).", Severity.Success);
-        Nav.NavigateTo($"/tools/acr/{id}");
+        if (src.Schedule is null) return src;
+
+        // 🔴 Require EffectiveDate for conversion – no fallback to Today
+        if (src.EffectiveDate is null)
+            throw new InvalidOperationException("Effective Date must be set before converting schedule times.");
+
+        var ed = src.EffectiveDate.Value;
+        TimeOnly? ToEt(TimeOnly? local) => LocalToEastern(ed, local, siteWindowsTz);
+
+        var sch = src.Schedule with
+        {
+            MondayStart = ToEt(src.Schedule.MondayStart),
+            MondayEnd = ToEt(src.Schedule.MondayEnd),
+            TuesdayStart = ToEt(src.Schedule.TuesdayStart),
+            TuesdayEnd = ToEt(src.Schedule.TuesdayEnd),
+            WednesdayStart = ToEt(src.Schedule.WednesdayStart),
+            WednesdayEnd = ToEt(src.Schedule.WednesdayEnd),
+            ThursdayStart = ToEt(src.Schedule.ThursdayStart),
+            ThursdayEnd = ToEt(src.Schedule.ThursdayEnd),
+            FridayStart = ToEt(src.Schedule.FridayStart),
+            FridayEnd = ToEt(src.Schedule.FridayEnd),
+            SaturdayStart = ToEt(src.Schedule.SaturdayStart),
+            SaturdayEnd = ToEt(src.Schedule.SaturdayEnd),
+            SundayStart = ToEt(src.Schedule.SundayStart),
+            SundayEnd = ToEt(src.Schedule.SundayEnd)
+        };
+
+        return src with { Schedule = sch };
     }
 }

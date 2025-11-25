@@ -1,112 +1,139 @@
-﻿@using System
-@using System.Linq
-@using System.Threading
-@using MudBlazor
-@using MyApplication.Components.Model.AOM.Employee
-@using MyApplication.Components.Service.Acr
+﻿
 
-<MudForm @ref="_form">
+<MudStack Spacing="2">
+    <MudText Typo="Typo.subtitle2">New Hire</MudText>
+
     <MudGrid>
         <MudItem xs="12" md="4">
-            <MudTextField Label="First Name" @bind-Value="_vm.FirstName" Required="true" RequiredError="First name is required" Immediate="true" />
-            <MudTextField Label="Last Name" @bind-Value="_vm.LastName" Required="true" RequiredError="Last name is required" Immediate="true" />
+            <MudTextField Label="First Name"
+                          @bind-Value="FirstName"
+                          ReadOnly="@ReadOnly" />
         </MudItem>
-
-        <MudTextField Label="Middle Initial" @bind-Value="_vm.MiddleInitial" Immediate="true" MaxLength="1" Pattern="[A-Za-z]"/>
-        <MudItem xs="12" md="4"><MudTextField Label="Corporate Id" @bind-Value="_vm.CorporateId" Immediate="true" /></MudItem>
-        <MudItem xs="12" md="4"><MudTextField Label="Domain Login" @bind-Value="_vm.DomainLoginName" Immediate="true" /></MudItem>
-
-        <MudItem xs="12" md="4"><MudTextField Label="NMCI Email" @bind-Value="_vm.NmciEmail" Immediate="true" InputType="InputType.Email" /></MudItem>
-        <MudItem xs="12" md="4"><MudTextField Label="Flankspeed Email" @bind-Value="_vm.FlankspeedEmail" Immediate="true" InputType="InputType.Email" /></MudItem>
-        <MudItem xs="12" md="4"><MudTextField Label="Corporate Email" @bind-Value="_vm.CorporateEmail" Immediate="true" InputType="InputType.Email" /></MudItem>
-
-        <MudItem xs="12" md="4"><MudTextField Label="USN Operator Id" @bind-Value="_vm.UsnOperatorId" Immediate="true" /></MudItem>
-        <MudItem xs="12" md="4"><MudTextField Label="USN Admin Id" @bind-Value="_vm.UsnAdminId" Immediate="true" /></MudItem>
+        <MudItem xs="12" md="4">
+            <MudTextField Label="Last Name"
+                          @bind-Value="LastName"
+                          ReadOnly="@ReadOnly" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudTextField Label="Middle Initial"
+                          @bind-Value="MiddleInitial"
+                          ReadOnly="@ReadOnly"
+                          MaxLength="1" />
+        </MudItem>
 
         <MudItem xs="12" md="4">
-            <MudDatePicker Label="Effective Date" @bind-Date="_vm.EffectiveDateDt" Required="true" RequiredError="Effective date is required" />
+            <MudTextField Label="NMCI Email"
+                          @bind-Value="NmciEmail"
+                          ReadOnly="@ReadOnly" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudTextField Label="FLANKSPEED Email"
+                          @bind-Value="FlankspeedEmail"
+                          ReadOnly="@ReadOnly" />
         </MudItem>
 
-        <MudItem xs="12">
-            <MudTextField Label="Submitter Comment" @bind-Value="_vm.SubmitterComment" Lines="3" Immediate="true" />
+        <MudItem xs="12" md="4">
+            <MudTextField Label="USN Operator Id"
+                          @bind-Value="UsnOperatorId"
+                          ReadOnly="@ReadOnly" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudTextField Label="USN Admin Id"
+                          @bind-Value="UsnAdminId"
+                          ReadOnly="@ReadOnly" />
         </MudItem>
 
-        <MudItem xs="12">
-            <MudButton OnClick="SubmitClicked" Color="Color.Primary" Variant="Variant.Filled">@SubmitLabel</MudButton>
+        <MudItem xs="12" md="4">
+            <MudTextField Label="Corporate Email"
+                          @bind-Value="CorporateEmail"
+                          ReadOnly="@ReadOnly" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudTextField Label="Corporate Id"
+                          @bind-Value="CorporateId"
+                          ReadOnly="@ReadOnly" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudTextField Label="Domain Login Name"
+                          @bind-Value="DomainLoginName"
+                          ReadOnly="@ReadOnly" />
         </MudItem>
     </MudGrid>
-</MudForm>
+</MudStack>
 
 @code {
-    [Parameter] public EventCallback<NewHireDto> OnSubmit { get; set; }
-    [Parameter] public string SubmitLabel { get; set; } = "Submit New Hire";
-    [Parameter] public NewHireDto? Initial { get; set; }
+    // Host still passes this; we just don't render the picker here.
+    [Parameter] public DateOnly EffectiveDate { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
 
-    private MudForm? _form;
-    private bool _prefilled;
+    [Parameter] public NewHireDto? Value { get; set; }
+    [Parameter] public EventCallback<NewHireDto?> ValueChanged { get; set; }
 
-    private sealed class Vm
+    // Helper to ensure Value is never null when we use it
+    private NewHireDto Current
     {
-        public string FirstName { get; set; } = "";
-        public string LastName { get; set; } = "";
-        public string? MiddleInitial { get; set; }
-        public string? NmciEmail { get; set; }
-        public string? UsnOperatorId { get; set; }
-        public string? UsnAdminId { get; set; }
-        public string? FlankspeedEmail { get; set; }
-        public string? CorporateEmail { get; set; }
-        public string? CorporateId { get; set; }
-        public string? DomainLoginName { get; set; }
-        public DateTime? EffectiveDateDt { get; set; }
-        public string? SubmitterComment { get; set; }
-    }
-    private readonly Vm _vm = new();
-
-    protected override void OnParametersSet()
-    {
-        if (_prefilled || Initial is null) return;
-
-        _vm.FirstName = Initial.FirstName ?? "";
-        _vm.LastName = Initial.LastName ?? "";
-        _vm.MiddleInitial = Initial.MiddleInitial;
-        _vm.NmciEmail = Initial.NmciEmail;
-        _vm.UsnOperatorId = Initial.UsnOperatorId;
-        _vm.UsnAdminId = Initial.UsnAdminId;
-        _vm.FlankspeedEmail = Initial.FlankspeedEmail;
-        _vm.CorporateEmail = Initial.CorporateEmail;
-        _vm.CorporateId = Initial.CorporateId;
-        _vm.DomainLoginName = Initial.DomainLoginName;
-        _vm.EffectiveDateDt = Initial.EffectiveDate.ToDateTime(TimeOnly.MinValue);
-        _vm.SubmitterComment = Initial.SubmitterComment;
-
-        _prefilled = true;
+        get => Value ?? new NewHireDto(null, null, null, null, null, null, null, null, null, null);
+        set => ValueChanged.InvokeAsync(value);
     }
 
-    private static string? NormalizeEmail(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-    private static string? Nz(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-    private static string? Middle(string? s)
-        => string.IsNullOrWhiteSpace(s) ? null : s.Trim()[..1].ToUpperInvariant();
-
-    private async Task SubmitClicked()
+    // These properties are used for @bind-Value. Each setter updates the DTO and raises ValueChanged.
+    private string? FirstName
     {
-        if (_form is not null) { await _form.Validate(); if (!_form.IsValid) return; }
-        if (_vm.EffectiveDateDt is null) return;
+        get => Current.FirstName;
+        set => Current = Current with { FirstName = value };
+    }
 
-        var dto = new NewHireDto(
-            FirstName: _vm.FirstName.Trim(),
-            LastName: _vm.LastName.Trim(),
-            MiddleInitial: Middle(_vm.MiddleInitial),
-            NmciEmail: NormalizeEmail(_vm.NmciEmail),
-            UsnOperatorId: Nz(_vm.UsnOperatorId),
-            UsnAdminId: Nz(_vm.UsnAdminId),
-            FlankspeedEmail: NormalizeEmail(_vm.FlankspeedEmail),
-            CorporateEmail: NormalizeEmail(_vm.CorporateEmail),
-            CorporateId: Nz(_vm.CorporateId),
-            DomainLoginName: Nz(_vm.DomainLoginName),
-            EffectiveDate: DateOnly.FromDateTime(_vm.EffectiveDateDt.Value),
-            SubmitterComment: Nz(_vm.SubmitterComment)
-        );
+    private string? LastName
+    {
+        get => Current.LastName;
+        set => Current = Current with { LastName = value };
+    }
 
-        await OnSubmit.InvokeAsync(dto);
+    private string? MiddleInitial
+    {
+        get => Current.MiddleInitial;
+        set => Current = Current with { MiddleInitial = value };
+    }
+
+    private string? NmciEmail
+    {
+        get => Current.NmciEmail;
+        set => Current = Current with { NmciEmail = value };
+    }
+
+    private string? FlankspeedEmail
+    {
+        get => Current.FlankspeedEmail;
+        set => Current = Current with { FlankspeedEmail = value };
+    }
+
+    private string? UsnOperatorId
+    {
+        get => Current.UsnOperatorId;
+        set => Current = Current with { UsnOperatorId = value };
+    }
+
+    private string? UsnAdminId
+    {
+        get => Current.UsnAdminId;
+        set => Current = Current with { UsnAdminId = value };
+    }
+
+    private string? CorporateEmail
+    {
+        get => Current.CorporateEmail;
+        set => Current = Current with { CorporateEmail = value };
+    }
+
+    private string? CorporateId
+    {
+        get => Current.CorporateId;
+        set => Current = Current with { CorporateId = value };
+    }
+
+    private string? DomainLoginName
+    {
+        get => Current.DomainLoginName;
+        set => Current = Current with { DomainLoginName = value };
     }
 }

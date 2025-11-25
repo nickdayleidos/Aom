@@ -1,0 +1,219 @@
+﻿
+
+<MudStack Spacing="2">
+    <MudText Typo="Typo.subtitle2">Schedule</MudText>
+
+    <MudGrid Class="mb-2">
+        <MudItem xs="12" md="4">
+            <MudSwitch Label="Split Schedule"
+                       Disabled="@ReadOnly"
+                       @bind-Value="_isSplit"
+                       Color="Color.Primary" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudText Typo="Typo.caption">Shift Number</MudText>
+            <MudText Typo="Typo.body2">1</MudText>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudText Typo="Typo.caption" Class="opacity-75">
+                Times shown in: <b>@_displayTzLabel</b>
+            </MudText>
+        </MudItem>
+    </MudGrid>
+
+    <MudPaper Class="pa-2" Outlined>
+        <MudText Typo="Typo.subtitle2">Shift 1</MudText>
+        <MudTable Items="_rows1" Dense Hover>
+            <HeaderContent>
+                <MudTh>Day</MudTh>
+                <MudTh>Start</MudTh>
+                <MudTh>End</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Day">@context.Label</MudTd>
+                <MudTd DataLabel="Start">
+                    <MudTimePicker @bind-Time="context.Start" Editable="true" MinuteSelectionStep="5" Clearable="true" ReadOnly="@ReadOnly" />
+                </MudTd>
+                <MudTd DataLabel="End">
+                    <MudTimePicker @bind-Time="context.End" Editable="true" MinuteSelectionStep="5" Clearable="true" ReadOnly="@ReadOnly" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+
+    @if (_isSplit == true && !OvertimeOnly)
+    {
+        <MudPaper Class="pa-2 mt-2" Outlined>
+            <MudText Typo="Typo.subtitle2">Shift 2</MudText>
+            <MudAlert Severity="Severity.Info" Dense Variant="Variant.Filled" Class="mb-2">
+                Shift 2 values will be saved as a separate schedule row with <b>ShiftNumber = 2</b> by the service layer.
+            </MudAlert>
+
+            <MudTable Items="_rows2" Dense Hover>
+                <HeaderContent>
+                    <MudTh>Day</MudTh>
+                    <MudTh>Start</MudTh>
+                    <MudTh>End</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Day">@context.Label</MudTd>
+                    <MudTd DataLabel="Start">
+                        <MudTimePicker @bind-Time="context.Start" Editable="true" MinuteSelectionStep="5" Clearable="true" ReadOnly="@ReadOnly" />
+                    </MudTd>
+                    <MudTd DataLabel="End">
+                        <MudTimePicker @bind-Time="context.End" Editable="true" MinuteSelectionStep="5" Clearable="true" ReadOnly="@ReadOnly" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+
+    <MudPaper Class="pa-2 mt-2" Outlined>
+        <MudText Typo="Typo.subtitle2">Breaks &amp; Overtime</MudText>
+
+        <MudGrid Class="mt-1">
+            <MudItem xs="12" md="6" Class="mt-2">
+                <MudSwitch Label="Static Break Schedule"
+                           Disabled="@ReadOnly"
+                           @bind-Value="_staticBreakFlag"
+                           Color="Color.Primary" />
+            </MudItem>
+
+            <MudItem xs="12" md="6" Class="mt-2">
+                <MudSwitch Label="Include Overtime Adjustment"
+                           @bind-Value="_otFlag"
+                           Color="Color.Primary" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (_otFlag)
+    {
+        <MudPaper Class="pa-2 mt-2" Outlined>
+            <OvertimeAdjustmentForm Value="OvertimeAdjustment"
+                                    ValueChanged="OvertimeAdjustmentChanged"
+                                    ReadOnly="@ReadOnly" />
+        </MudPaper>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public ScheduleChangeDto? Value { get; set; }
+    [Parameter] public EventCallback<ScheduleChangeDto?> ValueChanged { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+
+    // NEW: for the little caption—host passes what zone user is seeing
+    [Parameter] public string? DisplayTzLabel { get; set; }
+    private string _displayTzLabel => string.IsNullOrWhiteSpace(DisplayTzLabel) ? "Local (employee site)" : DisplayTzLabel;
+
+    [Parameter] public bool OvertimeOnly { get; set; }
+
+    [Parameter] public OvertimeAdjustmentDto? OvertimeAdjustment { get; set; }
+    [Parameter] public EventCallback<OvertimeAdjustmentDto?> OvertimeAdjustmentChanged { get; set; }
+
+
+    private bool? _isSplit
+    {
+        get => Value?.IsSplitSchedule;
+        set { Value = Ensure(Value) with { IsSplitSchedule = value, ShiftNumber = 1 }; _ = ValueChanged.InvokeAsync(Value); }
+    }
+    private bool _staticBreakFlag
+    {
+        get => Value?.IsStaticBreakSchedule ?? false;
+        set
+        {
+            Value = Ensure(Value) with { IsStaticBreakSchedule = value };
+            _ = ValueChanged.InvokeAsync(Value);
+            StateHasChanged();
+        }
+    }
+
+    private bool _otFlag
+    {
+        get => Value?.IsOtAdjustment ?? false;
+        set
+        {
+            Value = Ensure(Value) with { IsOtAdjustment = value };
+            _ = ValueChanged.InvokeAsync(Value);
+
+            if (value && OvertimeAdjustment is null)
+                _ = OvertimeAdjustmentChanged.InvokeAsync(new OvertimeAdjustmentDto(null, null, null, null, null, null, null));
+            if (!value && OvertimeAdjustment is not null)
+                _ = OvertimeAdjustmentChanged.InvokeAsync(null);
+
+            StateHasChanged();
+        }
+    }
+
+
+    private static TimeSpan? ToSpan(TimeOnly? t) => t is null ? null : t.Value.ToTimeSpan();
+    private static TimeOnly? ToTime(TimeSpan? s) => s is null ? null : TimeOnly.FromTimeSpan(s.Value);
+
+    private record SchRow(string Label,
+        Func<TimeSpan?> StartGetter, Action<TimeSpan?> StartSetter,
+        Func<TimeSpan?> EndGetter, Action<TimeSpan?> EndSetter)
+    {
+        public TimeSpan? Start { get => StartGetter(); set => StartSetter(value); }
+        public TimeSpan? End { get => EndGetter(); set => EndSetter(value); }
+    }
+
+    private List<SchRow> _rows1 = new();
+    private List<SchRow> _rows2 = new();
+
+    protected override void OnInitialized() => BuildRows();
+    protected override void OnParametersSet() => BuildRows();
+
+    private void BuildRows()
+    {
+        Value = Ensure(Value);
+
+        _rows1 = new()
+        {
+            Row("Mon", () => ToSpan(Value!.MondayStart),     s => Set(v => v with { MondayStart    = ToTime(s) }),
+                       () => ToSpan(Value!.MondayEnd),       s => Set(v => v with { MondayEnd      = ToTime(s) })),
+            Row("Tue", () => ToSpan(Value!.TuesdayStart),    s => Set(v => v with { TuesdayStart   = ToTime(s) }),
+                       () => ToSpan(Value!.TuesdayEnd),      s => Set(v => v with { TuesdayEnd     = ToTime(s) })),
+            Row("Wed", () => ToSpan(Value!.WednesdayStart),  s => Set(v => v with { WednesdayStart = ToTime(s) }),
+                       () => ToSpan(Value!.WednesdayEnd),    s => Set(v => v with { WednesdayEnd   = ToTime(s) })),
+            Row("Thu", () => ToSpan(Value!.ThursdayStart),   s => Set(v => v with { ThursdayStart  = ToTime(s) }),
+                       () => ToSpan(Value!.ThursdayEnd),     s => Set(v => v with { ThursdayEnd    = ToTime(s) })),
+            Row("Fri", () => ToSpan(Value!.FridayStart),     s => Set(v => v with { FridayStart    = ToTime(s) }),
+                       () => ToSpan(Value!.FridayEnd),       s => Set(v => v with { FridayEnd      = ToTime(s) })),
+            Row("Sat", () => ToSpan(Value!.SaturdayStart),   s => Set(v => v with { SaturdayStart  = ToTime(s) }),
+                       () => ToSpan(Value!.SaturdayEnd),     s => Set(v => v with { SaturdayEnd    = ToTime(s) })),
+            Row("Sun", () => ToSpan(Value!.SundayStart),     s => Set(v => v with { SundayStart    = ToTime(s) }),
+                       () => ToSpan(Value!.SundayEnd),       s => Set(v => v with { SundayEnd      = ToTime(s) }))
+        };
+
+        _rows2 = new()
+        {
+            Row("Mon", () => _s2MonS, s => _s2MonS = s, () => _s2MonE, s => _s2MonE = s),
+            Row("Tue", () => _s2TueS, s => _s2TueS = s, () => _s2TueE, s => _s2TueE = s),
+            Row("Wed", () => _s2WedS, s => _s2WedS = s, () => _s2WedE, s => _s2WedE = s),
+            Row("Thu", () => _s2ThuS, s => _s2ThuS = s, () => _s2ThuE, s => _s2ThuE = s),
+            Row("Fri", () => _s2FriS, s => _s2FriS = s, () => _s2FriE, s => _s2FriE = s),
+            Row("Sat", () => _s2SatS, s => _s2SatS = s, () => _s2SatE, s => _s2SatE = s),
+            Row("Sun", () => _s2SunS, s => _s2SunS = s, () => _s2SunE, s => _s2SunE = s),
+        };
+    }
+
+    private static SchRow Row(string d, Func<TimeSpan?> sg, Action<TimeSpan?> ss, Func<TimeSpan?> eg, Action<TimeSpan?> es)
+        => new(d, sg, ss, eg, es);
+
+    private void Set(Func<ScheduleChangeDto, ScheduleChangeDto> upd)
+    {
+        Value = upd(Value!);
+        _ = ValueChanged.InvokeAsync(Value);
+        StateHasChanged();
+    }
+
+    private static ScheduleChangeDto Ensure(ScheduleChangeDto? v)
+        => v ?? new ScheduleChangeDto(
+            false, 1,
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+            false, false
+        );
+
+    private TimeSpan? _s2MonS, _s2MonE, _s2TueS, _s2TueE, _s2WedS, _s2WedE,
+                      _s2ThuS, _s2ThuE, _s2FriS, _s2FriE, _s2SatS, _s2SatE, _s2SunS, _s2SunE;
+}

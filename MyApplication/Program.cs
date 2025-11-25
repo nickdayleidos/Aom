@@ -3,12 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using MudBlazor.Services;
 using MyApplication;
+using MyApplication.Common.Time;
 using MyApplication.Components;
 using MyApplication.Components.Data;
 using MyApplication.Components.Service;
 using MyApplication.Components.Service.Acr;
-using MyApplication.Components.Services.Email;
 using MyApplication.Components.Service.Employee;
+using MyApplication.Components.Service.Training;
+using MyApplication.Components.Services.Email;
 using System.Configuration;
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -123,6 +125,8 @@ builder.Services.AddScoped<OperationalImpactEmailService>();
 builder.Services.AddScoped<IProactiveRepository, ProactiveRepository>();
 builder.Services.AddScoped<IOperaRepository, OperaRepository>();
 builder.Services.AddScoped<EmployeesRepository>();
+builder.Services.AddScoped<ITimeDisplayService, TimeDisplayService>();
+builder.Services.AddScoped<ISkillService, SkillService>();
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Build & Pipeline

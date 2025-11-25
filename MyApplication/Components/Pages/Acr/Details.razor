@@ -1,661 +1,348 @@
-﻿@page "/tools/acr/{Id:int}"
-@using Microsoft.EntityFrameworkCore
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
-@using MudBlazor
-@using MyApplication.Common.Time
-@using MyApplication.Components.Data
-@using MyApplication.Components.Model.AOM.Employee
-@using MyApplication.Components.Pages.Acr.Forms
-@using MyApplication.Components.Service.Acr
+﻿@page "/acr/{Id:int}"
+@attribute [Authorize(Policy = "Admin")]
 @inject IAcrQueryService Query
-@inject ISnackbar Snackbar
-@inject IDbContextFactory<AomDbContext> DbFactory
-@inject NavigationManager NavManager
 @inject IAcrService Acr
-@inject IAuthorizationService Authz
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
 
-<CascadingAuthenticationState>
-    <MudStack Spacing="2">
-        <MudPaper Class="pa-4" Outlined="true">
-            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                <MudText Typo="Typo.h6">ACR #@Id — @TypeLabel (@StatusLabel)</MudText>
+<MudPaper Class="pa-2" Outlined="true">
+    <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.subtitle2">Time display</MudText>
+        <MudSelect T="TimeDisplayMode" Dense @bind-Value="_mode">
+            <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (employee site)</MudSelectItem>
+            <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern</MudSelectItem>
+            <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain</MudSelectItem>
+        </MudSelect>
+    </MudStack>
+</MudPaper>
 
-                <MudStack Row="true" Spacing="2">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@GoBack">
-                        <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="me-1" />
-                        Back to Index
-                    </MudButton>
-
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => _editing = !_editing)">
-                        @(_editing ? "Cancel" : "Edit")
-                    </MudButton>
-                </MudStack>
-            </MudStack>
-        </MudPaper>
-
-        @if (!_loaded)
+<MudStack Spacing="2">
+    <MudPaper Class="pa-4" Outlined>
+        @if (_vm is null)
         {
-            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-        }
-        else if (_req is null)
-        {
-            <MudAlert Severity="Severity.Error">ACR not found.</MudAlert>
+            <MudProgressLinear Indeterminate />
         }
         else
         {
-            @if (!_editing)
-            {
-                <MudPaper Class="pa-4" Outlined="true">
-                    <MudStack>
-                        <MudText Typo="Typo.subtitle2">Type: @TypeLabel</MudText>
-                        <MudText Typo="Typo.subtitle2">Status: @StatusLabel</MudText>
-                        <MudText Typo="Typo.subtitle2">Employee Id: @_req.EmployeeId</MudText>
-                        <MudText Typo="Typo.subtitle2">Effective: @_req.EffectiveDate.ToString("yyyy-MM-dd")</MudText>
-                        <MudText Typo="Typo.subtitle2">Submitted: @_req.SubmitTime</MudText>
-                        <MudText Typo="Typo.subtitle2">Last Update: @_req.LastUpdateTime</MudText>
-
-                        @if (_org is not null)
-                        {
-                            <MudDivider Class="my-2" />
-                            <MudText Typo="Typo.subtitle1">Organization Information</MudText>
-
-                            <MudText>Manager: @(_managerName ?? "N/A")</MudText>
-                            <MudText>Supervisor: @(_supervisorName ?? "N/A")</MudText>
-                            <MudText>Organization: @(_orgName ?? "N/A")</MudText>
-                            <MudText>Sub-Organization: @(_subOrgName ?? "N/A")</MudText>
-                            <MudText>Employer: @(_employerName ?? "N/A")</MudText>
-                            <MudText>Site: @(_siteLabel ?? "N/A")</MudText>
-
-                            <MudText>Active: @BoolNA(_org?.IsActive)</MudText>
-                            <MudText>LOA: @BoolNA(_org?.IsLoa)</MudText>
-                            <MudText>Intermittent LOA: @BoolNA(_org?.IsIntLoa)</MudText>
-                            <MudText>Remote: @BoolNA(_org?.IsRemote)</MudText>
-                        }
-
-                        @if (_sch1 is not null)
-                        {
-                            <MudDivider Class="my-2" />
-                            <MudText Typo="Typo.subtitle1">Schedule Information</MudText>
-                            <MudText>Split Schedule: @IsSplit</MudText>
-
-                            <MudSimpleTable Class="mt-2">
-                                <thead><tr><th>Day</th><th>Start</th><th>End</th></tr></thead>
-                                <tbody>
-                                    <tr><td>Monday</td><td>@Fmt(_sch1.MondayStart)</td><td>@Fmt(_sch1.MondayEnd)</td></tr>
-                                    <tr><td>Tuesday</td><td>@Fmt(_sch1.TuesdayStart)</td><td>@Fmt(_sch1.TuesdayEnd)</td></tr>
-                                    <tr><td>Wednesday</td><td>@Fmt(_sch1.WednesdayStart)</td><td>@Fmt(_sch1.WednesdayEnd)</td></tr>
-                                    <tr><td>Thursday</td><td>@Fmt(_sch1.ThursdayStart)</td><td>@Fmt(_sch1.ThursdayEnd)</td></tr>
-                                    <tr><td>Friday</td><td>@Fmt(_sch1.FridayStart)</td><td>@Fmt(_sch1.FridayEnd)</td></tr>
-                                    <tr><td>Saturday</td><td>@Fmt(_sch1.SaturdayStart)</td><td>@Fmt(_sch1.SaturdayEnd)</td></tr>
-                                    <tr><td>Sunday</td><td>@Fmt(_sch1.SundayStart)</td><td>@Fmt(_sch1.SundayEnd)</td></tr>
-                                </tbody>
-                            </MudSimpleTable>
-
-                            <MudText Class="mt-2">
-                                Break Time: @_sch1.BreakTime&nbsp;min,
-                                Breaks: @_sch1.Breaks,
-                                Lunch: @_sch1.LunchTime&nbsp;min
-                            </MudText>
-
-                            @if (_sch2 is not null)
-                            {
-                                <MudDivider Class="my-2" />
-                                <MudText Typo="Typo.subtitle2">Segment 2</MudText>
-                                <MudSimpleTable Class="mt-2">
-                                    <thead><tr><th>Day</th><th>Start</th><th>End</th></tr></thead>
-                                    <tbody>
-                                        <tr><td>Monday</td><td>@Fmt(_sch2.MondayStart)</td><td>@Fmt(_sch2.MondayEnd)</td></tr>
-                                        <tr><td>Tuesday</td><td>@Fmt(_sch2.TuesdayStart)</td><td>@Fmt(_sch2.TuesdayEnd)</td></tr>
-                                        <tr><td>Wednesday</td><td>@Fmt(_sch2.WednesdayStart)</td><td>@Fmt(_sch2.WednesdayEnd)</td></tr>
-                                        <tr><td>Thursday</td><td>@Fmt(_sch2.ThursdayStart)</td><td>@Fmt(_sch2.ThursdayEnd)</td></tr>
-                                        <tr><td>Friday</td><td>@Fmt(_sch2.FridayStart)</td><td>@Fmt(_sch2.FridayEnd)</td></tr>
-                                        <tr><td>Saturday</td><td>@Fmt(_sch2.SaturdayStart)</td><td>@Fmt(_sch2.SaturdayEnd)</td></tr>
-                                        <tr><td>Sunday</td><td>@Fmt(_sch2.SundayStart)</td><td>@Fmt(_sch2.SundayEnd)</td></tr>
-                                    </tbody>
-                                </MudSimpleTable>
-                            }
-                        }
-
-                        <!-- ACTION BUTTONS -->
-                        <MudDivider Class="my-4" />
-                        <MudStack Row="true" Spacing="2">
-                            <!-- Manager Approve: only Manager policy -->
-                            @if (_canManager)
-                            {
-                                <MudButton Color="Color.Success"
-                                           Variant="Variant.Filled"
-                                           Disabled="@(!_allowManagerApprove)"
-                                           OnClick="ManagerApprove">
-                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="me-1" />
-                                    Manager Approve
-                                </MudButton>
-                            }
-
-                            <!-- WFM Approve: only WFM policy -->
-                            @if (_canWfm)
-                            {
-                                <MudButton Color="Color.Success"
-                                           Variant="Variant.Outlined"
-                                           Disabled="@(!_allowWfmApprove)"
-                                           OnClick="WfmApprove">
-                                    <MudIcon Icon="@Icons.Material.Filled.Verified" Class="me-1" />
-                                    WFM Approve
-                                </MudButton>
-                            }
-
-                            <!-- Reject: Manager or WFM -->
-                            @if (_canReject)
-                            {
-                                <MudButton Color="Color.Error"
-                                           Variant="Variant.Outlined"
-                                           Disabled="@(!_allowReject)"
-                                           OnClick="Reject">
-                                    <MudIcon Icon="@Icons.Material.Filled.ThumbDown" Class="me-1" />
-                                    Reject
-                                </MudButton>
-                            }
-
-                            <!-- Cancel: no limit -->
-                            <MudButton Color="Color.Secondary"
-                                       Variant="Variant.Outlined"
-                                       Disabled="@(!_allowCancel)"
-                                       OnClick="Cancel">
-                                <MudIcon Icon="@Icons.Material.Filled.Cancel" Class="me-1" />
-                                Cancel
-                            </MudButton>
-                        </MudStack>
-                    </MudStack>
-                </MudPaper>
-            }
-            else
-            {
-                @switch (ResolveKind())
+            <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+                <MudText Typo="Typo.h5">ACR #@_vm.AcrRequestId — @_vm.EmployeeName</MudText>
+                <MudChip T="string" Color="Color.Primary">@_vm.TypeKey.ToString()</MudChip>
+                @if (!string.IsNullOrWhiteSpace(_statusName))
                 {
-                    case TypeKind.OrgChange:
-                        <OrgForm Employees="_employees"
-                                 ManagerEmployees="_managers"
-                                 SupervisorEmployees="_supervisors"
-                                 Organizations="_orgs"
-                                 SubOrganizations="_subs"
-                                 Sites="_sites"
-                                 Employers="_employers"
-                                 Initial="_orgInitial"
-                                 SubmitLabel="Save Organization"
-                                 OnSubmit="SaveOrgFromDto" />
-                        break;
-
-                    case TypeKind.ScheduleChange:
-                        <ScheduleForm Employees="_employees"
-                                      Initial="_schInitial"
-                                      SubmitLabel="Save Schedule"
-                                      OnSubmit="SaveScheduleFromDto" />
-                        break;
-
-                    case TypeKind.OrgAndSchedule:
-                        <OrgScheduleForm Employees="_employees"
-                                         ManagerEmployees="_managers"
-                                         SupervisorEmployees="_supervisors"
-                                         Organizations="_orgs"
-                                         SubOrganizations="_subs"
-                                         Employers="_employers"
-                                         Sites="_sites"
-                                         OrgInitial="_orgInitial"
-                                         SchInitial="_schInitial"
-                                         SubmitLabel="Save Org + Schedule"
-                                         OnSubmit="SaveOrgScheduleFromDtos" />
-                        break;
-
-                    case TypeKind.Separation:
-                        <OrgForm Employees="_employees"
-                                 Organizations="_orgs"
-                                 SubOrganizations="_subs"
-                                 Sites="_sites"
-                                 Employers="_employers"
-                                 Initial="_orgInitial"
-                                 SubmitLabel="Save Separation"
-                                 OnSubmit="SaveOrgFromDto" />
-                        break;
-
-                    case TypeKind.NewHire:
-                    default:
-                        <MudAlert Severity="Severity.Info">This request type has no editor here.</MudAlert>
-                        break;
+                    <MudChip T="string" Color="Color.Info">@_statusName</MudChip>
                 }
-            }
+
+                <MudSpacer />
+
+                @if (ShowAnyButtons)
+                {
+                    <MudStack Row Spacing="1">
+                        @* Full workflow (Org/Sched/OrgSched/OT) *@
+                        @if (IsApprovalFlow)
+                        {
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Disabled="@(!_canManagerApprove)"
+                                       OnClick="ManagerApproveAsync">
+                                Manager Approve
+                            </MudButton>
+
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Disabled="@(!_canWfmApprove)"
+                                       OnClick="WfmApproveAsync">
+                                WFM Approve
+                            </MudButton>
+
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Error"
+                                       Disabled="@(!_canReject)"
+                                       OnClick="RejectAsync">
+                                Reject
+                            </MudButton>
+                        }
+
+                        @* Cancel is allowed for both approval-flow types AND Rehire/Separation *@
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Secondary"
+                                   Disabled="@(!_canCancel)"
+                                   OnClick="CancelAsync">
+                            Cancel
+                        </MudButton>
+                    </MudStack>
+                }
+
+                <MudButton Variant="Variant.Text"
+                           OnClick="@(() => Nav.NavigateTo($"/acr/{Id}/edit"))">
+                    Edit
+                </MudButton>
+            </MudStack>
+
+            <MudDivider Class="my-2" />
+
+            <MudGrid>
+                @if (_vm.TypeKey == AcrTypeKey.NewHire)
+                {
+                    @* New Hire: no previous details *@
+                    <MudItem xs="12" md="12">
+                        <AcrFormHost Value="@_mirror"
+                                     ValueChanged="@(_ => {})"
+                                     ReadOnly="true"
+                                     ForceShowOrg="@(_vm.Organization is not null)"
+                                     ForceShowSchedule="@(_vm.Schedule is not null)"
+                                     ForceShowOvertimeOnly="@(_vm.TypeKey == AcrTypeKey.OvertimeAdjustment)"
+                                     Mode="_mode" />
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12" md="5">
+                        <PreviousDetails Value="@_mirror"
+                                         EmployeeId="@_vm.EmployeeId"
+                                         ShowOrg="@(_vm.Organization is not null)"
+                                         ShowSchedule="@(_vm.Schedule is not null)"
+                                         ShowOvertime="@((_vm.Overtime is not null) || (_vm.Schedule?.IsOtAdjustment ?? false))"
+                                         Mode="_mode" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="7">
+                        <AcrFormHost Value="@_mirror"
+                                     ValueChanged="@(_ => {})"
+                                     ReadOnly="true"
+                                     ForceShowOrg="@(_vm.Organization is not null)"
+                                     ForceShowSchedule="@(_vm.Schedule is not null)"
+                                     ForceShowOvertimeOnly="@(_vm.TypeKey == AcrTypeKey.OvertimeAdjustment)"
+                                     Mode="_mode" />
+                    </MudItem>
+                }
+            </MudGrid>
         }
-    </MudStack>
-</CascadingAuthenticationState>
+    </MudPaper>
+</MudStack>
 
 @code {
-        [Parameter] public int Id { get; set; }
-    private bool IsSplit => (_sch2 is not null) || (_sch1?.IsSplitSchedule == true);
+    [Parameter] public int Id { get; set; }
 
-    // Status constants must match server/service
-    private const int Submitted = 1;
-    private const int ManagerApproved = 2;
-    private const int WfmApproved = 3;
-    private const int Cancelled = 5;
-    private const int Rejected = 6;
+    private const int StatusSubmitted = 1;
+    private const int StatusManagerApproved = 2;
+    private const int StatusWfmApproved = 3;
+    private const int StatusProcessed = 4;
+    private const int StatusCancelled = 5;
+    private const int StatusRejected = 6;
 
-    private bool _loaded;
-    private bool _editing;
-
-    private AcrRequest? _req;
-    private AcrOrganization? _org;
-    private AcrSchedule? _sch1;
-    private AcrSchedule? _sch2;
-    private string? _typeName;
+    private AcrDetailsVm? _vm;
+    private AcrCreateVm? _mirror;
     private string? _statusName;
-    private string? _managerName, _supervisorName, _orgName, _subOrgName, _employerName, _siteLabel;
+    private int? _statusId;
+    private string? _siteWindowsTz;
+    private NewHireDto? _newHire;
 
-    // Auth flags
-    [CascadingParameter] private Task<AuthenticationState>? AuthStateTask { get; set; }
-    private bool _canManager, _canWfm, _canReject;
+    private TimeDisplayMode _modeBacking = TimeDisplayMode.EmployeeLocal;
+    private TimeDisplayMode _mode
+    {
+        get => _modeBacking;
+        set
+        {
+            if (_modeBacking == value)
+                return;
 
-    // Button enablement
-    private bool _allowManagerApprove, _allowWfmApprove, _allowReject, _allowCancel;
+            _modeBacking = value;
 
-    private static string EmpLabel(Employees e) => $"{e.LastName}, {e.FirstName}";
-    private static string BoolNA(bool? v) => v.HasValue ? (v.Value ? "True" : "False") : "N/A";
-    private static string SiteLabel(Site s) => $"{s.SiteCode} - {s.Location}";
-    private static string Fmt(TimeOnly? t) => t.HasValue ? t.Value.ToString("HH:mm") : "-";
+            if (_vm is not null)
+                _mirror = ToCreateMirror(_vm);
+        }
+    }
 
-    // lookups
-    private List<Employees> _employees = new();
-    private List<Employees> _managers = new();
-    private List<Employees> _supervisors = new();
-    private List<Organization> _orgs = new();
-    private List<SubOrganization> _subs = new();
-    private List<Employer> _employers = new();
-    private List<Site> _sites = new();
+    // ----- button visibility / rules -------------------------
 
-    // editor initials
-    private OrganizationChangeDto? _orgInitial;
-    private ScheduleChangeDto? _schInitial;
+    // Any type that has *some* buttons
+    private bool ShowAnyButtons =>
+        _vm is not null && _statusId.HasValue &&
+        (_vm.TypeKey is AcrTypeKey.OrganizationChange
+                     or AcrTypeKey.ScheduleChange
+                     or AcrTypeKey.OrgSchedule
+                     or AcrTypeKey.OvertimeAdjustment
+                     or AcrTypeKey.Rehire
+                     or AcrTypeKey.Separation);
 
-    private enum TypeKind { Unknown, OrgChange, ScheduleChange, NewHire, Separation, OrgAndSchedule }
+    // Types that participate in the Manager/WFM/Reject workflow
+    private bool IsApprovalFlow =>
+        _vm is not null &&
+        (_vm.TypeKey is AcrTypeKey.OrganizationChange
+                     or AcrTypeKey.ScheduleChange
+                     or AcrTypeKey.OrgSchedule
+                     or AcrTypeKey.OvertimeAdjustment);
 
-    private string TypeLabel => string.IsNullOrWhiteSpace(_typeName) ? "Unknown" : _typeName!;
-    private string StatusLabel => string.IsNullOrWhiteSpace(_statusName) ? "Unknown" : _statusName!;
+    private bool _canManagerApprove =>
+        IsApprovalFlow && _statusId == StatusSubmitted;
 
-    private void GoBack() => NavManager.NavigateTo("/tools/acr");
+    private bool _canWfmApprove =>
+        IsApprovalFlow && _statusId == StatusManagerApproved;
+
+    private bool _canReject =>
+        IsApprovalFlow &&
+        (_statusId == StatusSubmitted || _statusId == StatusManagerApproved);
+
+    // Cancel allowed on statuses 1–4 for all button-enabled types
+    private bool _canCancel =>
+        ShowAnyButtons &&
+        (_statusId == StatusSubmitted
+         || _statusId == StatusManagerApproved
+         || _statusId == StatusWfmApproved
+         || _statusId == StatusProcessed);
+
+    // --------------------------------------------------------
 
     protected override async Task OnParametersSetAsync()
     {
-        _loaded = false;
+        _vm = await Query.LoadDetailsAsync(Id);
+        _statusName = await Query.GetStatusNameByAcrIdAsync(Id);
+        _statusId = await Query.GetStatusIdByAcrIdAsync(Id);
 
-        await using var ctx = await DbFactory.CreateDbContextAsync();
-
-        // parent
-        _req = await ctx.Set<AcrRequest>()
-                        .Include(r => r.AcrType)
-                        .Include(r => r.AcrStatus)
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(r => r.Id == Id);
-
-        if (_req is not null)
+        // For New Hire, hydrate from Employees
+        if (_vm is not null && _vm.TypeKey == AcrTypeKey.NewHire)
         {
-            _typeName = _req.AcrType?.Name;
-            _statusName = _req.AcrStatus?.Name;
-
-            // children
-            _org = await ctx.Set<AcrOrganization>()
-                            .AsNoTracking()
-                            .FirstOrDefaultAsync(o => o.AcrRequestId == Id);
-
-            var schAll = await ctx.Set<AcrSchedule>()
-                                  .Where(s => s.AcrRequestId == Id)
-                                  .OrderBy(s => s.ShiftNumber)
-                                  .AsNoTracking()
-                                  .ToListAsync();
-
-            _sch1 = schAll.FirstOrDefault(s => s.ShiftNumber == null || s.ShiftNumber == 0 || s.ShiftNumber == 1);
-            _sch2 = schAll.FirstOrDefault(s => s.ShiftNumber == 2);
-
-            // lookups
-            _employees = await Query.GetEmployeesLookupAsync();
-            _managers = await Query.GetManagerEmployeesAsync();
-            _supervisors = await Query.GetSupervisorEmployeesAsync();
-            _orgs = await Query.GetOrganizationsAsync();
-            _subs = await Query.GetSubOrganizationsAsync();
-            _sites = await Query.GetSitesAsync();
-            _employers = await Query.GetEmployersAsync();
-
-            _managerName = null;
-            _supervisorName = null;
-            _orgName = _orgs.FirstOrDefault(o => o.Id == _org?.OrganizationId)?.Name;
-            _subOrgName = _subs.FirstOrDefault(s => s.Id == _org?.SubOrganizationId)?.Name;
-            _employerName = _employers.FirstOrDefault(e => e.Id == _org?.EmployerId)?.Name;
-            _siteLabel = _sites.FirstOrDefault(s => s.Id == _org?.SiteId) is Site site ? SiteLabel(site) : null;
-
-            if (_org?.ManagerId is int mid)
+            var emp = await Query.GetEmployeeAsync(_vm.EmployeeId);
+            if (emp is not null)
             {
-                var mgrEmpId = await ctx.Managers.AsNoTracking()
-                    .Where(m => m.Id == mid)
-                    .Select(m => (int?)m.EmployeeId)
-                    .FirstOrDefaultAsync();
-                _managerName = _employees.FirstOrDefault(e => e.Id == mgrEmpId) is { } me ? EmpLabel(me) : null;
+                _newHire = new NewHireDto(
+                    emp.FirstName,
+                    emp.LastName,
+                    emp.MiddleInitial,
+                    emp.NmciEmail,
+                    emp.FlankspeedEmail,
+                    emp.UsnOperatorId,
+                    emp.UsnAdminId,
+                    emp.CorporateEmail,
+                    emp.CorporateId,
+                    emp.DomainLoginName
+                );
             }
+        }
 
-            if (_org?.SupervisorId is int sid)
+        _siteWindowsTz = await ResolveSiteWindowsTzAsync();
+        _mirror = ToCreateMirror(_vm!);
+    }
+
+    private async Task<string?> ResolveSiteWindowsTzAsync()
+    {
+        if (_vm?.Organization?.SiteId is int siteId1)
+        {
+            var tz = await Query.GetSiteTimeZoneAsync(siteId1);
+            if (!string.IsNullOrWhiteSpace(tz))
+                return tz!;
+        }
+
+        if (_vm?.EmployeeId is int empId)
+        {
+            var prev = await Query.GetPrevDetailsAsync(empId, TimeDisplayMode.Eastern);
+            if (prev?.SiteId is int siteId2)
             {
-                var supEmpId = await ctx.Supervisors.AsNoTracking()
-                    .Where(s => s.Id == sid)
-                    .Select(s => (int?)s.EmployeeId)
-                    .FirstOrDefaultAsync();
-                _supervisorName = _employees.FirstOrDefault(e => e.Id == supEmpId) is { } se ? EmpLabel(se) : null;
+                var tz = await Query.GetSiteTimeZoneAsync(siteId2);
+                if (!string.IsNullOrWhiteSpace(tz))
+                    return tz!;
             }
-
-            // build INITIALS
-            _orgInitial = BuildOrgInitialFromMemory(ctx);
-            _schInitial = BuildSchInitialFromMemory();
         }
 
-        // auth flags
-        await ComputeAuthFlagsAsync();
-
-        // enable/disable buttons based on current status
-        ComputeButtonEnables();
-
-        _loaded = true;
+        return "Eastern Standard Time";
     }
 
-    private async Task ComputeAuthFlagsAsync()
+    private TimeOnly? ConvertFromEt(TimeOnly? et)
     {
-        var user = (await (AuthStateTask ?? Task.FromResult<AuthenticationState>(null!)))?.User;
-        if (user is null)
+        if (et is null) return null;
+        if (_mode == TimeDisplayMode.Eastern) return et;
+
+        var easternTz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+        var targetTzId = _mode switch
         {
-            _canManager = _canWfm = _canReject = false;
-            return;
-        }
+            TimeDisplayMode.EmployeeLocal => string.IsNullOrWhiteSpace(_siteWindowsTz)
+                ? "Eastern Standard Time"
+                : _siteWindowsTz!,
+            TimeDisplayMode.Mountain => "Mountain Standard Time",
+            _ => "Eastern Standard Time"
+        };
 
-        _canManager = (await Authz.AuthorizeAsync(user, null, "Manager")).Succeeded;
-        _canWfm = (await Authz.AuthorizeAsync(user, null, "WFM")).Succeeded;
-        _canReject = _canManager || _canWfm;
+        var targetTz = TimeZoneInfo.FindSystemTimeZoneById(targetTzId);
+
+        var dtEt = new DateTime(2000, 1, 1, et.Value.Hour, et.Value.Minute, 0, DateTimeKind.Unspecified);
+        var dtUtc = TimeZoneInfo.ConvertTimeToUtc(dtEt, easternTz);
+        var dtLocal = TimeZoneInfo.ConvertTimeFromUtc(dtUtc, targetTz);
+
+        return new TimeOnly(dtLocal.Hour, dtLocal.Minute);
     }
 
-    private void ComputeButtonEnables()
+    private AcrCreateVm ToCreateMirror(AcrDetailsVm d)
     {
-        if (_req is null) { _allowManagerApprove = _allowWfmApprove = _allowReject = _allowCancel = false; return; }
-
-        var s = _req.AcrStatusId;
-
-        bool IsValidTransition(int from, int to)
+        ScheduleChangeDto? schedule = d.Schedule;
+        if (schedule is not null)
         {
-            if (from == to) return false;
-            if (from == Cancelled || from == Rejected) return false; // terminal
-            if (to == Cancelled || to == Rejected) return true;
-            if (from == Submitted && (to == ManagerApproved || to == WfmApproved)) return true;
-        if (from == ManagerApproved && to == WfmApproved) return true;
-            return false;
+            schedule = schedule with
+            {
+                MondayStart = ConvertFromEt(schedule.MondayStart),
+                MondayEnd = ConvertFromEt(schedule.MondayEnd),
+                TuesdayStart = ConvertFromEt(schedule.TuesdayStart),
+                TuesdayEnd = ConvertFromEt(schedule.TuesdayEnd),
+                WednesdayStart = ConvertFromEt(schedule.WednesdayStart),
+                WednesdayEnd = ConvertFromEt(schedule.WednesdayEnd),
+                ThursdayStart = ConvertFromEt(schedule.ThursdayStart),
+                ThursdayEnd = ConvertFromEt(schedule.ThursdayEnd),
+                FridayStart = ConvertFromEt(schedule.FridayStart),
+                FridayEnd = ConvertFromEt(schedule.FridayEnd),
+                SaturdayStart = ConvertFromEt(schedule.SaturdayStart),
+                SaturdayEnd = ConvertFromEt(schedule.SaturdayEnd),
+                SundayStart = ConvertFromEt(schedule.SundayStart),
+                SundayEnd = ConvertFromEt(schedule.SundayEnd)
+            };
         }
 
-        _allowManagerApprove = IsValidTransition(s, ManagerApproved);
-        _allowWfmApprove = IsValidTransition(s, WfmApproved);
-        _allowReject = IsValidTransition(s, Rejected);
-        _allowCancel = IsValidTransition(s, Cancelled);
+        return new AcrCreateVm
+        {
+            EmployeeId = d.EmployeeId,
+            TypeId = (int)d.TypeKey,
+            EffectiveDate = d.EffectiveDate,
+            IncludeOvertimeAdjustment = (d.Schedule?.IsOtAdjustment ?? false) || (d.Overtime is not null),
+            Organization = d.Organization,
+            Schedule = schedule,
+            Overtime = d.Overtime,
+            NewHire = _newHire
+        };
     }
 
-    private static TypeKind FromName(string? raw)
+    // --- Button handlers -------------------------------------------------
+
+    private async Task RefreshStatusAsync()
     {
-        if (string.IsNullOrWhiteSpace(raw)) return TypeKind.Unknown;
-        var name = raw.Trim().ToLowerInvariant();
-        if (name.Contains("organization and schedule")) return TypeKind.OrgAndSchedule;
-        if (name.Contains("organization") && name.Contains("change")) return TypeKind.OrgChange;
-        if (name.Contains("schedule") && name.Contains("change")) return TypeKind.ScheduleChange;
-        if (name.Contains("new") && name.Contains("hire")) return TypeKind.NewHire;
-        if (name.Contains("separation")) return TypeKind.Separation;
-        return TypeKind.Unknown;
-    }
-
-    private TypeKind ResolveKind()
-    {
-        var byName = FromName(_typeName);
-        if (byName != TypeKind.Unknown) return byName;
-
-        var hasOrg = _org is not null;
-        var hasSch = _sch1 is not null || _sch2 is not null;
-        if (hasOrg && hasSch) return TypeKind.OrgAndSchedule;
-        if (hasOrg) return TypeKind.OrgChange;
-        if (hasSch) return TypeKind.ScheduleChange;
-
-        return (_req?.AcrTypeId is null) ? TypeKind.Unknown : TypeKind.NewHire;
-    }
-
-    // ---------- Build Initials ----------
-    private OrganizationChangeDto? BuildOrgInitialFromMemory(AomDbContext ctx)
-    {
-        if (_req is null || _org is null) return null;
-
-        int? mgrEmpId = _org.ManagerId is null
-            ? null
-            : ctx.Managers.AsNoTracking()
-                .Where(m => m.Id == _org.ManagerId)
-                .Select(m => (int?)m.EmployeeId)
-                .FirstOrDefault();
-
-        int? supEmpId = _org.SupervisorId is null
-            ? null
-            : ctx.Supervisors.AsNoTracking()
-                .Where(s => s.Id == _org.SupervisorId)
-                .Select(s => (int?)s.EmployeeId)
-                .FirstOrDefault();
-
-        return new OrganizationChangeDto(
-            EmployeeId: _req.EmployeeId,
-            EffectiveDate: _req.EffectiveDate,
-            SubmitterComment: _req.SubmitterComment,
-            ManagerId: mgrEmpId,
-            SupervisorId: supEmpId,
-            OrganizationId: _org.OrganizationId,
-            SubOrganizationId: _org.SubOrganizationId,
-            EmployerId: _org.EmployerId,
-            SiteId: _org.SiteId,
-            IsActive: _org.IsActive,
-            IsLoa: _org.IsLoa,
-            IsIntLoa: _org.IsIntLoa,
-            IsRemote: _org.IsRemote
-        );
-    }
-
-    private ScheduleChangeDto? BuildSchInitialFromMemory()
-    {
-        if (_req is null) return null;
-
-        return new ScheduleChangeDto(
-            EmployeeId: _req.EmployeeId,
-            EffectiveDate: _req.EffectiveDate,
-            SubmitterComment: _req.SubmitterComment,
-            IsSplitSchedule: _sch2 is not null,
-
-            MondayStart: _sch1?.MondayStart, MondayEnd: _sch1?.MondayEnd,
-            TuesdayStart: _sch1?.TuesdayStart, TuesdayEnd: _sch1?.TuesdayEnd,
-            WednesdayStart: _sch1?.WednesdayStart, WednesdayEnd: _sch1?.WednesdayEnd,
-            ThursdayStart: _sch1?.ThursdayStart, ThursdayEnd: _sch1?.ThursdayEnd,
-            FridayStart: _sch1?.FridayStart, FridayEnd: _sch1?.FridayEnd,
-            SaturdayStart: _sch1?.SaturdayStart, SaturdayEnd: _sch1?.SaturdayEnd,
-            SundayStart: _sch1?.SundayStart, SundayEnd: _sch1?.SundayEnd,
-
-            MondayStart2: _sch2?.MondayStart, MondayEnd2: _sch2?.MondayEnd,
-            TuesdayStart2: _sch2?.TuesdayStart, TuesdayEnd2: _sch2?.TuesdayEnd,
-            WednesdayStart2: _sch2?.WednesdayStart, WednesdayEnd2: _sch2?.WednesdayEnd,
-            ThursdayStart2: _sch2?.ThursdayStart, ThursdayEnd2: _sch2?.ThursdayEnd,
-            FridayStart2: _sch2?.FridayStart, FridayEnd2: _sch2?.FridayEnd,
-            SaturdayStart2: _sch2?.SaturdayStart, SaturdayEnd2: _sch2?.SaturdayEnd,
-            SundayStart2: _sch2?.SundayStart, SundayEnd2: _sch2?.SundayEnd,
-
-            BreakTime: _sch1?.BreakTime, Breaks: _sch1?.Breaks, LunchTime: _sch1?.LunchTime
-        );
-    }
-
-    // ---------- Save flow helpers ----------
-    private async Task FinishSaveAsync()
-    {
-        await OnParametersSetAsync();  // refresh data
-        _editing = false;              // back to details
+        _statusId = await Query.GetStatusIdByAcrIdAsync(Id);
+        _statusName = await Query.GetStatusNameByAcrIdAsync(Id);
         StateHasChanged();
     }
 
-    private async Task<int?> EnsureManagerIdAsync(int? maybeEmpOrMgrId)
+    private async Task ManagerApproveAsync()
     {
-        if (maybeEmpOrMgrId is null) return null;
-        await using var ctx = await DbFactory.CreateDbContextAsync();
-
-        var id = maybeEmpOrMgrId.Value;
-        if (await ctx.Managers.AnyAsync(m => m.Id == id)) return id;
-
-        return await ctx.Managers
-                        .Where(m => m.EmployeeId == id && m.IsActive)
-                        .Select(m => (int?)m.Id)
-                        .FirstOrDefaultAsync();
+        await Acr.SetStatusAsync(Id, StatusManagerApproved);
+        Snackbar.Add("ACR manager-approved.", Severity.Success);
+        await RefreshStatusAsync();
     }
 
-    private async Task<int?> EnsureSupervisorIdAsync(int? maybeEmpOrSupId)
+    private async Task WfmApproveAsync()
     {
-        if (maybeEmpOrSupId is null) return null;
-        await using var ctx = await DbFactory.CreateDbContextAsync();
-
-        var id = maybeEmpOrSupId.Value;
-        if (await ctx.Supervisors.AnyAsync(s => s.Id == id)) return id;
-
-        return await ctx.Supervisors
-                        .Where(s => s.EmployeeId == id && s.IsActive)
-                        .Select(s => (int?)s.Id)
-                        .FirstOrDefaultAsync();
+        await Acr.SetStatusAsync(Id, StatusWfmApproved);
+        Snackbar.Add("ACR WFM-approved.", Severity.Success);
+        await RefreshStatusAsync();
     }
 
-    // ---------- Core saves ----------
-    private async Task SaveOrgFromDtoCore(OrganizationChangeDto dto)
+    private async Task RejectAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        var req = await db.Set<AcrRequest>().FirstOrDefaultAsync(r => r.Id == Id);
-        var org = await db.Set<AcrOrganization>().FirstOrDefaultAsync(o => o.AcrRequestId == Id);
-        if (req is null || org is null) return;
-
-        req.EffectiveDate = dto.EffectiveDate;
-        req.SubmitterComment = dto.SubmitterComment;
-        req.LastUpdateTime = Et.Now;
-
-        org.ManagerId = await EnsureManagerIdAsync(dto.ManagerId);
-        org.SupervisorId = await EnsureSupervisorIdAsync(dto.SupervisorId);
-        org.OrganizationId = dto.OrganizationId;
-        org.SubOrganizationId = dto.SubOrganizationId;
-        org.EmployerId = dto.EmployerId;
-        org.SiteId = dto.SiteId;
-        org.IsActive = dto.IsActive;
-        org.IsLoa = dto.IsLoa;
-        org.IsIntLoa = dto.IsIntLoa;
-        org.IsRemote = dto.IsRemote;
-
-        await db.SaveChangesAsync();
+        await Acr.SetStatusAsync(Id, StatusRejected);
+        Snackbar.Add("ACR rejected.", Severity.Warning);
+        await RefreshStatusAsync();
     }
 
-    private async Task SaveScheduleFromDtoCore(ScheduleChangeDto dto)
+    private async Task CancelAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        var req = await db.Set<AcrRequest>().FirstOrDefaultAsync(r => r.Id == Id);
-        if (req is null) return;
-
-        var schs = await db.Set<AcrSchedule>()
-                           .Where(s => s.AcrRequestId == Id)
-                           .OrderBy(s => s.ShiftNumber)
-                           .ToListAsync();
-
-        var sch1 = schs.FirstOrDefault(s => s.ShiftNumber == null || s.ShiftNumber == 0 || s.ShiftNumber == 1)
-                ?? new AcrSchedule { AcrRequestId = Id, ShiftNumber = 1 };
-        if (sch1.Id == 0) db.Add(sch1);
-
-        req.EffectiveDate = dto.EffectiveDate;
-        req.SubmitterComment = dto.SubmitterComment;
-        req.LastUpdateTime = Et.Now;
-
-        void SetSeg1(AcrSchedule s)
-        {
-            s.IsSplitSchedule = dto.IsSplitSchedule;
-            s.MondayStart = dto.MondayStart; s.MondayEnd = dto.MondayEnd;
-            s.TuesdayStart = dto.TuesdayStart; s.TuesdayEnd = dto.TuesdayEnd;
-            s.WednesdayStart = dto.WednesdayStart; s.WednesdayEnd = dto.WednesdayEnd;
-            s.ThursdayStart = dto.ThursdayStart; s.ThursdayEnd = dto.ThursdayEnd;
-            s.FridayStart = dto.FridayStart; s.FridayEnd = dto.FridayEnd;
-            s.SaturdayStart = dto.SaturdayStart; s.SaturdayEnd = dto.SaturdayEnd;
-            s.SundayStart = dto.SundayStart; s.SundayEnd = dto.SundayEnd;
-            s.BreakTime = dto.BreakTime; s.Breaks = dto.Breaks; s.LunchTime = dto.LunchTime;
-        }
-        SetSeg1(sch1);
-
-        var sch2 = schs.FirstOrDefault(s => s.ShiftNumber == 2);
-        if (dto.IsSplitSchedule)
-        {
-            sch2 ??= new AcrSchedule { AcrRequestId = Id, ShiftNumber = 2 };
-            if (sch2.Id == 0) db.Add(sch2);
-
-            sch2.MondayStart = dto.MondayStart2; sch2.MondayEnd = dto.MondayEnd2;
-            sch2.TuesdayStart = dto.TuesdayStart2; sch2.TuesdayEnd = dto.TuesdayEnd2;
-            sch2.WednesdayStart = dto.WednesdayStart2; sch2.WednesdayEnd = dto.WednesdayEnd2;
-            sch2.ThursdayStart = dto.ThursdayStart2; sch2.ThursdayEnd = dto.ThursdayEnd2;
-            sch2.FridayStart = dto.FridayStart2; sch2.FridayEnd = dto.FridayEnd2;
-            sch2.SaturdayStart = dto.SaturdayStart2; sch2.SaturdayEnd = dto.SaturdayEnd2;
-            sch2.SundayStart = dto.SundayStart2; sch2.SundayEnd = dto.SundayEnd2;
-        }
-        else if (sch2 is not null)
-        {
-            db.Remove(sch2);
-        }
-
-        await db.SaveChangesAsync();
-    }
-
-    // ---------- Public save handlers ----------
-    private async Task SaveOrgFromDto(OrganizationChangeDto dto)
-    {
-        await SaveOrgFromDtoCore(dto);
-        Snackbar.Add("Organization saved.", Severity.Success);
-        await FinishSaveAsync();
-    }
-
-    private async Task SaveScheduleFromDto(ScheduleChangeDto dto)
-    {
-        await SaveScheduleFromDtoCore(dto);
-        Snackbar.Add("Schedule saved.", Severity.Success);
-        await FinishSaveAsync();
-    }
-
-    private async Task SaveOrgScheduleFromDtos((OrganizationChangeDto Org, ScheduleChangeDto Sch) p)
-    {
-        await SaveOrgFromDtoCore(p.Org);
-        await SaveScheduleFromDtoCore(p.Sch);
-        Snackbar.Add("Org + Schedule saved.", Severity.Success);
-        await FinishSaveAsync();
-    }
-
-    // ---------- Status actions ----------
-    private async Task ManagerApprove()
-        => await DoStatusChange(ManagerApproved, "Manager approved.");
-
-    private async Task WfmApprove()
-        => await DoStatusChange(WfmApproved, "WFM approved.");
-
-    private async Task Reject()
-        => await DoStatusChange(Rejected, "ACR rejected.");
-
-    private async Task Cancel()
-        => await DoStatusChange(Cancelled, "ACR cancelled.");
-
-    private async Task DoStatusChange(int newStatus, string successMessage)
-    {
-        try
-        {
-            await Acr.UpdateStatusAsync(Id, newStatus);
-            Snackbar.Add(successMessage, Severity.Success);
-            await OnParametersSetAsync();   // refresh
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add(ex.Message, Severity.Error);
-        }
+        await Acr.SetStatusAsync(Id, StatusCancelled);
+        Snackbar.Add("ACR cancelled.", Severity.Info);
+        await RefreshStatusAsync();
     }
 }

@@ -14,6 +14,12 @@ namespace MyApplication.Components.Model.AOM.Employee
 
         [Column(TypeName = "varchar(4)")]
         public string? SiteCode { get; set; }
+        [Column(TypeName = "varchar(64)")]
+        public string? TimeZoneIana { get; set; }
+        [Column(TypeName = "varchar(64)")]
+        public string? TimeZoneWindows { get; set; }
+        public bool? IsActive { get; set; } = true;
+
 
         // 🚫 Removed self-collection
     }

@@ -1,0 +1,195 @@
+﻿@page "/training/skills/new"
+@attribute [Authorize(Policy = "Admin")]
+
+@using System.ComponentModel.DataAnnotations
+@using MudBlazor
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Training
+
+@inject ISkillService SkillService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h5">Add Skills</MudText>
+
+        <MudStack Spacing="3" Class="mt-3">
+
+            <!-- Employee search + multi-select via chip list -->
+            <MudText Typo="Typo.subtitle2">Employees</MudText>
+
+            <MudAutocomplete T="EmployeeOption"
+                             Label="Search employee"
+                             Dense="true"
+                             Clearable="true"
+                             ResetValueOnEmptyText="true"
+                             CoerceText="true"
+                             ToStringFunc="@(e => e?.Display ?? string.Empty)"
+                             SearchFunc="SearchEmployeesAsync"
+                             @bind-Value="_model.EmployeeSearch" />
+
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       Disabled="@(_model.EmployeeSearch is null)"
+                       OnClick="AddSelectedEmployee">
+                Add employee to list
+            </MudButton>
+
+            <MudChipSet T="string">
+                @foreach (var emp in _selectedEmployees)
+                {
+                    <MudChip T="string"
+                             OnClose="@( (MudChip<string> _) => RemoveEmployee(emp.Id) )"
+                             Closeable="true"
+                             Color="Color.Primary"
+                             Variant="Variant.Outlined">
+                        @emp.Display
+                    </MudChip>
+                }
+            </MudChipSet>
+
+            <!-- Multiple Skill Type Selection -->
+            <MudText Typo="Typo.subtitle2" Class="mt-3">Skill Types</MudText>
+
+            <MudSelect T="int"
+                       Label="Skill Types"
+                       MultiSelection="true"
+                       SelectedValues="_model.SkillTypeIds"
+                       SelectedValuesChanged="@(ids => _model.SkillTypeIds = ids.ToHashSet())"
+                       Dense="true"
+                       Clearable="true"
+                       Style="min-width: 300px;">
+                @foreach (var st in _skillTypes)
+                {
+                    <MudSelectItem Value="@st.Id">@st.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <!-- Skill date -->
+            <MudDatePicker @bind-Date="_model.SkillDate"
+                           Label="Skill Date"
+                           Dense="true"
+                           DateFormat="yyyy-MM-dd" />
+
+            <MudStack Row Spacing="2" Class="mt-2">
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           OnClick="SaveAsync"
+                           Disabled="@_saving">
+                    @(_saving ? "Saving..." : "Save")
+                </MudButton>
+
+                <MudButton Color="Color.Default"
+                           Variant="Variant.Outlined"
+                           OnClick="@(() => Nav.NavigateTo("/training/skills"))"
+                           Disabled="@_saving">
+                    Cancel
+                </MudButton>
+            </MudStack>
+
+        </MudStack>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private bool _saving;
+
+    private MultiSkillVm _model = new()
+    {
+        SkillDate = DateTime.Today
+    };
+
+    // for display on the chips
+    private readonly List<EmployeeOption> _selectedEmployees = new();
+
+    private IReadOnlyList<SkillType> _skillTypes = Array.Empty<SkillType>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _skillTypes = await SkillService.GetSkillTypesAsync(true);
+    }
+
+    private async Task<IEnumerable<EmployeeOption>> SearchEmployeesAsync(string value, CancellationToken ct)
+        => await SkillService.SearchEmployeesAsync(value, ct);
+
+    private void AddSelectedEmployee()
+    {
+        if (_model.EmployeeSearch is null)
+            return;
+
+        if (!_model.EmployeeIds.Contains(_model.EmployeeSearch.Id))
+        {
+            _model.EmployeeIds.Add(_model.EmployeeSearch.Id);
+            _selectedEmployees.Add(_model.EmployeeSearch);
+            Snackbar.Add($"Added employee: {_model.EmployeeSearch.Display}", Severity.Info);
+        }
+
+        _model.EmployeeSearch = null;
+    }
+
+    private void RemoveEmployee(int employeeId)
+    {
+        _model.EmployeeIds.Remove(employeeId);
+        var existing = _selectedEmployees.FirstOrDefault(e => e.Id == employeeId);
+        if (existing is not null)
+            _selectedEmployees.Remove(existing);
+
+        Snackbar.Add($"Removed employee id {employeeId}", Severity.Info);
+    }
+
+    private async Task SaveAsync()
+    {
+        Snackbar.Add($"Saving: employees={_model.EmployeeIds.Count}, skills={_model.SkillTypeIds.Count}", Severity.Info);
+
+        if (_model.EmployeeIds.Count == 0 || _model.SkillTypeIds.Count == 0 || _model.SkillDate is null)
+        {
+            Snackbar.Add("Select at least one employee, one skill type, and a date.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _saving = true;
+
+            var dtoList =
+                (from empId in _model.EmployeeIds
+                 from skillTypeId in _model.SkillTypeIds
+                 select new SkillCreateDto(
+                     empId,
+                     skillTypeId,
+                     DateOnly.FromDateTime(_model.SkillDate!.Value)
+                 )).ToList();
+
+            await SkillService.AddSkillsBulkAsync(dtoList);
+
+            Snackbar.Add("Skills added successfully.", Severity.Success);
+            Nav.NavigateTo("/training/skills");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving skills: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+
+    private sealed class MultiSkillVm
+    {
+        // bound to autocomplete for search
+        public EmployeeOption? EmployeeSearch { get; set; }
+
+        // actual selected employees (IDs only)
+        public HashSet<int> EmployeeIds { get; set; } = new();
+
+        // selected skill types (IDs)
+        public HashSet<int> SkillTypeIds { get; set; } = new();
+
+        public DateTime? SkillDate { get; set; }
+
+        public bool IsActive { get; set; } = true;
+    }
+}
