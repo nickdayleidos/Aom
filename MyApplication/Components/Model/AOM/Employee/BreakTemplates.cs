@@ -21,8 +21,8 @@ namespace MyApplication.Components.Model.AOM.Employee
         public int? Break6Time { get; set; }
         public int? Break7Time { get; set; }
         public int? Break8Time { get; set; }
-
         public bool? IsActive { get; set; } = true;
+        public bool? IsCustom { get; set; }
 
     }
 }

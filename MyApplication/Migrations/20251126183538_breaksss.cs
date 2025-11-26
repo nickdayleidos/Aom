@@ -1,0 +1,277 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace MyApplication.Migrations
+{
+    /// <inheritdoc />
+    public partial class breaksss : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "Break1Time",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "Break2Time",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "Break3Time",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "BreakLength",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "LunchLengh",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "LunchTime",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "isFriday",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "isMonday",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "isSaturday",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "isSunday",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "isThursday",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "isTuesday",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "isWednesday",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.AddColumn<bool>(
+                name: "IsCustom",
+                schema: "Employee",
+                table: "BreakTemplates",
+                type: "bit",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "FridayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "MondayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "SaturdayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "SundayTemplateID",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "ThursdayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "TuesdayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "int",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "WednesdayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "int",
+                nullable: true);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "IsCustom",
+                schema: "Employee",
+                table: "BreakTemplates");
+
+            migrationBuilder.DropColumn(
+                name: "FridayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "MondayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "SaturdayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "SundayTemplateID",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "ThursdayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "TuesdayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.DropColumn(
+                name: "WednesdayTemplateId",
+                schema: "Employee",
+                table: "BreakSchedules");
+
+            migrationBuilder.AddColumn<TimeOnly>(
+                name: "Break1Time",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "time",
+                nullable: false,
+                defaultValue: new TimeOnly(0, 0, 0));
+
+            migrationBuilder.AddColumn<TimeOnly>(
+                name: "Break2Time",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "time",
+                nullable: false,
+                defaultValue: new TimeOnly(0, 0, 0));
+
+            migrationBuilder.AddColumn<TimeOnly>(
+                name: "Break3Time",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "time",
+                nullable: false,
+                defaultValue: new TimeOnly(0, 0, 0));
+
+            migrationBuilder.AddColumn<int>(
+                name: "BreakLength",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
+
+            migrationBuilder.AddColumn<int>(
+                name: "LunchLengh",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "int",
+                nullable: false,
+                defaultValue: 0);
+
+            migrationBuilder.AddColumn<TimeOnly>(
+                name: "LunchTime",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "time",
+                nullable: false,
+                defaultValue: new TimeOnly(0, 0, 0));
+
+            migrationBuilder.AddColumn<bool>(
+                name: "isFriday",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "bit",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "isMonday",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "bit",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "isSaturday",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "bit",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "isSunday",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "bit",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "isThursday",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "bit",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "isTuesday",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "bit",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "isWednesday",
+                schema: "Employee",
+                table: "BreakSchedules",
+                type: "bit",
+                nullable: true);
+        }
+    }
+}
