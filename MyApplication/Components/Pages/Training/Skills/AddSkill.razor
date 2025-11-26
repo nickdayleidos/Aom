@@ -6,7 +6,7 @@
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Training
 
-@inject ISkillService SkillService
+@inject ISkillsService SkillsService
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 
@@ -107,11 +107,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _skillTypes = await SkillService.GetSkillTypesAsync(true);
+        _skillTypes = await SkillsService.GetSkillTypesAsync(true);
     }
 
     private async Task<IEnumerable<EmployeeOption>> SearchEmployeesAsync(string value, CancellationToken ct)
-        => await SkillService.SearchEmployeesAsync(value, ct);
+        => await SkillsService.SearchEmployeesAsync(value, ct);
 
     private void AddSelectedEmployee()
     {
@@ -161,7 +161,7 @@
                      DateOnly.FromDateTime(_model.SkillDate!.Value)
                  )).ToList();
 
-            await SkillService.AddSkillsBulkAsync(dtoList);
+            await SkillsService.AddSkillsBulkAsync(dtoList);
 
             Snackbar.Add("Skills added successfully.", Severity.Success);
             Nav.NavigateTo("/training/skills");

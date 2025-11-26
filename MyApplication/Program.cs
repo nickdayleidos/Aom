@@ -10,130 +10,136 @@ using MyApplication.Components.Service;
 using MyApplication.Components.Service.Acr;
 using MyApplication.Components.Service.Employee;
 using MyApplication.Components.Service.Training;
+using MyApplication.Components.Service.Wfm;
 using MyApplication.Components.Services.Email;
 using System.Configuration;
 
-// ────────────────────────────────────────────────────────────────────────────────
-// Hosting & Builder
-// ────────────────────────────────────────────────────────────────────────────────
+var builder = WebApplication.CreateBuilder(args);
 
+// ────────────────────────────────────────────────────────────────────────────────
+// 1. Host Configuration (Windows Service)
+// ────────────────────────────────────────────────────────────────────────────────
 var isWindowsService = WindowsServiceHelpers.IsWindowsService();
-
-var options = new WebApplicationOptions
-{
-    Args = args,
-    ContentRootPath = isWindowsService ? AppContext.BaseDirectory : default
-};
-
-var builder = WebApplication.CreateBuilder(options);
 
 if (isWindowsService)
 {
     builder.Host.UseWindowsService();
     builder.Logging.AddEventLog();
     builder.WebHost.UseKestrel().UseUrls("https://0.0.0.0:8443");
+
+    // Set content root if running as service
+    builder.Configuration.SetBasePath(AppContext.BaseDirectory);
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
-// Services
+// 2. Database Configuration
 // ────────────────────────────────────────────────────────────────────────────────
 
-builder.Services.AddHttpContextAccessor();
-
-builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
-    .AddNegotiate();
-
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("OST", policy =>
-        policy.RequireAssertion(ctx =>
-            ctx.User.IsInRole(@"LEIDOS-CORP\SMIT_TODAdmin") ||
-            ctx.User.IsInRole(@"LEIDOS-CORP\SMIT_OST")));
-    options.AddPolicy("PFM", policy =>
-        policy.RequireAssertion(ctx =>
-            ctx.User.IsInRole(@"LEIDOS-CORP\sftp_SMIT_PFRM") ||
-            ctx.User.IsInRole(@"YOURDOMAIN\IT Admin")));
-    options.AddPolicy("WFM", policy =>
-        policy.RequireAssertion(ctx =>
-            ctx.User.IsInRole(@"LEIDOS-CORP\sftp_SMIT_PFRM") ||
-            ctx.User.IsInRole(@"YOURDOMAIN\IT Admin")));
-    options.AddPolicy("C&C", policy =>
-        policy.RequireAssertion(ctx =>
-            ctx.User.IsInRole(@"LEIDOS-CORP\sftp_SMIT_PFRM") ||
-            ctx.User.IsInRole(@"YOURDOMAIN\IT Admin")));
-    options.AddPolicy("Supervisor", policy =>
-        policy.RequireAssertion(ctx =>
-            ctx.User.IsInRole(@"LEIDOS-CORP\sftp_SMIT_PFRM") ||
-            ctx.User.IsInRole(@"YOURDOMAIN\IT Admin")));
-    options.AddPolicy("Manager", policy =>
-        policy.RequireAssertion(ctx =>
-            ctx.User.IsInRole(@"LEIDOS-CORP\sftp_SMIT_PFRM") ||
-            ctx.User.IsInRole(@"YOURDOMAIN\IT Admin")));
-
-    options.AddPolicy("Admin", policy =>
-        policy.RequireAssertion(ctx =>
-            ctx.User.IsInRole(@"LEIDOS-CORP\SMIT_TODAdmin") ||
-            string.Equals(ctx.User.Identity?.Name, @"LEIDOS-CORP\dayng", StringComparison.OrdinalIgnoreCase)));
-
-    options.FallbackPolicy = options.DefaultPolicy;
-});
-
-builder.Services.AddHttpClient();
-
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-
-builder.Services.AddControllers();
-builder.Services.AddMudServices();
-
-// ────────────────────────────────────────────────────────────────────────────────
-// Data access
-// ────────────────────────────────────────────────────────────────────────────────
-
-// ✅ Use ONLY the factory for AomDbContext (no AddDbContext for AOM)
+// AOM Context - Using Factory pattern for Blazor Server concurrency
 builder.Services.AddDbContextFactory<AomDbContext>((sp, opts) =>
 {
     var cfg = sp.GetRequiredService<IConfiguration>();
-    opts.UseSqlServer(cfg.GetConnectionString("AOM"),
-        sql => sql.EnableRetryOnFailure());
-    opts.EnableSensitiveDataLogging(false);
+    opts.UseSqlServer(cfg.GetConnectionString("AOM"), sql => sql.EnableRetryOnFailure());
+    opts.EnableSensitiveDataLogging(false); // Disable in prod
 });
 
-// Keep AWS as a normal scoped DbContext
+// AWS Context - Standard Scoped
 builder.Services.AddDbContext<AwsDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("AWS"),
         sql => sql.EnableRetryOnFailure()));
 
+builder.Services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// Other app/data services
-builder.Services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
+// ────────────────────────────────────────────────────────────────────────────────
+// 3. Authentication & Authorization
+// ────────────────────────────────────────────────────────────────────────────────
 
-builder.Services.AddScoped<IIntervalSummaryRepository, IntervalSummaryRepository>();
+builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, WindowsClaimsEnricher>();
 
-builder.Services.AddScoped<
-    Microsoft.AspNetCore.Authentication.IClaimsTransformation,
-    WindowsClaimsEnricher>();
+builder.Services.AddAuthorization(options =>
+{
+    // Roles definitions
+    const string RoleSmitTodAdmin = @"LEIDOS-CORP\SMIT_TODAdmin";
+    const string RoleSmitOst = @"LEIDOS-CORP\SMIT_OST";
+    const string RoleSmitPfrm = @"LEIDOS-CORP\sftp_SMIT_PFRM";
+    const string RoleItAdmin = @"YOURDOMAIN\IT Admin";
+    const string UserDayNg = @"LEIDOS-CORP\dayng";
+
+    // Admin Policy
+    options.AddPolicy("Admin", policy => policy.RequireAssertion(ctx =>
+        ctx.User.IsInRole(RoleSmitTodAdmin) ||
+        string.Equals(ctx.User.Identity?.Name, UserDayNg, StringComparison.OrdinalIgnoreCase)));
+
+    // OST Policy
+    options.AddPolicy("OST", policy => policy.RequireAssertion(ctx =>
+        ctx.User.IsInRole(RoleSmitTodAdmin) ||
+        ctx.User.IsInRole(RoleSmitOst)));
+
+    // Standard Management Policies (Currently sharing same roles)
+    var managementRoles = new[] { RoleSmitPfrm, RoleItAdmin };
+
+    foreach (var policyName in new[] { "PFM", "WFM", "C&C", "Supervisor", "Manager" })
+    {
+        options.AddPolicy(policyName, policy => policy.RequireAssertion(ctx =>
+            managementRoles.Any(role => ctx.User.IsInRole(role))));
+    }
+
+    options.FallbackPolicy = options.DefaultPolicy;
+});
+
+// ────────────────────────────────────────────────────────────────────────────────
+// 4. Core & UI Services
+// ────────────────────────────────────────────────────────────────────────────────
+
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddControllers();
+builder.Services.AddHttpClient();
+builder.Services.AddMudServices();
+
+// ────────────────────────────────────────────────────────────────────────────────
+// 5. Domain Services
+// ────────────────────────────────────────────────────────────────────────────────
+
+// Common / Helpers
+builder.Services.AddScoped<ITimeDisplayService, TimeDisplayService>();
+builder.Services.AddScoped<IEmailComposer, EmailComposer>();
 builder.Services.AddScoped<UserProfileService>();
+
+// Employee & HR
+builder.Services.AddScoped<EmployeesRepository>();
+builder.Services.AddScoped<ISkillsService, SkillsService>(); // Standardized naming
+
+// ACR (Allowance Change Request)
 builder.Services.AddScoped<IAcrService, AcrService>();
 builder.Services.AddScoped<IAcrQueryService, AcrQueryService>();
-builder.Services.AddScoped<IEmailComposer, EmailComposer>();
+
+// Opera
+builder.Services.AddScoped<IOperaRepository, OperaRepository>();
+
+// WFM (Workforce Management) - NEW
+builder.Services.AddScoped<IWfmService, WfmService>();
+
+// Tools
+builder.Services.AddScoped<IIntervalSummaryRepository, IntervalSummaryRepository>();
 builder.Services.AddScoped<IntervalEmailService>();
+
 builder.Services.AddScoped<IOiLookupRepository, OiLookupRepository>();
 builder.Services.AddScoped<IOiEventRepository, OiEventRepository>();
 builder.Services.AddScoped<OperationalImpactEmailService>();
+
 builder.Services.AddScoped<IProactiveRepository, ProactiveRepository>();
-builder.Services.AddScoped<IOperaRepository, OperaRepository>();
-builder.Services.AddScoped<EmployeesRepository>();
-builder.Services.AddScoped<ITimeDisplayService, TimeDisplayService>();
-builder.Services.AddScoped<ISkillService, SkillService>();
+
 
 // ────────────────────────────────────────────────────────────────────────────────
-// Build & Pipeline
+// 6. Application Pipeline
 // ────────────────────────────────────────────────────────────────────────────────
 
 var app = builder.Build();
 
+// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);

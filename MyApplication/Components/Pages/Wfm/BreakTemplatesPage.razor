@@ -1,0 +1,188 @@
+﻿@page "/wfm/break-templates"
+@attribute [Authorize(Policy = "Admin")]
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Wfm
+@using System.Text.Json
+@inject IWfmService WfmService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h5" Class="mb-4">Break Templates</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="5">
+        <MudPaper Class="pa-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.h6">@(_newTemplate.Id == 0 ? "New Template" : "Edit Template")</MudText>
+                @if (_newTemplate.Id != 0)
+                {
+                    <MudChip T="int" Size="Size.Small" Color="Color.Warning" OnClose="ResetForm">Editing ID: @_newTemplate.Id</MudChip>
+                }
+            </MudStack>
+
+            <MudForm @ref="_form">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_newTemplate.Name" Label="Template Name" Required="true" />
+                    </MudItem>
+
+                    <MudItem xs="6">
+                        <MudNumericField @bind-Value="_newTemplate.ShiftLength" Label="Shift Length (min)" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField @bind-Value="_newTemplate.Breaks" Label="Count" HelperText="Number of breaks" />
+                    </MudItem>
+
+                    <MudItem xs="6">
+                        <MudNumericField @bind-Value="_newTemplate.BreakLength" Label="Break Length (min)" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField @bind-Value="_newTemplate.LunchLength" Label="Lunch Length (min)" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudCheckBox @bind-Value="_newTemplate.IsCustom" Label="Custom Static Break" Color="Color.Primary" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudDivider Class="my-2" />
+                        <MudText Typo="Typo.caption">Start Times (Minutes from shift start)</MudText>
+                    </MudItem>
+
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_newTemplate.Break1Time" Label="Break 1" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_newTemplate.Break2Time" Label="Break 2" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_newTemplate.Break3Time" Label="Break 3" Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_newTemplate.Break4Time" Label="Break 4" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_newTemplate.LunchTime" Label="Lunch" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Restaurant" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_newTemplate.Break5Time" Label="Break 5" Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_newTemplate.Break6Time" Label="Break 6" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_newTemplate.Break7Time" Label="Break 7" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudNumericField @bind-Value="_newTemplate.Break8Time" Label="Break 8" Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudCheckBox @bind-Value="_newTemplate.IsActive" Label="Is Active" Color="Color.Success" />
+                    </MudItem>
+
+                </MudGrid>
+
+                <div class="d-flex mt-4 gap-2">
+                    <MudButton OnClick="SaveTemplate" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">
+                        @(_newTemplate.Id == 0 ? "Create" : "Update")
+                    </MudButton>
+
+                    @if (_newTemplate.Id != 0)
+                    {
+                        <MudButton OnClick="ResetForm" Variant="Variant.Outlined" Color="Color.Secondary">Cancel</MudButton>
+                    }
+                </div>
+            </MudForm>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="7">
+        <MudTable Items="_templates" Hover="true" Striped="true" Dense="true">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Existing Templates</MudText>
+                <MudSpacer />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Shift</MudTh>
+                <MudTh>Brks</MudTh>
+                <MudTh>Lunch</MudTh>
+                <MudTh>Custom</MudTh>
+                <MudTh>Action</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">@context.Name</MudTd>
+                <MudTd DataLabel="Shift">@context.ShiftLength</MudTd>
+                <MudTd DataLabel="Breaks">@context.Breaks</MudTd>
+                <MudTd DataLabel="Lunch">@context.LunchLength</MudTd>
+                <MudTd DataLabel="Custom">
+                    @if (context.IsCustom == true)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Info" />
+                    }
+                </MudTd>
+                <MudTd DataLabel="Action">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                   Size="Size.Small"
+                                   Color="Color.Primary"
+                                   OnClick="@(() => EditTemplate(context))"
+                                   Title="Edit Template" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private List<BreakTemplates> _templates = new();
+    private BreakTemplates _newTemplate = new() { IsActive = true };
+    private MudForm _form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var allTemplates = await WfmService.GetBreakTemplatesAsync();
+        // Ensure we only display active templates
+        _templates = allTemplates.Where(x => x.IsActive == true).ToList();
+    }
+
+    private void EditTemplate(BreakTemplates item)
+    {
+        // Clone the object using JSON serialization to avoid reference issues
+        var json = JsonSerializer.Serialize(item);
+        _newTemplate = JsonSerializer.Deserialize<BreakTemplates>(json);
+
+        // Clear any previous validation errors
+        _form.ResetValidation();
+    }
+
+    private void ResetForm()
+    {
+        _newTemplate = new() { IsActive = true };
+        _form.ResetValidation();
+        _form.ResetTouched();
+    }
+
+    private async Task SaveTemplate()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        await WfmService.SaveBreakTemplateAsync(_newTemplate);
+
+        if (_newTemplate.Id == 0)
+            Snackbar.Add("Template Created", Severity.Success);
+        else
+            Snackbar.Add("Template Updated", Severity.Success);
+
+        // Reset and reload
+        ResetForm();
+        await LoadData();
+    }
+}

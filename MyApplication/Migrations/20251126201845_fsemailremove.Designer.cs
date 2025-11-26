@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251126201845_fsemailremove")]
+    partial class fsemailremove
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -521,9 +524,6 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("AcrRequestId")
-                        .HasColumnType("int");
-
                     b.Property<int>("ActivitySubTypeId")
                         .HasColumnType("int");
 
@@ -545,26 +545,16 @@ namespace MyApplication.Migrations
                     b.Property<int?>("Minutes")
                         .HasColumnType("int");
 
-                    b.Property<int?>("OperaRequestId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ScheduleRequestId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AcrRequestId");
 
                     b.HasIndex("ActivitySubTypeId");
 
                     b.HasIndex("ActivityTypeId");
 
                     b.HasIndex("EmployeeId");
-
-                    b.HasIndex("OperaRequestId");
 
                     b.ToTable("DetailedSchedule", "Employee");
                 });
@@ -1676,10 +1666,6 @@ namespace MyApplication.Migrations
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.DetailedSchedule", b =>
                 {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", "AcrRequest")
-                        .WithMany()
-                        .HasForeignKey("AcrRequestId");
-
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.ActivitySubType", "ActivitySubType")
                         .WithMany()
                         .HasForeignKey("ActivitySubTypeId")
@@ -1698,19 +1684,11 @@ namespace MyApplication.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.OperaRequest", "OperaRequest")
-                        .WithMany()
-                        .HasForeignKey("OperaRequestId");
-
-                    b.Navigation("AcrRequest");
-
                     b.Navigation("ActivitySubType");
 
                     b.Navigation("ActivityType");
 
                     b.Navigation("Employees");
-
-                    b.Navigation("OperaRequest");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.EmployeeHistory", b =>

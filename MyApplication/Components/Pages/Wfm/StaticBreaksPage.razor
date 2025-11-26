@@ -1,0 +1,284 @@
+﻿@page "/wfm/static-breaks"
+@attribute [Authorize(Policy = "Admin")]
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Wfm
+@using System.Text.Json
+@inject IWfmService WfmService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h5" Class="mb-4">Static Break Schedules</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.h6">@(_newSchedule.Id == 0 ? "Assign Schedule" : "Edit Schedule")</MudText>
+                @if (_newSchedule.Id != 0)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" OnClose="ResetForm">Editing ID: @_newSchedule.Id</MudChip>
+                }
+            </MudStack>
+
+            <MudForm @ref="_form" Class="mt-4">
+
+                <MudAutocomplete T="Employees"
+                                 Label="Select Employee"
+                                 @bind-Value="_selectedEmployee"
+                                 SearchFunc="@SearchEmployees"
+                                 ToStringFunc="@(e => e == null ? null : $"{e.LastName}, {e.FirstName} ({e.Id})")"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 CoerceValue="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Filled.Search"
+                                 Required="true"
+                                 RequiredError="Employee is required" />
+
+                <MudDivider Class="my-4" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Weekly Template Assignment</MudText>
+
+                <MudStack Spacing="2">
+                    <MudGrid>
+                        <MudItem xs="4" Class="d-flex align-center"><MudText>Monday</MudText></MudItem>
+                        <MudItem xs="8">
+                            <MudSelect T="int?" @bind-Value="_newSchedule.MondayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
+                                <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
+                                @foreach (var t in _templates)
+                                {
+                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudGrid>
+                        <MudItem xs="4" Class="d-flex align-center"><MudText>Tuesday</MudText></MudItem>
+                        <MudItem xs="8">
+                            <MudSelect T="int?" @bind-Value="_newSchedule.TuesdayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
+                                <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
+                                @foreach (var t in _templates)
+                                {
+                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudGrid>
+                        <MudItem xs="4" Class="d-flex align-center"><MudText>Wednesday</MudText></MudItem>
+                        <MudItem xs="8">
+                            <MudSelect T="int?" @bind-Value="_newSchedule.WednesdayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
+                                <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
+                                @foreach (var t in _templates)
+                                {
+                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudGrid>
+                        <MudItem xs="4" Class="d-flex align-center"><MudText>Thursday</MudText></MudItem>
+                        <MudItem xs="8">
+                            <MudSelect T="int?" @bind-Value="_newSchedule.ThursdayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
+                                <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
+                                @foreach (var t in _templates)
+                                {
+                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudGrid>
+                        <MudItem xs="4" Class="d-flex align-center"><MudText>Friday</MudText></MudItem>
+                        <MudItem xs="8">
+                            <MudSelect T="int?" @bind-Value="_newSchedule.FridayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
+                                <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
+                                @foreach (var t in _templates)
+                                {
+                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudGrid>
+                        <MudItem xs="4" Class="d-flex align-center"><MudText>Saturday</MudText></MudItem>
+                        <MudItem xs="8">
+                            <MudSelect T="int?" @bind-Value="_newSchedule.SaturdayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
+                                <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
+                                @foreach (var t in _templates)
+                                {
+                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudGrid>
+                        <MudItem xs="4" Class="d-flex align-center"><MudText>Sunday</MudText></MudItem>
+                        <MudItem xs="8">
+                            <MudSelect T="int?" @bind-Value="_newSchedule.SundayTemplateID" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
+                                <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
+                                @foreach (var t in _templates)
+                                {
+                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+                </MudStack>
+
+                <div class="d-flex mt-4 gap-2">
+                    <MudButton OnClick="SaveSchedule" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true">
+                        @(_newSchedule.Id == 0 ? "Assign" : "Update")
+                    </MudButton>
+
+                    @if (_newSchedule.Id != 0)
+                    {
+                        <MudButton OnClick="ResetForm" Variant="Variant.Outlined" Color="Color.Secondary">Cancel</MudButton>
+                    }
+                </div>
+            </MudForm>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="8">
+        <MudTable Items="_scheduleList" Dense="true" Hover="true" Striped="true" Filter="new Func<BreakScheduleDto, bool>(FilterFunc)">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Current Assignments</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Search Employee" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Employee</MudTh>
+                <MudTh>Mon</MudTh>
+                <MudTh>Tue</MudTh>
+                <MudTh>Wed</MudTh>
+                <MudTh>Thu</MudTh>
+                <MudTh>Fri</MudTh>
+                <MudTh>Sat</MudTh>
+                <MudTh>Sun</MudTh>
+                <MudTh>Action</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.EmployeeName</MudTd>
+                <MudTd>@context.MonTemplate</MudTd>
+                <MudTd>@context.TueTemplate</MudTd>
+                <MudTd>@context.WedTemplate</MudTd>
+                <MudTd>@context.ThuTemplate</MudTd>
+                <MudTd>@context.FriTemplate</MudTd>
+                <MudTd>@context.SatTemplate</MudTd>
+                <MudTd>@context.SunTemplate</MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                   Size="Size.Small"
+                                   Color="Color.Primary"
+                                   OnClick="@(() => EditSchedule(context))"
+                                   Title="Edit Schedule" />
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private List<BreakScheduleDto> _scheduleList = new();
+    private List<Employees> _employees = new();
+    private List<BreakTemplates> _templates = new();
+
+    private BreakSchedules _newSchedule = new();
+
+    // We bind the Autocomplete to this object, then sync it to _newSchedule.EmployeeId
+    private Employees _selectedEmployee;
+
+    private MudForm _form;
+    private string _searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        // Load lookups
+        _employees = await WfmService.GetEmployeesAsync();
+
+        // Load only Active templates for the dropdowns
+        var allTemplates = await WfmService.GetBreakTemplatesAsync();
+        _templates = allTemplates.Where(x => x.IsActive == true).ToList();
+
+        // Load main data
+        _scheduleList = await WfmService.GetBreakSchedulesAsync();
+    }
+
+    private Task<IEnumerable<Employees>> SearchEmployees(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult<IEnumerable<Employees>>(_employees);
+
+        // Simple search on Last or First Name
+        return Task.FromResult(_employees.Where(x =>
+            x.LastName.Contains(value, StringComparison.InvariantCultureIgnoreCase) ||
+            x.FirstName.Contains(value, StringComparison.InvariantCultureIgnoreCase)
+        ));
+    }
+
+    private void EditSchedule(BreakScheduleDto dto)
+    {
+        // Clone the entity inside the DTO to avoid binding directly to the table row
+        var json = JsonSerializer.Serialize(dto.Schedule);
+        _newSchedule = JsonSerializer.Deserialize<BreakSchedules>(json);
+
+        // Find the employee object to populate the Autocomplete
+        _selectedEmployee = _employees.FirstOrDefault(x => x.Id == _newSchedule.EmployeeId);
+
+        _form.ResetValidation();
+    }
+
+    private void ResetForm()
+    {
+        _newSchedule = new();
+        _selectedEmployee = null; // Clear autocomplete
+        _form.ResetValidation();
+        _form.ResetTouched();
+    }
+
+    private async Task SaveSchedule()
+    {
+        await _form.Validate();
+        if (!_form.IsValid) return;
+
+        if (_selectedEmployee == null)
+        {
+            Snackbar.Add("Please select an employee", Severity.Warning);
+            return;
+        }
+
+        // SYNC: Update the ID from the selected object
+        _newSchedule.EmployeeId = _selectedEmployee.Id;
+
+        await WfmService.SaveBreakScheduleAsync(_newSchedule);
+
+        if (_newSchedule.Id == 0)
+            Snackbar.Add("Schedule Assigned", Severity.Success);
+        else
+            Snackbar.Add("Schedule Updated", Severity.Success);
+
+        ResetForm();
+        await LoadData();
+    }
+
+    private bool FilterFunc(BreakScheduleDto element)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        if (element.EmployeeName.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+}

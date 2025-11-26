@@ -26,11 +26,6 @@
                           @bind-Value="NmciEmail"
                           ReadOnly="@ReadOnly" />
         </MudItem>
-        <MudItem xs="12" md="4">
-            <MudTextField Label="FLANKSPEED Email"
-                          @bind-Value="FlankspeedEmail"
-                          ReadOnly="@ReadOnly" />
-        </MudItem>
 
         <MudItem xs="12" md="4">
             <MudTextField Label="USN Operator Id"
@@ -72,7 +67,7 @@
     // Helper to ensure Value is never null when we use it
     private NewHireDto Current
     {
-        get => Value ?? new NewHireDto(null, null, null, null, null, null, null, null, null, null);
+        get => Value ?? new NewHireDto(null, null, null, null, null, null, null, null, null);
         set => ValueChanged.InvokeAsync(value);
     }
 
@@ -101,11 +96,7 @@
         set => Current = Current with { NmciEmail = value };
     }
 
-    private string? FlankspeedEmail
-    {
-        get => Current.FlankspeedEmail;
-        set => Current = Current with { FlankspeedEmail = value };
-    }
+  
 
     private string? UsnOperatorId
     {

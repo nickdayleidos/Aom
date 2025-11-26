@@ -21,7 +21,6 @@ namespace MyApplication.Components.Model.AOM.Employee
         [Column(TypeName = "varchar(64)")] public string? NmciEmail { get; set; }
         [Column(TypeName = "varchar(64)")] public string? UsnOperatorId { get; set; }
         [Column(TypeName = "varchar(64)")] public string? UsnAdminId { get; set; }
-        [Column(TypeName = "varchar(64)")] public string? FlankspeedEmail { get; set; }
         [Column(TypeName = "varchar(64)")] public string? CorporateEmail { get; set; }
         [Column(TypeName = "varchar(32)")] public string? CorporateId { get; set; }
         [Column(TypeName = "varchar(32)")] public string? DomainLoginName { get; set; }

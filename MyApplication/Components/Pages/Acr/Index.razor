@@ -25,13 +25,11 @@
                  Rounded="true"
                  Elevation="0"
                  Class="mt-2">
-            <MudTabPanel Text="All ACRs"
-                         Icon="@Icons.Material.Outlined.ListAlt" />
-            <MudTabPanel Text="Manager Approve"
-                         Icon="@Icons.Material.Outlined.Badge" />
-            <MudTabPanel Text="WFM Approve"
-                         Icon="@Icons.Material.Outlined.CheckCircleOutline" />
+            <MudTabPanel Text="All ACRs" Icon="@Icons.Material.Outlined.ListAlt" />
+            <MudTabPanel Text="Manager Approve" Icon="@Icons.Material.Outlined.Badge" />
+            <MudTabPanel Text="WFM Approve" Icon="@Icons.Material.Outlined.CheckCircleOutline" />
         </MudTabs>
+
         <MudGrid Class="mt-3 mb-2" AlignItems="Center" GutterSize="2">
             <MudItem xs="12" md="5">
                 <MudTextField T="string"
@@ -41,7 +39,7 @@
                               AdornmentIcon="@Icons.Material.Outlined.Search"
                               @bind-Value="_searchText"
                               Immediate="true"
-                              DebounceInterval="200"
+                              DebounceInterval="500"
                               OnDebounceIntervalElapsed="OnSearchChanged" />
             </MudItem>
 
@@ -88,19 +86,31 @@
             </MudItem>
         </MudGrid>
 
-        <MudTable Items="_rows"
+        <MudTable T="AcrRequestListItem"
+                  ServerData="@ServerReload"
+                  @ref="_table"
                   Hover="true"
                   Dense="true"
                   Bordered="true"
-                  Loading="_loading"
-                  RowClick="OnRowClick">
+                  RowClick="OnRowClick"
+                  RowsPerPage="50">
 
             <HeaderContent>
-                <MudTh>Employee</MudTh>
-                <MudTh>Type</MudTh>
-                <MudTh>Status</MudTh>
-                <MudTh>Effective</MudTh>
-                <MudTh>Submitted</MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortLabel="EmployeeName" T="AcrRequestListItem">Employee</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortLabel="AcrType" T="AcrRequestListItem">Type</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortLabel="AcrStatus" T="AcrRequestListItem">Status</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortLabel="EffectiveDate" T="AcrRequestListItem">Effective</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortLabel="SubmitTime" T="AcrRequestListItem" InitialDirection="SortDirection.Descending">Submitted</MudTableSortLabel>
+                </MudTh>
                 <MudTh></MudTh>
             </HeaderContent>
 
@@ -116,12 +126,17 @@
                                    OnClick:stopPropagation="true" />
                 </MudTd>
             </RowTemplate>
-
+            <NoRecordsContent>
+                <MudText>No items found</MudText>
+            </NoRecordsContent>
             <LoadingContent>
                 <MudStack AlignItems="AlignItems.Center" Class="pa-4">
                     <MudProgressCircular Indeterminate="true" />
                 </MudStack>
             </LoadingContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 25, 50, 100, 200 }" />
+            </PagerContent>
         </MudTable>
     </MudPaper>
 </MudStack>
@@ -131,6 +146,8 @@
     private const int StatusSubmitted = 1;
     private const int StatusManagerApproved = 2;
 
+    private MudTable<AcrRequestListItem> _table; // Reference to table
+
     private int _tabIndex;
     private int TabIndex
     {
@@ -139,11 +156,10 @@
         {
             if (_tabIndex == value) return;
             _tabIndex = value;
-            _ = ReloadAsync();
+            _table?.ReloadServerData(); // Reload table when tab changes
         }
     }
 
-    private bool _loading;
     private string _searchText = string.Empty;
 
     private Dictionary<int, string> _types = new();
@@ -153,36 +169,34 @@
     private int? _selectedStatusId;
 
     private AcrIndexFilter _filter = new(null, null, null, null, null);
-    private List<AcrRequestListItem> _rows = new();
 
     protected override async Task OnInitializedAsync()
     {
         _types = await Query.GetTypesAsync();
         _statuses = await Query.GetStatusesAsync();
-        await ReloadAsync();
     }
 
     // --- Filters / search ---------------------------------------------------
 
-    private Task OnSearchChanged(string text)
+    private void OnSearchChanged(string text)
     {
         _searchText = text;
-        return ReloadAsync();
+        _table.ReloadServerData();
     }
 
-    private Task OnTypeChanged(int? value)
+    private void OnTypeChanged(int? value)
     {
         _selectedTypeId = value;
-        return ReloadAsync();
+        _table.ReloadServerData();
     }
 
-    private Task OnStatusChanged(int? value)
+    private void OnStatusChanged(int? value)
     {
         _selectedStatusId = value;
-        return ReloadAsync();
+        _table.ReloadServerData();
     }
 
-    private async Task ClearFilters()
+    private void ClearFilters()
     {
         _searchText = string.Empty;
         _selectedTypeId = null;
@@ -196,39 +210,21 @@
             EffectiveFrom = null,
             EffectiveTo = null
         };
-        await ReloadAsync();
+        _table.ReloadServerData();
     }
 
-    // --- Data load ----------------------------------------------------------
+    // --- Data load (ServerData) ----------------------------------------------------------
 
-    private async Task ReloadAsync()
+    private async Task<TableData<AcrRequestListItem>> ServerReload(TableState state, CancellationToken ct)
     {
-        _loading = true;
-        StateHasChanged();
-
         int? statusId = null;
 
-        if (TabIndex == 1)
-        {
-            // Manager Approve tab
-            statusId = StatusSubmitted;
-        }
-        else if (TabIndex == 2)
-        {
-            // WFM Approve tab
-            statusId = StatusManagerApproved;
-        }
-        else
-        {
-            // All tab = whatever user picked in Status dropdown
-            statusId = _selectedStatusId;
-        }
+        if (TabIndex == 1) statusId = StatusSubmitted;
+        else if (TabIndex == 2) statusId = StatusManagerApproved;
+        else statusId = _selectedStatusId;
 
-        var search = string.IsNullOrWhiteSpace(_searchText)
-            ? null
-            : _searchText.Trim();
+        var search = string.IsNullOrWhiteSpace(_searchText) ? null : _searchText.Trim();
 
-        // Send filters to the query service
         _filter = _filter with
         {
             AcrTypeId = _selectedTypeId,
@@ -236,11 +232,22 @@
             EmployeeSearch = search
         };
 
-        // We trust the query service to handle the filtering
-        _rows = await Query.QueryAsync(_filter, take: 1000);
+        var sortDescending = state.SortDirection == SortDirection.Descending;
 
-        _loading = false;
-        StateHasChanged();
+        // Call the new Search Service
+        var result = await Query.SearchAsync(
+            _filter,
+            state.Page,
+            state.PageSize,
+            state.SortLabel,
+            sortDescending,
+            ct);
+
+        return new TableData<AcrRequestListItem>()
+        {
+            TotalItems = result.TotalCount,
+            Items = result.Items
+        };
     }
 
     private void OnRowClick(TableRowClickEventArgs<AcrRequestListItem> e)

@@ -12,6 +12,10 @@ namespace MyApplication.Components.Model.AOM.Employee
         public Employees? Employees { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
+        public int? OperaRequestId { get; set; }
+        public OperaRequest? OperaRequest { get; set; }
+        public int? ScheduleRequestId { get; set; }
+        public AcrRequest? AcrRequest { get; set; }
         public int ActivityTypeId { get; set; }
         public ActivityType? ActivityType { get; set; }
         public int ActivitySubTypeId { get; set; }

@@ -43,7 +43,7 @@ namespace MyApplication.Components.Service.Training
 );
 
 
-    public interface ISkillService
+    public interface ISkillsService
     {
         Task AddSkillsBulkAsync(IEnumerable<SkillCreateDto> dtos, CancellationToken ct = default);
         Task<IReadOnlyList<SkillLookupRow>> SearchSkillsAsync(SkillSearchVm search, CancellationToken ct = default);
@@ -54,11 +54,11 @@ namespace MyApplication.Components.Service.Training
 
     }
 
-    public sealed class SkillService : ISkillService
+    public sealed class SkillsService : ISkillsService
     {
         private readonly IDbContextFactory<AomDbContext> _dbFactory;
 
-        public SkillService(IDbContextFactory<AomDbContext> dbFactory)
+        public SkillsService(IDbContextFactory<AomDbContext> dbFactory)
         {
             _dbFactory = dbFactory;
         }

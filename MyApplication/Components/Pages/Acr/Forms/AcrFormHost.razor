@@ -62,7 +62,7 @@
                     // ensure DTO shell for New Hire
                     if (typeKey == AcrTypeKey.NewHire && _newHire is null)
                     {
-                        _newHire = createVm.NewHire ?? new NewHireDto(null, null, null, null, null, null, null, null, null, null);
+                        _newHire = createVm.NewHire ?? new NewHireDto(null, null, null, null, null, null, null, null, null);
                         createVm = createVm with { NewHire = _newHire };
                         _ = ValueChanged.InvokeAsync(createVm);
                     }

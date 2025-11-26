@@ -45,7 +45,6 @@ namespace MyApplication.Components.Service.Acr
                     LastName = nh.LastName,
                     MiddleInitial = nh.MiddleInitial,
                     NmciEmail = nh.NmciEmail,
-                    FlankspeedEmail = nh.FlankspeedEmail,
                     UsnOperatorId = nh.UsnOperatorId,
                     UsnAdminId = nh.UsnAdminId,
                     CorporateEmail = nh.CorporateEmail,

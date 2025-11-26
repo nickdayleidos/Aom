@@ -21,7 +21,6 @@ namespace MyApplication.Components.Service.Acr
             string? LastName,
             string? MiddleInitial,
             string? NmciEmail,
-            string? FlankspeedEmail,
             string? UsnOperatorId,
             string? UsnAdminId,
             string? CorporateEmail,

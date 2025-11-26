@@ -1,26 +1,20 @@
 ﻿@page "/employees/{Id:int}"
 @attribute [Authorize(Policy = "Admin")]
-@using MudBlazor
 @using MyApplication.Components.Service.Employee
-@using MyApplication.Components.Service.Employee.Dtos
-@inject EmployeesRepository Repo
+@inject EmployeesRepository Repository
 @inject NavigationManager Nav
-@implements IDisposable
 
-<MudStack Spacing="2">
-    <MudPaper Class="pa-4" Outlined>
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudText Typo="Typo.h5">Employee Details — #@Id</MudText>
-            <MudSpacer />
-            <MudButton Variant="Variant.Outlined" OnClick="@GoBack">Back</MudButton>
-        </MudStack>
-    </MudPaper>
+<MudStack Spacing="4" Class="mb-8">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/employees"))" />
+        <MudText Typo="Typo.h5">Employee Details</MudText>
+    </MudStack>
 
     @if (_loading)
     {
-        <MudProgressLinear Indeterminate Color="Color.Primary" />
+        <MudProgressCircular Indeterminate="true" />
     }
-    else if (_detail is null)
+    else if (_vm == null)
     {
         <MudAlert Severity="Severity.Error">Employee not found.</MudAlert>
     }
@@ -28,104 +22,226 @@
     {
         <MudGrid>
             <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Outlined>
-                    <MudText Typo="Typo.h6">Profile</MudText>
-                    <MudDivider Class="my-2" />
-                    <MudText><b>Name:</b> @_detail.LastName, @_detail.FirstName</MudText>
-                    <MudText><b>Corporate Id:</b> @_detail.CorporateId</MudText>
-                    <MudText><b>Domain Login:</b> @_detail.DomainLoginName</MudText>
-                    <MudText><b>Status:</b> @(_detail.IsActive ? "Active" : "Inactive")</MudText>
+                <MudPaper Class="pa-4 h-100" Outlined="true">
+                    <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Primary">Profile</MudText>
+                    <MudSimpleTable Dense="true" Hover="false" Striped="false" Elevation="0">
+                        <tbody>
+                            <tr><td><b>Name</b></td><td>@_vm.LastName, @_vm.FirstName @_vm.MiddleInitial</td></tr>
+                            <tr><td><b>Corp ID</b></td><td>@_vm.CorporateId</td></tr>
+                            <tr><td><b>Domain</b></td><td>@_vm.DomainLoginName</td></tr>
+                            <tr><td><b>Email</b></td><td>@_vm.CorporateEmail</td></tr>
+                            <tr><td><b>NMCI</b></td><td>@_vm.NmciEmail</td></tr>
+                            <tr><td><b>USN IDs</b></td><td>@_vm.UsnOperatorId / @_vm.UsnAdminId</td></tr>
+                        </tbody>
+                    </MudSimpleTable>
                 </MudPaper>
             </MudItem>
 
             <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Outlined>
-                    <MudText Typo="Typo.h6">Current Assignment (EmployeeHistory)</MudText>
-                    <MudDivider Class="my-2" />
-                    <MudText><b>Manager:</b> @_detail.Manager</MudText>
-                    <MudText><b>Supervisor:</b> @_detail.Supervisor</MudText>
-                    <MudText><b>Organization:</b> @_detail.Organization</MudText>
-                    <MudText><b>Sub-Organization:</b> @_detail.SubOrganization</MudText>
-                    <MudText><b>Employer:</b> @_detail.Employer</MudText>
-                    <MudText><b>Site:</b> @_detail.Site</MudText>
-                    <MudText><b>Effective:</b> @_detail.EffectiveDate?.ToString("yyyy-MM-dd")</MudText>
-                </MudPaper>
-            </MudItem>
-
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Outlined>
-                    <MudText Typo="Typo.h6">Break/Lunch Schedule</MudText>
-                    <MudDivider Class="my-2" />
-                    @if (_detail.Breaks is null)
+                <MudPaper Class="pa-4 h-100" Outlined="true">
+                    <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Primary">Current Assignment</MudText>
+                    @if (_vm.HasHistory)
                     {
-                        <MudText>No break schedule found.</MudText>
+                        <MudSimpleTable Dense="true" Hover="false" Striped="false" Elevation="0">
+                            <tbody>
+                                <tr><td><b>Effective</b></td><td>@_vm.EffectiveDate</td></tr>
+                                <tr><td><b>Employer</b></td><td>@_vm.Employer</td></tr>
+                                <tr><td><b>Site</b></td><td>@_vm.Site</td></tr>
+                                <tr><td><b>Org</b></td><td>@_vm.Organization / @_vm.SubOrganization</td></tr>
+                                <tr><td><b>Manager</b></td><td>@_vm.Manager</td></tr>
+                                <tr><td><b>Supervisor</b></td><td>@_vm.Supervisor</td></tr>
+                                <tr>
+                                    <td><b>Status</b></td>
+                                    <td>
+                                        <MudChip T="bool" Size="Size.Small" Color="@(_vm.IsRemote? Color.Success: Color.Default)">Remote: @_vm.IsRemote</MudChip>
+                                        @if (_vm.IsLoa)
+                                        {
+                                            <MudChip T="bool" Size="Size.Small" Color="Color.Warning">LOA</MudChip>
+                                        }
+                                        @if (_vm.IsIntLoa)
+                                        {
+                                            <MudChip T="bool" Size="Size.Small" Color="Color.Warning">Int LOA</MudChip>
+                                        }
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </MudSimpleTable>
                     }
                     else
                     {
-                        <MudList T="string" Dense="true">
-                            <MudListItem T="string">Mon Template Id: @_detail.Breaks.MondayTemplateId</MudListItem>
-                            <MudListItem T="string">Tue Template Id: @_detail.Breaks.TuesdayTemplateId</MudListItem>
-                            <MudListItem T="string">Wed Template Id: @_detail.Breaks.WednesdayTemplateId</MudListItem>
-                            <MudListItem T="string">Thu Template Id: @_detail.Breaks.ThursdayTemplateId</MudListItem>
-                            <MudListItem T="string">Fri Template Id: @_detail.Breaks.FridayTemplateId</MudListItem>
-                            <MudListItem T="string">Sat Template Id: @_detail.Breaks.SaturdayTemplateId</MudListItem>
-                            <MudListItem T="string">Sun Template Id: @_detail.Breaks.SundayTemplateId</MudListItem>
-                        </MudList>
+                        <MudText Color="Color.Secondary">No assignment history found.</MudText>
                     }
-
-                </MudPaper>
-            </MudItem>
-
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Outlined>
-                    <MudText Typo="Typo.h6">Overtime Schedule</MudText>
-                    <MudDivider Class="my-2" />
-                    @if (_detail.Overtime is null)
-                    {
-                        <MudText>No overtime schedule found.</MudText>
-                    }
-                    else
-                    {
-                        <MudList T="string" Dense="true">
-                            <MudListItem T="string">Duration: @_detail.Overtime.Duration</MudListItem>
-                            <MudListItem T="string">Mon: @_detail.Overtime.BeforeShiftMonday - @_detail.Overtime.AfterShiftMonday</MudListItem>
-                            <MudListItem T="string">Tue: @_detail.Overtime.BeforeShiftTuesday - @_detail.Overtime.AfterShiftTuesday</MudListItem>
-                            <MudListItem T="string">Wed: @_detail.Overtime.BeforeShiftWednesday - @_detail.Overtime.AfterShiftWednesday</MudListItem>
-                            <MudListItem T="string">Thu: @_detail.Overtime.BeforeShiftThursday - @_detail.Overtime.AfterShiftThursday</MudListItem>
-                            <MudListItem T="string">Fri: @_detail.Overtime.BeforeShiftFriday - @_detail.Overtime.AfterShiftFriday</MudListItem>
-                            <MudListItem T="string">Sat: @_detail.Overtime.BeforeShiftSaturday - @_detail.Overtime.AfterShiftSaturday</MudListItem>
-                            <MudListItem T="string">Sun: @_detail.Overtime.BeforeShiftSunday - @_detail.Overtime.AfterShiftSunday</MudListItem>
-                        </MudList>
-                    }
-
                 </MudPaper>
             </MudItem>
         </MudGrid>
+
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2" Color="Color.Success">Active Skills</MudText>
+            @if (_vm.Skills.Any())
+            {
+                <MudChipSet T="string" ReadOnly="true">
+                    @foreach (var skill in _vm.Skills)
+                    {
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Color="Color.Primary"
+                                 Variant="Variant.Outlined">
+                            @skill
+                        </MudChip>
+                    }
+                </MudChipSet>
+            }
+            else
+            {
+                <MudText Typo="Typo.caption">No active skills recorded.</MudText>
+            }
+        </MudPaper>
+
+        @if (_vm.Schedule != null)
+        {
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudText Typo="Typo.h6" Class="mb-2" Color="Color.Primary">Current Schedule</MudText>
+
+                <MudText Typo="Typo.subtitle2" Class="ml-2">Shift 1</MudText>
+                <MudSimpleTable Style="overflow-x: auto;" Dense="true" Class="mb-3">
+                    <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>@_vm.Schedule.Mon</td>
+                            <td>@_vm.Schedule.Tue</td>
+                            <td>@_vm.Schedule.Wed</td>
+                            <td>@_vm.Schedule.Thu</td>
+                            <td>@_vm.Schedule.Fri</td>
+                            <td>@_vm.Schedule.Sat</td>
+                            <td>@_vm.Schedule.Sun</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+
+                @if (_vm.Schedule2 != null)
+                {
+                    <MudText Typo="Typo.subtitle2" Class="ml-2 mt-4">Shift 2 (Split)</MudText>
+                    <MudSimpleTable Style="overflow-x: auto;" Dense="true">
+                        <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td>@_vm.Schedule2.Mon</td>
+                                <td>@_vm.Schedule2.Tue</td>
+                                <td>@_vm.Schedule2.Wed</td>
+                                <td>@_vm.Schedule2.Thu</td>
+                                <td>@_vm.Schedule2.Fri</td>
+                                <td>@_vm.Schedule2.Sat</td>
+                                <td>@_vm.Schedule2.Sun</td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+                }
+            </MudPaper>
+        }
+
+        @if (_vm.Overtime != null)
+        {
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudText Typo="Typo.h6" Class="mb-2" Color="Color.Warning">Overtime Adjustment</MudText>
+                <MudSimpleTable Dense="true">
+                    <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>@_vm.Overtime.Mon</td>
+                            <td>@_vm.Overtime.Tue</td>
+                            <td>@_vm.Overtime.Wed</td>
+                            <td>@_vm.Overtime.Thu</td>
+                            <td>@_vm.Overtime.Fri</td>
+                            <td>@_vm.Overtime.Sat</td>
+                            <td>@_vm.Overtime.Sun</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        }
+
+        @if (_vm.StaticBreaks != null)
+        {
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudText Typo="Typo.h6" Class="mb-2" Color="Color.Info">Static Break Schedule</MudText>
+                <MudSimpleTable Dense="true">
+                    <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>@_vm.StaticBreaks.Mon</td>
+                            <td>@_vm.StaticBreaks.Tue</td>
+                            <td>@_vm.StaticBreaks.Wed</td>
+                            <td>@_vm.StaticBreaks.Thu</td>
+                            <td>@_vm.StaticBreaks.Fri</td>
+                            <td>@_vm.StaticBreaks.Sat</td>
+                            <td>@_vm.StaticBreaks.Sun</td>
+                        </tr>
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        }
+
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">History</MudText>
+            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-2">
+
+                <MudTabPanel Text="ACR History">
+                    <MudTable Items="_vm.AcrHistory" Dense="true" Hover="true" Striped="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>ID</MudTh>
+                            <MudTh>Type</MudTh>
+                            <MudTh>Status</MudTh>
+                            <MudTh>Effective</MudTh>
+                            <MudTh>Submitted</MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.Id</MudTd>
+                            <MudTd>@context.Type</MudTd>
+                            <MudTd>@context.Status</MudTd>
+                            <MudTd>@context.EffectiveDate</MudTd>
+                            <MudTd>@context.Submitted</MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(() => Nav.NavigateTo($"/acr/{context.Id}"))" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudTabPanel>
+
+                <MudTabPanel Text="OPERA History">
+                    <MudTable Items="_vm.OperaHistory" Dense="true" Hover="true" Striped="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>ID</MudTh>
+                            <MudTh>Type</MudTh>
+                            <MudTh>Sub-Type</MudTh>
+                            <MudTh>Start</MudTh>
+                            <MudTh>End</MudTh>
+                            <MudTh>Status</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.RequestId</MudTd>
+                            <MudTd>@context.Type</MudTd>
+                            <MudTd>@context.SubType</MudTd>
+                            <MudTd>@context.StartTime</MudTd>
+                            <MudTd>@context.EndTime</MudTd>
+                            <MudTd>@context.Status</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudTabPanel>
+
+            </MudTabs>
+        </MudPaper>
     }
 </MudStack>
 
 @code {
     [Parameter] public int Id { get; set; }
+    private EmployeeFullDetailsVm _vm;
     private bool _loading = true;
-    private EmployeeDetailDto? _detail;
-    private CancellationTokenSource _cts = new();
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
-        _cts.Cancel();
-        _cts = new CancellationTokenSource();
-        var ct = _cts.Token;
-        _loading = true;
-        StateHasChanged();
-        _detail = await Repo.GetDetailAsync(Id, ct);
+        _vm = await Repository.GetFullDetailsAsync(Id);
         _loading = false;
-    }
-
-    private void GoBack() => Nav.NavigateTo("/employees");
-
-    public void Dispose()
-    {
-        _cts.Cancel();
-        _cts.Dispose();
     }
 }
