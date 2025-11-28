@@ -406,22 +406,25 @@
         }
 
         var zone = _zone.Value;
-
         switch (_timeframeMode)
         {
             case OperaTimeframeMode.Eos:
+                // Intent: Start at selected time, End at 23:59 of that same day
                 if (!_startDateEt.HasValue || !_startTimeEt.HasValue)
                 {
                     Snackbar.Add("Provide start date and time for EOS.", Severity.Warning);
                     return false;
                 }
 
-                var eosLocal = _startDateEt.Value.Date + _startTimeEt.Value; // local in chosen zone
-                startEt = SiteTime.FromSiteToEt(eosLocal, zone);
-                endEt = startEt;
+                var eosStartLocal = _startDateEt.Value.Date + _startTimeEt.Value;
+                var eosEndLocal = _startDateEt.Value.Date.AddHours(23).AddMinutes(59);
+
+                startEt = SiteTime.FromSiteToEt(eosStartLocal, zone);
+                endEt = SiteTime.FromSiteToEt(eosEndLocal, zone);
                 return true;
 
             case OperaTimeframeMode.FullShift:
+                // Intent: End at 23:59 of the End Date. Start is usually beginning of Start Date.
                 if (!_startDateEt.HasValue || !_endDateEt.HasValue)
                 {
                     Snackbar.Add("Provide start and end dates for Full Shift.", Severity.Warning);
@@ -434,6 +437,7 @@
                     return false;
                 }
 
+                // Defaulting start to 00:00 local, end to 23:59 local
                 var fullStartLocal = _startDateEt.Value.Date;
                 var fullEndLocal = _endDateEt.Value.Date.AddHours(23).AddMinutes(59);
 
@@ -442,6 +446,7 @@
                 return true;
 
             case OperaTimeframeMode.Custom:
+                // Intent: Utilize selected date and time exactly
                 if (!_startDateEt.HasValue || !_startTimeEt.HasValue ||
                     !_endDateEt.HasValue || !_endTimeEt.HasValue)
                 {
