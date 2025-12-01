@@ -1,0 +1,86 @@
+﻿@page "/debug-claims"
+@using System.Security.Claims
+@using System.Security.Principal
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudStack Spacing="4" Class="pa-4">
+    <MudText Typo="Typo.h5">User Claims Debugger</MudText>
+    <MudAlert Severity="Severity.Info">
+        If you see a <b>SID</b> (starts with S-1-5...) in the Value column, check the <b>Translated</b> column for the friendly name to copy into the Role Assignment.
+    </MudAlert>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6">Identity</MudText>
+        <MudSimpleTable>
+            <tbody>
+                <tr><td><b>Name</b></td><td>@_user?.Identity?.Name</td></tr>
+                <tr><td><b>IsAuthenticated</b></td><td>@_user?.Identity?.IsAuthenticated</td></tr>
+                <tr><td><b>Auth Type</b></td><td>@_user?.Identity?.AuthenticationType</td></tr>
+            </tbody>
+        </MudSimpleTable>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">All Claims</MudText>
+        <MudTable Items="_claims" Dense="true" Striped="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Type</MudTh>
+                <MudTh>Value (Raw)</MudTh>
+                <MudTh>Translated (Copy This)</MudTh>
+                <MudTh>Issuer</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>
+                    <MudText Typo="Typo.caption">@context.Type.Split('/').Last()</MudText>
+                </MudTd>
+                <MudTd>
+                    <MudText Typo="Typo.body2" Style="font-family: monospace">@context.Value</MudText>
+                </MudTd>
+                <MudTd>
+                    @if (IsSid(context))
+                    {
+                        <MudText Color="Color.Primary" Style="font-weight:bold">@TryTranslateSid(context.Value)</MudText>
+                    }
+                    else
+                    {
+                        @context.Value
+                    }
+                </MudTd>
+                <MudTd>@context.Issuer</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private ClaimsPrincipal? _user;
+    private List<Claim> _claims = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        _user = state.User;
+        _claims = _user.Claims.OrderBy(c => c.Type).ToList();
+    }
+
+    private bool IsSid(Claim c)
+    {
+        return c.Type == ClaimTypes.GroupSid || c.Type == ClaimTypes.PrimarySid || c.Value.StartsWith("S-1-5-");
+    }
+
+    private string TryTranslateSid(string sid)
+    {
+        try
+        {
+            // Attempt to translate SID -> NTAccount (Domain\Group)
+            // This works if the server can talk to the Domain Controller
+            var securityIdentifier = new SecurityIdentifier(sid);
+            return securityIdentifier.Translate(typeof(NTAccount)).ToString();
+        }
+        catch
+        {
+            return "Translation Failed (Use SID)";
+        }
+    }
+}

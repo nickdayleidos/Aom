@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251130233653_security")]
+    partial class security
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -37,12 +40,12 @@ namespace MyApplication.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("SkillTypeId")
+                    b.Property<int?>("SkillId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SkillTypeId");
+                    b.HasIndex("SkillId");
 
                     b.ToTable("CallQueue", "Aws");
                 });
@@ -1769,12 +1772,12 @@ namespace MyApplication.Migrations
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.CallQueue", b =>
                 {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.SkillType", "SkillType")
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Skills", "Skill")
                         .WithMany()
-                        .HasForeignKey("SkillTypeId")
+                        .HasForeignKey("SkillId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("SkillType");
+                    b.Navigation("Skill");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.EmployeeRoutingProfile", b =>

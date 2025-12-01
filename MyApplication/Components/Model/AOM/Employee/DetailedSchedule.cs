@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using MyApplication.Components.Model.AOM.Aws;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MyApplication.Components.Model.AOM.Employee
@@ -10,6 +11,7 @@ namespace MyApplication.Components.Model.AOM.Employee
         public int Id { get; set; }
         public int EmployeeId { get; set; }
         public Employees? Employees { get; set; }
+        public DateOnly ScheduleDate { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
         public int? OperaRequestId { get; set; }
@@ -21,6 +23,7 @@ namespace MyApplication.Components.Model.AOM.Employee
         public int ActivitySubTypeId { get; set; }
         public ActivitySubType? ActivitySubType { get; set; }
         public int? AwsStatusId { get; set; }
+        public Status? AwsStatus { get; set; }
         public int? Minutes { get; set; }
         public bool? IsImpacting { get; set; }
     }

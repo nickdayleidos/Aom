@@ -1,7 +1,10 @@
 ﻿<MudNavMenu>
     @* <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink> *@
 
-    <MudNavLink Href="/employees" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Employees</MudNavLink>
+    <MudNavGroup Icon="@Icons.Material.Filled.Badge" Title="Employees" Expanded="false">
+        <MudNavLink Href="/employees" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.List">Directory</MudNavLink>
+        <MudNavLink Href="/employees/schedules" Icon="@Icons.Material.Filled.CalendarMonth">Daily Schedules</MudNavLink>
+    </MudNavGroup>
 
     <MudNavGroup Icon="@Icons.Material.Filled.Assignment" Title="ACR" Expanded="false">
         <MudNavLink Href="/acr" Icon="@Icons.Material.Filled.ManageSearch">ACR Lookup</MudNavLink>
@@ -16,17 +19,26 @@
     <MudNavGroup Icon="@Icons.Material.Filled.AccessTime" Title="WFM" Expanded="false">
         <MudNavLink Href="/wfm/break-templates" Icon="@Icons.Material.Filled.Timer">Break Templates</MudNavLink>
         <MudNavLink Href="/wfm/static-breaks" Icon="@Icons.Material.Filled.EventNote">Static Breaks</MudNavLink>
+        <MudNavGroup Title="AWS Connect" Icon="@Icons.Material.Filled.CloudQueue" Expanded="false">
+            <MudNavLink Href="/wfm/aws/assignments" Icon="@Icons.Material.Filled.GroupAdd">Employee Profiles</MudNavLink>
+            <MudNavLink Href="/wfm/aws/queues" Icon="@Icons.Material.Filled.FormatListNumbered">Call Queues</MudNavLink>
+            <MudNavLink Href="/wfm/aws/profiles" Icon="@Icons.Material.Filled.AltRoute">Routing Profiles</MudNavLink>
+        </MudNavGroup>
     </MudNavGroup>
 
     <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="false">
-        <MudNavLink Href="/tools/emailtemplates" Icon="@Icons.Material.Filled.Mail">Email Templates</MudNavLink>
+
         <MudNavLink Href="/tools/intervalsummary" Icon="@Icons.Material.Filled.Timeline">Interval Summary</MudNavLink>
         <MudNavLink Href="/operationalimpact" Icon="@Icons.Material.Filled.HeadsetOff">Operational Impact</MudNavLink>
         <MudNavLink Href="/tools/proactive" Icon="@Icons.Material.Filled.Campaign">Proactive</MudNavLink>
     </MudNavGroup>
 
-    <MudNavGroup Title="Training" Expanded="false">
-        <MudNavLink Href="/training/skills">EmployeeSkills</MudNavLink>
-        <MudNavLink Href="/training/skills/new">Add Skilling</MudNavLink>
+    <MudNavGroup Icon="@Icons.Material.Filled.School" Title="Training" Expanded="false">
+        <MudNavLink Href="/training/skills" Icon="@Icons.Material.Filled.WorkspacePremium">Employee Skills</MudNavLink>
+        <MudNavLink Href="/training/skills/new" Icon="@Icons.Material.Filled.PostAdd">Add Skilling</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+        <MudNavLink Href="/admin/roles" Icon="@Icons.Material.Filled.Security">Roles & Permissions</MudNavLink>
+        <MudNavLink Href="/tools/emailtemplates" Icon="@Icons.Material.Filled.Mail">Email Templates</MudNavLink>
     </MudNavGroup>
 </MudNavMenu>

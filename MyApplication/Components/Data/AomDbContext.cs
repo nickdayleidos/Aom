@@ -1,7 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MyApplication.Components.Model.AOM.Aws;
 using MyApplication.Components.Model.AOM.Employee;
+using MyApplication.Components.Model.AOM.Security;
 using MyApplication.Components.Model.AOM.Tools;
+using MyApplication.Components.Service.Employee.Dtos;
+using System.Reflection.Emit;
 
 namespace MyApplication.Components.Data
 {
@@ -59,12 +62,24 @@ namespace MyApplication.Components.Data
         public DbSet<OiEventUpdate> OiEventUpdates { get; set; } = default!;
         public DbSet<OiStatus> OiStatuses { get; set; } = default!;
         public DbSet<ProactiveAnnouncement> ProactiveAnnouncements { get; set; } = default!;
+        public DbSet<DailyScheduleRow> DailyScheduleRows { get; set; }
 
         // =========================
         // AWS schema
         // =========================
 
         public DbSet<Status> Statuses { get; set; } = default!;
+
+        // New AWS Tables
+        public DbSet<RoutingProfile> RoutingProfiles { get; set; } = default!;
+        public DbSet<CallQueue> CallQueues { get; set; } = default!;
+        public DbSet<RoutingProfileQueue> RoutingProfileQueues { get; set; } = default!;
+        public DbSet<EmployeeRoutingProfile> EmployeeRoutingProfiles { get; set; } = default!;
+        public DbSet<Identifiers> Identifiers { get; set; } = default!;
+
+        // NEW: Security Tables
+        public DbSet<AppRole> AppRoles { get; set; } = default!;
+        public DbSet<AppRoleAssignment> AppRoleAssignments { get; set; } = default!;
 
 
         protected override void OnModelCreating(ModelBuilder b)
@@ -124,6 +139,32 @@ namespace MyApplication.Components.Data
             b.Entity<ProactiveAnnouncement>().ToTable(nameof(ProactiveAnnouncement), "Tools").HasKey(x => x.Id);
 
             b.Entity<Status>().ToTable(nameof(Statuses), "Aws").HasKey(x => x.Id);
+
+            // New AWS Configurations
+            b.Entity<RoutingProfile>().ToTable(nameof(RoutingProfile), "Aws").HasKey(x => x.Id);
+            b.Entity<CallQueue>().ToTable(nameof(CallQueue), "Aws").HasKey(x => x.Id);
+            b.Entity<RoutingProfileQueue>().ToTable(nameof(RoutingProfileQueue), "Aws").HasKey(x => x.Id);
+            b.Entity<EmployeeRoutingProfile>().ToTable(nameof(EmployeeRoutingProfile), "Aws").HasKey(x => x.Id);
+            b.Entity<Identifiers>().ToTable(nameof(Identifiers), "Aws").HasKey(x => x.Id);
+
+            // Security
+            b.Entity<AppRole>().ToTable("AppRole", "Security").HasData(
+            new AppRole { Id = 1, Name = "Admin" },
+            new AppRole { Id = 2, Name = "Manager" },
+            new AppRole { Id = 3, Name = "Supervisor" },
+            new AppRole { Id = 4, Name = "WFM" },
+            new AppRole { Id = 5, Name = "OST" },
+            new AppRole { Id = 6, Name = "ViewOnly" }
+        );
+
+            b.Entity<AppRoleAssignment>().ToTable("AppRoleAssignment", "Security");
+
+
+            b.Entity<DailyScheduleRow>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToView("vw_DailyScheduleDetails", "Employee");
+            });
 
 
             // ============================================================
@@ -300,6 +341,54 @@ namespace MyApplication.Components.Data
                 e.HasOne(s => s.SkillType)
                  .WithMany()
                  .HasForeignKey(s => s.SkillTypeId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // New AWS Relationships
+            b.Entity<CallQueue>(e =>
+            {
+                e.HasOne(q => q.SkillType)
+                 .WithMany()
+                 .HasForeignKey(q => q.SkillTypeId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            b.Entity<RoutingProfileQueue>(e =>
+            {
+                e.HasOne(rpq => rpq.RoutingProfile)
+                 .WithMany(p => p.RoutingProfileQueues) // <--- CHANGED: Connect to the new collection
+                 .HasForeignKey(rpq => rpq.RoutingProfileId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(rpq => rpq.CallQueue)
+                 .WithMany()
+                 .HasForeignKey(rpq => rpq.CallQueueId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            b.Entity<EmployeeRoutingProfile>(e =>
+            {
+                e.HasOne(erp => erp.Employee)
+                 .WithMany()
+                 .HasForeignKey(erp => erp.EmployeeId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(erp => erp.WeekdayProfile)
+                 .WithMany()
+                 .HasForeignKey(erp => erp.WeekdayProfileId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(erp => erp.WeekendProfile)
+                 .WithMany()
+                 .HasForeignKey(erp => erp.WeekendProfileId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            b.Entity<Identifiers>(e =>
+            {
+                e.HasOne(i => i.Employee)
+                 .WithMany()
+                 .HasForeignKey(i => i.EmployeeId)
                  .OnDelete(DeleteBehavior.Restrict);
             });
         }

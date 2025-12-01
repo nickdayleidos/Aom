@@ -1,0 +1,251 @@
+﻿@page "/wfm/aws/assignments"
+@attribute [Authorize(Roles = "Admin,WFM")]
+
+@using MyApplication.Components.Model.AOM.Aws
+@using MyApplication.Components.Service.Aws
+@using MyApplication.Components.Service.Employee
+@using MyApplication.Components.Service.Employee.Dtos
+@using MyApplication.Common.Time
+@inject AwsRoutingService AwsService
+@inject EmployeesRepository EmployeeRepo
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4">
+    <MudText Typo="Typo.h5">Bulk Profile Assignment</MudText>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudGrid AlignItems="AlignItems.End">
+            <MudItem xs="12" md="4">
+                <MudSelect T="int?" Label="Weekday Profile" @bind-Value="_selectedWeekday" Clearable="true" AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var p in _profiles)
+                    {
+                        <MudSelectItem Value="@((int?)p.Id)">@p.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="int?" Label="Weekend Profile" @bind-Value="_selectedWeekend" Clearable="true" AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var p in _profiles)
+                    {
+                        <MudSelectItem Value="@((int?)p.Id)">@p.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Disabled="@(!_selectedEmployees.Any())"
+                           OnClick="ApplyAssignments">
+                    Assign to @_selectedEmployees.Count Employees
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable T="EmployeeListItem"
+              ServerData="ServerReload"
+              MultiSelection="true"
+              @bind-SelectedItems="_selectedEmployees"
+              Hover="true"
+              Dense="true"
+              Bordered="true"
+              Striped="true"
+              @ref="_table">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Select Employees</MudText>
+            <MudSpacer />
+
+            <MudSelect T="TimeDisplayMode"
+                       Value="_timeMode"
+                       ValueChanged="OnTimeModeChanged"
+                       Margin="Margin.Dense"
+                       Variant="Variant.Outlined"
+                       Style="width:160px"
+                       Class="mr-4 mt-0"
+                       AnchorOrigin="Origin.BottomCenter">
+                <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern</MudSelectItem>
+                <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain</MudSelectItem>
+            </MudSelect>
+
+            <MudTextField T="string" ValueChanged="@(s => OnSearch(s))" Placeholder="Search by Name..." Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+
+        <HeaderContent>
+            <MudTh Style="width:50px"></MudTh> <MudTh>Name</MudTh>
+            <MudTh>WkDay Profile</MudTh>
+            <MudTh>WkEnd Profile</MudTh>
+            <MudTh>Schedule (@_timeMode)</MudTh> <MudTh>Skills</MudTh>
+            <MudTh>Org / SubOrg</MudTh>
+            <MudTh>Active</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <MudIconButton Icon="@(_expandedIds.Contains(context.Id) ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.KeyboardArrowDown)"
+                               OnClick="@(() => ToggleExpand(context.Id))"
+                               Size="Size.Small" />
+            </MudTd>
+            <MudTd DataLabel="Name">
+                <MudText Typo="Typo.body2" Style="font-weight:bold">@context.LastName, @context.FirstName</MudText>
+            </MudTd>
+            <MudTd DataLabel="WkDay Profile">
+                @if (!string.IsNullOrEmpty(context.WeekdayProfile))
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">@context.WeekdayProfile</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="WkEnd Profile">
+                @if (!string.IsNullOrEmpty(context.WeekendProfile))
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Text">@context.WeekendProfile</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Schedule">
+                <MudText Typo="Typo.caption">@context.Schedule</MudText>
+            </MudTd>
+            <MudTd DataLabel="Skills">
+                <MudChipSet T="string" ReadOnly="true">
+                    @foreach (var s in context.Skills)
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@s</MudChip>
+                    }
+                </MudChipSet>
+            </MudTd>
+            <MudTd DataLabel="Org">
+                <MudText Typo="Typo.caption">@context.Organization</MudText>
+                @if (!string.IsNullOrEmpty(context.SubOrganization))
+                {
+                    <br />
+                
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.SubOrganization</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Active">
+                @if (context.IsActive)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Success" />
+                }
+            </MudTd>
+        </RowTemplate>
+
+        <ChildRowContent>
+            @if (_expandedIds.Contains(context.Id))
+            {
+                <MudTr>
+                    <MudTd Colspan="9" Class="pa-4 shade-background">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Daily Schedule Breakdown (@_timeMode)</MudText>
+                        <MudStack Row="true" Spacing="4" Wrap="Wrap.Wrap">
+                            @if (context.DailySchedules != null)
+                            {
+                                @foreach (var day in context.DailySchedules)
+                                {
+                                    <div class="d-flex flex-column align-center px-3 border-r">
+                                        <MudText Typo="Typo.caption" Style="font-weight:bold; color:#666">@day.Day</MudText>
+                                        @if (day.IsOff)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">OFF</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Success">@day.DisplayTime</MudChip>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </MudStack>
+                    </MudTd>
+                </MudTr>
+            }
+        </ChildRowContent>
+
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</MudStack>
+
+<style>
+    .shade-background {
+        background-color: #f9f9f9;
+    }
+
+    .mud-theme-dark .shade-background {
+        background-color: #333333;
+    }
+
+    .border-r {
+        border-right: 1px solid #eee;
+    }
+
+    .mud-theme-dark .border-r {
+        border-right: 1px solid #444;
+    }
+</style>
+
+@code {
+    private HashSet<EmployeeListItem> _selectedEmployees = new();
+    private List<RoutingProfile> _profiles = new();
+    private int? _selectedWeekday;
+    private int? _selectedWeekend;
+    private string _searchString = "";
+    private MudTable<EmployeeListItem> _table;
+    private HashSet<int> _expandedIds = new();
+
+    // Default to Eastern
+    private TimeDisplayMode _timeMode = TimeDisplayMode.Eastern;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _profiles = await AwsService.GetProfilesAsync();
+    }
+
+    private async Task<TableData<EmployeeListItem>> ServerReload(TableState state, CancellationToken ct)
+    {
+        // Pass _timeMode to the repo
+        var data = await EmployeeRepo.SearchAsync(_searchString, activeOnly: true, mode: _timeMode, take: 500, ct: ct);
+        return new TableData<EmployeeListItem>() { TotalItems = data.Count, Items = data };
+    }
+
+    private void OnSearch(string text)
+    {
+        _searchString = text;
+        _table.ReloadServerData();
+    }
+
+    private void OnTimeModeChanged(TimeDisplayMode mode)
+    {
+        _timeMode = mode;
+        _table.ReloadServerData();
+    }
+
+    private void ToggleExpand(int id)
+    {
+        if (_expandedIds.Contains(id))
+            _expandedIds.Remove(id);
+        else
+            _expandedIds.Add(id);
+    }
+
+    private async Task ApplyAssignments()
+    {
+        if (!_selectedEmployees.Any()) return;
+
+        var count = _selectedEmployees.Count;
+        var confirm = await DialogService.ShowMessageBox(
+            "Confirm Assignment",
+            $"Are you sure you want to update the routing profiles for {count} employees?",
+            yesText: "Yes", cancelText: "Cancel");
+
+        if (confirm == true)
+        {
+            var ids = _selectedEmployees.Select(x => x.Id).ToList();
+            await AwsService.AssignProfilesToEmployeesAsync(ids, _selectedWeekday, _selectedWeekend);
+
+            Snackbar.Add($"Successfully updated {count} employees.", Severity.Success);
+            _selectedEmployees.Clear();
+            await _table.ReloadServerData();
+        }
+    }
+}

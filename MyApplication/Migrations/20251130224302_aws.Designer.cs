@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251130224302_aws")]
+    partial class aws
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -37,12 +40,12 @@ namespace MyApplication.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("SkillTypeId")
+                    b.Property<int?>("SkillId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SkillTypeId");
+                    b.HasIndex("SkillId");
 
                     b.ToTable("CallQueue", "Aws");
                 });
@@ -1172,84 +1175,6 @@ namespace MyApplication.Migrations
                     b.ToTable("Supervisor", "Employee");
                 });
 
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Security.AppRole", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AppRole", "Security");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Name = "Admin"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Name = "Manager"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Name = "Supervisor"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Name = "WFM"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Name = "OST"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            Name = "ViewOnly"
-                        });
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Security.AppRoleAssignment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AppRoleId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Identifier")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AppRoleId");
-
-                    b.ToTable("AppRoleAssignment", "Security");
-                });
-
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Tools.EmailTemplates", b =>
                 {
                     b.Property<int>("Id")
@@ -1769,12 +1694,12 @@ namespace MyApplication.Migrations
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.CallQueue", b =>
                 {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.SkillType", "SkillType")
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Skills", "Skill")
                         .WithMany()
-                        .HasForeignKey("SkillTypeId")
+                        .HasForeignKey("SkillId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("SkillType");
+                    b.Navigation("Skill");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.EmployeeRoutingProfile", b =>
@@ -2212,17 +2137,6 @@ namespace MyApplication.Migrations
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Security.AppRoleAssignment", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Security.AppRole", "AppRole")
-                        .WithMany()
-                        .HasForeignKey("AppRoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AppRole");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivityType", b =>

@@ -7,7 +7,7 @@
 @using Microsoft.AspNetCore.Components.Authorization;
 @using System.Security.Claims;
 @using System.Net;
-@attribute [Authorize(Policy = "OST")]
+@attribute [Authorize(Roles = "Admin,OST,WFM")]
 
 <PageTitle>Interval Summary</PageTitle>
 

@@ -1,5 +1,5 @@
 ﻿@page "/training/skills/new"
-@attribute [Authorize(Policy = "Admin")]
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
 
 @using System.ComponentModel.DataAnnotations
 @using MudBlazor

@@ -8,7 +8,7 @@
 @inject ISnackbar Snackbar
 @inject Microsoft.JSInterop.IJSRuntime JS
 @using AomModel = MyApplication.Components.Model.AOM.Tools
-@attribute [Authorize(Policy = "OST")]
+@attribute [Authorize(Roles = "Admin,OST,WFM")]
 @inject AuthenticationStateProvider Auth
 
 

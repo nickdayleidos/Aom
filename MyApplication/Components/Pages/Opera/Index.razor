@@ -1,5 +1,5 @@
 ﻿@page "/opera"
-@attribute [Authorize(Policy = "Admin")]
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
 @using MyApplication.Components.Model.AOM.Employee
 @using Microsoft.EntityFrameworkCore
 @using MudBlazor

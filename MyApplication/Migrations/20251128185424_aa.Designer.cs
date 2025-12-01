@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251128185424_aa")]
+    partial class aa
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,137 +24,6 @@ namespace MyApplication.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.CallQueue", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool?>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("SkillTypeId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SkillTypeId");
-
-                    b.ToTable("CallQueue", "Aws");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.EmployeeRoutingProfile", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("WeekdayProfileId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("WeekendProfileId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.HasIndex("WeekdayProfileId");
-
-                    b.HasIndex("WeekendProfileId");
-
-                    b.ToTable("EmployeeRoutingProfile", "Aws");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.Identifiers", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AwsUsername")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Guid")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.ToTable("Identifiers", "Aws");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.RoutingProfile", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool?>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("RoutingProfile", "Aws");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.RoutingProfileQueue", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CallQueueId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("Delay")
-                        .HasColumnType("int");
-
-                    b.Property<bool?>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<int?>("Priority")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RoutingProfileId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CallQueueId");
-
-                    b.HasIndex("RoutingProfileId");
-
-                    b.ToTable("RoutingProfileQueue", "Aws");
-                });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.Status", b =>
                 {
@@ -691,8 +563,6 @@ namespace MyApplication.Migrations
 
                     b.HasIndex("ActivityTypeId");
 
-                    b.HasIndex("AwsStatusId");
-
                     b.HasIndex("EmployeeId");
 
                     b.HasIndex("OperaRequestId");
@@ -836,9 +706,6 @@ namespace MyApplication.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("AwsId")
-                        .HasColumnType("int");
-
                     b.Property<string>("CorporateEmail")
                         .HasColumnType("varchar(64)");
 
@@ -872,8 +739,6 @@ namespace MyApplication.Migrations
                         .HasColumnType("varchar(64)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AwsId");
 
                     b.ToTable("Employees", "Employee");
                 });
@@ -1170,84 +1035,6 @@ namespace MyApplication.Migrations
                     b.HasIndex("EmployeeId");
 
                     b.ToTable("Supervisor", "Employee");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Security.AppRole", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AppRole", "Security");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Name = "Admin"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Name = "Manager"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Name = "Supervisor"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Name = "WFM"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Name = "OST"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            Name = "ViewOnly"
-                        });
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Security.AppRoleAssignment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AppRoleId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Identifier")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AppRoleId");
-
-                    b.ToTable("AppRoleAssignment", "Security");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Tools.EmailTemplates", b =>
@@ -1707,130 +1494,6 @@ namespace MyApplication.Migrations
                     b.ToTable("ProactiveAnnouncement", "Tools");
                 });
 
-            modelBuilder.Entity("MyApplication.Components.Service.Employee.Dtos.DailyScheduleRow", b =>
-                {
-                    b.Property<string>("ActivityName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("ActivitySubTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ActivityTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("AwsStatusName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("DetailedScheduleId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("EmployeeName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("EndTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool?>("IsImpacting")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("OrganizationName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateOnly>("ScheduleDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("SiteName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SiteTimeZoneId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("StartTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("SubActivityName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SubOrganizationName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SupervisorName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.ToTable((string)null);
-
-                    b.ToView("vw_DailyScheduleDetails", "Employee");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.CallQueue", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.SkillType", "SkillType")
-                        .WithMany()
-                        .HasForeignKey("SkillTypeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("SkillType");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.EmployeeRoutingProfile", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MyApplication.Components.Model.AOM.Aws.RoutingProfile", "WeekdayProfile")
-                        .WithMany()
-                        .HasForeignKey("WeekdayProfileId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("MyApplication.Components.Model.AOM.Aws.RoutingProfile", "WeekendProfile")
-                        .WithMany()
-                        .HasForeignKey("WeekendProfileId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("WeekdayProfile");
-
-                    b.Navigation("WeekendProfile");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.Identifiers", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Employee");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.RoutingProfileQueue", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Aws.CallQueue", "CallQueue")
-                        .WithMany()
-                        .HasForeignKey("CallQueueId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MyApplication.Components.Model.AOM.Aws.RoutingProfile", "RoutingProfile")
-                        .WithMany()
-                        .HasForeignKey("RoutingProfileId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("CallQueue");
-
-                    b.Navigation("RoutingProfile");
-                });
-
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrOrganization", b =>
                 {
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", "AcrRequest")
@@ -2028,10 +1691,6 @@ namespace MyApplication.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("MyApplication.Components.Model.AOM.Aws.Status", "AwsStatus")
-                        .WithMany()
-                        .HasForeignKey("AwsStatusId");
-
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employees")
                         .WithMany()
                         .HasForeignKey("EmployeeId")
@@ -2049,8 +1708,6 @@ namespace MyApplication.Migrations
                     b.Navigation("ActivitySubType");
 
                     b.Navigation("ActivityType");
-
-                    b.Navigation("AwsStatus");
 
                     b.Navigation("Employees");
 
@@ -2124,15 +1781,6 @@ namespace MyApplication.Migrations
                     b.Navigation("SubOrganization");
 
                     b.Navigation("Supervisor");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Employees", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Aws.Identifiers", "Aws")
-                        .WithMany()
-                        .HasForeignKey("AwsId");
-
-                    b.Navigation("Aws");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Manager", b =>
@@ -2212,17 +1860,6 @@ namespace MyApplication.Migrations
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Security.AppRoleAssignment", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Security.AppRole", "AppRole")
-                        .WithMany()
-                        .HasForeignKey("AppRoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AppRole");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivityType", b =>

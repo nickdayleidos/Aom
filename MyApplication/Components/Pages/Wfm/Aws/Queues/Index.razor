@@ -1,0 +1,71 @@
+﻿@page "/wfm/aws/queues"
+@attribute [Authorize(Roles = "Admin,WFM")]
+@using MyApplication.Components.Model.AOM.Aws
+@using MyApplication.Components.Service.Aws
+@using MyApplication.Components.Model.AOM.Employee
+@inject AwsRoutingService Service
+@inject IDialogService DialogService
+
+<MudStack Spacing="4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+        <MudText Typo="Typo.h5">AWS Call Queues</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => OpenDialog(null))">Add Queue</MudButton>
+    </MudStack>
+
+    <MudDataGrid Items="_queues"
+                 Filterable="true"
+                 SortMode="SortMode.Multiple"
+                 Dense="true"
+                 Hover="true"
+                 Bordered="true"
+                 Striped="true"
+                 RowsPerPage="25">
+        <Columns>
+            <PropertyColumn Property="x => x.Name" Title="Queue Name" />
+            <PropertyColumn Property="x => x.SkillType.Name" Title="Required Skill" />
+            <TemplateColumn Title="Active">
+                <CellTemplate>
+                    <MudCheckBox Value="@context.Item.IsActive" ReadOnly="true" Color="Color.Primary" Dense="true" />
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn CellClass="d-flex justify-end">
+                <CellTemplate>
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenDialog(context.Item))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => Delete(context.Item))" />
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="CallQueue" PageSizeOptions="@(new int[] { 25, 50, 100 })" />
+        </PagerContent>
+    </MudDataGrid>
+</MudStack>
+
+@code {
+    private List<CallQueue> _queues = new();
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData() => _queues = await Service.GetQueuesAsync();
+
+    private async Task OpenDialog(CallQueue? queue = null)
+    {
+        var parameters = new DialogParameters { ["Queue"] = queue ?? new CallQueue { IsActive = true } };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = await DialogService.ShowAsync<QueueDialog>("Queue Details", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled) await LoadData();
+    }
+
+    private async Task Delete(CallQueue queue)
+    {
+        bool? confirm = await DialogService.ShowMessageBox("Delete", $"Delete {queue.Name}?", yesText: "Delete", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            await Service.DeleteQueueAsync(queue.Id);
+            await LoadData();
+        }
+    }
+}

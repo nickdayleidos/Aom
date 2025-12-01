@@ -1,0 +1,131 @@
+﻿@page "/admin/roles"
+@attribute [Authorize(Policy = "Admin")]
+@using MyApplication.Components.Model.AOM.Security
+@using MyApplication.Components.Service.Security
+@inject SecurityService SecurityService
+@inject IDialogService DialogService
+
+<MudStack Spacing="4" Class="mb-8">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+        <MudText Typo="Typo.h5">Role Assignments</MudText>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenAddDialog">
+            Add Assignment
+        </MudButton>
+    </MudStack>
+
+    <MudDataGrid T="RoleAssignmentDto"
+                 Items="_assignments"
+                 Loading="_loading"
+                 Hover="true"
+                 Dense="true"
+                 Bordered="true"
+                 Striped="true"
+                 Filterable="true"
+                 SortMode="SortMode.Multiple"
+                 Groupable="true"
+                 Hideable="true">
+        <Columns>
+            <PropertyColumn Property="x => x.RoleName" Title="Role" Groupable="true">
+                <CellTemplate>
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">
+                        @context.Item.RoleName
+                    </MudChip>
+                </CellTemplate>
+            </PropertyColumn>
+
+            <PropertyColumn Property="x => x.Type" Title="Type" Groupable="true">
+                <CellTemplate>
+                    @if (context.Item.Type == "Group")
+                    {
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Small" Color="Color.Default" />
+                            <MudText Typo="Typo.body2">Group</MudText>
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Default" />
+                            <MudText Typo="Typo.body2">User</MudText>
+                        </MudStack>
+                    }
+                </CellTemplate>
+            </PropertyColumn>
+
+            <PropertyColumn Property="x => x.DisplayName" Title="Name / Group" Filterable="true" />
+
+            <PropertyColumn Property="x => x.Identifier" Title="Login ID" Filterable="true">
+                <CellTemplate>
+                    <MudText Typo="Typo.caption" Style="font-family:monospace">@context.Item.Identifier</MudText>
+                </CellTemplate>
+            </PropertyColumn>
+
+            <TemplateColumn CellClass="d-flex justify-end" Sortable="false" Filterable="false" Groupable="false">
+                <CellTemplate>
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Color="Color.Error"
+                                   Size="Size.Small"
+                                   OnClick="@(() => DeleteAssignment(context.Item))" />
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+
+        <PagerContent>
+            <MudDataGridPager T="RoleAssignmentDto" />
+        </PagerContent>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No role assignments found.</MudText>
+        </NoRecordsContent>
+    </MudDataGrid>
+</MudStack>
+
+@code {
+    private List<RoleAssignmentDto> _assignments = new();
+    private List<AppRole> _roles = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _roles = await SecurityService.GetRolesAsync();
+        _assignments = await SecurityService.GetAssignmentsWithDetailsAsync();
+        _loading = false;
+    }
+
+    private async Task OpenAddDialog()
+    {
+        var parameters = new DialogParameters { ["Roles"] = _roles };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = await DialogService.ShowAsync<RoleAssignmentDialog>("Assign Role", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is AppRoleAssignment newAssignment)
+        {
+            await SecurityService.AddAssignmentAsync(newAssignment);
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task DeleteAssignment(RoleAssignmentDto item)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Delete Assignment",
+            $"Are you sure you want to remove {item.RoleName} access for {item.DisplayName}?",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            await SecurityService.DeleteAssignmentAsync(item.Id);
+            await LoadDataAsync();
+        }
+    }
+}

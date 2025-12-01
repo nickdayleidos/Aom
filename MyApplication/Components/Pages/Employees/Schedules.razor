@@ -1,0 +1,270 @@
+﻿@page "/employees/schedules"
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+@using MyApplication.Components.Service.Employee
+@using MyApplication.Common.Time
+@inject EmployeesRepository Repository
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IDisposable
+
+<style>
+    @@media print {
+        /* Hide Sidebar, Appbar, and Toolbars */
+        .mud-layout-drawer, .mud-appbar, .d-print-none {
+            display: none !important;
+        }
+        
+        /* Reset margins for the main content area */
+        .mud-main-content {
+            padding: 0 !important;
+            margin: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+
+        /* Ensure text remains dark on white paper */
+        body, .mud-typography {
+            color: black !important;
+            -webkit-print-color-adjust: exact;
+        }
+        
+        /* Expansion Panels: Allow them to break across pages, 
+           but keep the header with at least some content if possible */
+        .mud-expand-panel {
+            box-shadow: none !important;
+            border: 1px solid #eee;
+            margin-bottom: 1rem;
+            
+        }
+
+        /* KEY FIX: Prevent individual table rows (employees) from splitting */
+        tr {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important; /* For older browsers */
+        }
+        
+        /* Optional: Ensure table headers repeat on new pages (browser dependent) */
+        thead {
+            display: table-header-group; 
+        }
+    }
+</style>
+
+<MudStack Spacing="4" Class="mb-8">
+
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="d-print-none">
+        <MudStack Row="true" AlignItems="AlignItems.Center">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/employees"))" />
+            <MudText Typo="Typo.h5">Daily Schedules</MudText>
+        </MudStack>
+
+        <MudStack Row="true" Spacing="2">
+            <MudButton StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="PrintAsync">
+                Export to PDF
+            </MudButton>
+
+            <MudSelect T="TimeDisplayMode"
+                       @bind-Value="Mode"
+                       Label="Display Time"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Dense="true"
+                       Style="min-width: 200px; background-color: var(--mud-palette-surface);">
+                <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (Site)</MudSelectItem>
+                <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern</MudSelectItem>
+                <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain</MudSelectItem>
+            </MudSelect>
+        </MudStack>
+    </MudStack>
+
+    <MudPaper Class="pa-4 d-print-none" Outlined="true">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4">
+            <MudDatePicker Label="Select Date"
+                           Date="_date"
+                           DateChanged="OnDateChanged"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Editable="true" />
+
+            <MudSpacer />
+
+            @if (_loading)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+            }
+        </MudStack>
+    </MudPaper>
+
+    @if (_vm != null)
+    {
+        @if (!_vm.Sites.Any())
+        {
+            <MudAlert Severity="Severity.Info">No schedules found for this date.</MudAlert>
+        }
+        else
+        {
+            <MudExpansionPanels MultiExpansion="true">
+                @foreach (var site in _vm.Sites)
+                {
+                    <MudExpansionPanel Text="@($"{site.SiteName} ({site.Employees.Count} employees)")"
+                                       @bind-IsExpanded="@site.IsExpanded">
+                        <MudTable Items="@site.Employees" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.None">
+                            <HeaderContent>
+                                <MudTh>Employee</MudTh>
+                                <MudTh>Shift Overview</MudTh>
+                                <MudTh>Detailed Schedule</MudTh>
+                                <MudTh Class="d-print-none"></MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="emp">
+                                <MudTd DataLabel="Employee" Valign="Valign.Top">
+                                    <MudText Typo="Typo.body2" Style="font-weight:bold;">@emp.EmployeeName</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">ID: @emp.EmployeeId</MudText>
+
+                                    <MudStack Spacing="0" Class="mt-2">
+                                        @if (!string.IsNullOrEmpty(emp.OrganizationName))
+                                        {
+                                            <MudText Typo="Typo.caption">
+                                                <b>Org:</b> @emp.OrganizationName / @emp.SubOrganizationName
+                                            </MudText>
+                                        }
+                                        @if (!string.IsNullOrEmpty(emp.SupervisorName))
+                                        {
+                                            <MudText Typo="Typo.caption">
+                                                <b>Sup:</b> @emp.SupervisorName
+                                            </MudText>
+                                        }
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Shift" Valign="Valign.Top">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                                        @emp.ShiftString
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="Activities">
+                                    <MudStack Spacing="1">
+                                        @foreach (var seg in emp.Segments)
+                                        {
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <MudText Typo="Typo.body2" Style="font-family:monospace; min-width:90px;">
+                                                    @seg.Start.ToString("HH:mm") - @seg.End.ToString("HH:mm")
+                                                </MudText>
+
+                                                @if (seg.ActivityTypeId == 6)
+                                                {
+                                                    <MudText Typo="Typo.body2" Style="font-weight:bold;">
+                                                        @seg.SubActivityName
+                                                    </MudText>
+                                                }
+                                                else
+                                                {
+                                                    <MudText Typo="Typo.body2" Style="font-weight:bold;">
+                                                        @seg.ActivityName - @seg.SubActivityName
+                                                    </MudText>
+                                                }
+
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info" Class="ml-auto">
+                                                    AWS: @seg.AwsStatusName
+                                                </MudChip>
+                                            </MudStack>
+                                            <MudDivider />
+                                        }
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd Valign="Valign.Top" Class="d-print-none">
+                                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => Nav.NavigateTo($"/employees/{emp.EmployeeId}"))" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudExpansionPanel>
+                }
+            </MudExpansionPanels>
+        }
+    }
+</MudStack>
+
+@code {
+    private DateTime? _date = DateTime.Today;
+    private ScheduleDashboardVm? _vm;
+    private bool _loading = false;
+    private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
+
+    private CancellationTokenSource? _cts;
+
+    private TimeDisplayMode Mode
+    {
+        get => _mode;
+        set
+        {
+            _mode = value;
+            _ = LoadAsync();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task OnDateChanged(DateTime? newDate)
+    {
+        _date = newDate;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (!_date.HasValue) return;
+
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var dateOnly = DateOnly.FromDateTime(_date.Value);
+            _vm = await Repository.GetDailySchedulesAsync(dateOnly, _mode, token);
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            if (!token.IsCancellationRequested)
+            {
+                _loading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    // NEW: Handles the Print Logic
+    private async Task PrintAsync()
+    {
+        if (_vm == null) return;
+
+        // 1. Expand all panels so the printer sees the content
+        foreach (var site in _vm.Sites)
+        {
+            site.IsExpanded = true;
+        }
+        StateHasChanged();
+
+        // 2. Short delay to let the UI render the expanded tables
+        await Task.Delay(500);
+
+        // 3. Trigger Browser Print (User can select "Save as PDF")
+        await JS.InvokeVoidAsync("print");
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

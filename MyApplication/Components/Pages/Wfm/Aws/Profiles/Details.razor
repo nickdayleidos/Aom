@@ -1,0 +1,64 @@
+﻿@page "/wfm/aws/profiles/{Id:int}"
+@attribute [Authorize(Roles = "Admin,OST,WFM")]
+@using MyApplication.Components.Model.AOM.Aws
+@using MyApplication.Components.Service.Aws
+@inject AwsRoutingService Service
+@inject IDialogService DialogService
+
+<MudStack Spacing="4">
+    <MudText Typo="Typo.h5">Profile: @_profile?.Name</MudText>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+            <MudText Typo="Typo.h6">Assigned Queues</MudText>
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Secondary" OnClick="AddQueue">Assign Queue</MudButton>
+        </MudStack>
+
+        <MudTable Items="_assignedQueues" Dense="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Priority</MudTh>
+                <MudTh>Queue</MudTh>
+                <MudTh>Delay (sec)</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Priority</MudTd>
+                <MudTd>@context.CallQueue?.Name</MudTd>
+                <MudTd>@context.Delay</MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveQueue(context))" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+</MudStack>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private RoutingProfile? _profile;
+    private List<RoutingProfileQueue> _assignedQueues = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _profile = await Service.GetProfileDetailsAsync(Id);
+        await LoadQueues();
+    }
+
+    private async Task LoadQueues() => _assignedQueues = await Service.GetQueuesForProfileAsync(Id);
+
+    private async Task AddQueue()
+    {
+        var allQueues = await Service.GetQueuesAsync();
+        // Simple dialog to pick queue, priority, delay
+        var parameters = new DialogParameters { ["ProfileId"] = Id, ["AvailableQueues"] = allQueues };
+        var dialog = await DialogService.ShowAsync<AddQueueToProfileDialog>("Assign Queue", parameters);
+        var result = await dialog.Result;
+        if (!result.Canceled) await LoadQueues();
+    }
+
+    private async Task RemoveQueue(RoutingProfileQueue item)
+    {
+        await Service.RemoveQueueFromProfileAsync(item.Id);
+        await LoadQueues();
+    }
+}

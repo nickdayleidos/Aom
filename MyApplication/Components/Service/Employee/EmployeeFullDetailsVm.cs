@@ -17,12 +17,15 @@ namespace MyApplication.Components.Service.Employee
         public string CorporateEmail { get; set; }
         public string CorporateId { get; set; }
         public string DomainLoginName { get; set; }
+        public int? AwsId { get; set; }
+        public string? AwsUsername { get; set; }
 
         // --- Assignment ---
         public bool HasHistory { get; set; }
         public DateOnly? EffectiveDate { get; set; }
         public string Employer { get; set; }
         public string Site { get; set; }
+        public string SiteTimeZoneId { get; set; } // NEW: For dynamic time conversion
         public string Organization { get; set; }
         public string SubOrganization { get; set; }
         public string Manager { get; set; }
@@ -31,15 +34,15 @@ namespace MyApplication.Components.Service.Employee
         public bool IsLoa { get; set; }
         public bool IsIntLoa { get; set; }
 
-        // --- Schedules (Now supports Split) ---
+        // --- Schedules ---
         public ScheduleDetailsVm Schedule { get; set; }
-        public ScheduleDetailsVm Schedule2 { get; set; } // New: For Shift 2
+        public ScheduleDetailsVm Schedule2 { get; set; }
 
         // --- Other Details ---
         public OvertimeDetailsVm Overtime { get; set; }
         public StaticBreakDetailsVm StaticBreaks { get; set; }
 
-        // --- NEW SECTIONS ---
+        // --- Lists ---
         public List<string> Skills { get; set; } = new();
         public List<AcrHistoryDto> AcrHistory { get; set; } = new();
         public List<OperaHistoryDto> OperaHistory { get; set; } = new();
@@ -48,6 +51,8 @@ namespace MyApplication.Components.Service.Employee
     public class ScheduleDetailsVm
     {
         public bool IsSplit { get; set; }
+
+        // Formatted strings (Default/ET)
         public string Mon { get; set; }
         public string Tue { get; set; }
         public string Wed { get; set; }
@@ -55,6 +60,22 @@ namespace MyApplication.Components.Service.Employee
         public string Fri { get; set; }
         public string Sat { get; set; }
         public string Sun { get; set; }
+
+        // NEW: Raw Times for Dynamic Conversion
+        public TimeOnly? MonStart { get; set; }
+        public TimeOnly? MonEnd { get; set; }
+        public TimeOnly? TueStart { get; set; }
+        public TimeOnly? TueEnd { get; set; }
+        public TimeOnly? WedStart { get; set; }
+        public TimeOnly? WedEnd { get; set; }
+        public TimeOnly? ThuStart { get; set; }
+        public TimeOnly? ThuEnd { get; set; }
+        public TimeOnly? FriStart { get; set; }
+        public TimeOnly? FriEnd { get; set; }
+        public TimeOnly? SatStart { get; set; }
+        public TimeOnly? SatEnd { get; set; }
+        public TimeOnly? SunStart { get; set; }
+        public TimeOnly? SunEnd { get; set; }
     }
 
     public class OvertimeDetailsVm

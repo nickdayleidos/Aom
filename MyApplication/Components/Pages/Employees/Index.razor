@@ -1,6 +1,6 @@
 ﻿@page "/employees"
 @using MudBlazor
-@attribute [Authorize(Policy = "Admin")]
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Components.Service.Employee.Dtos
 @inject EmployeesRepository Repo
@@ -13,11 +13,7 @@
             <MudText Typo="Typo.h5">Employees</MudText>
             <MudSpacer />
             <MudSwitch Value="_activeOnly"
-                       ValueChanged="@(async (bool v) =>
-                                  {
-                           _activeOnly = v;
-                           await RefreshAsync();
-                       })"
+                       ValueChanged="@(async (bool v) => { _activeOnly = v; await RefreshAsync(); })"
                        Color="Color.Primary"
                        Class="mr-2" />
             <MudText Class="mr-4">Active only</MudText>
@@ -25,7 +21,7 @@
             <MudTextField T="string"
                           Value="@_query"
                           ValueChanged="OnQueryChanged"
-                          Placeholder="Search (name, id, supervisor, manager, org, suborg)"
+                          Placeholder="Search by Name or ID"
                           Immediate="true"
                           DebounceInterval="350"
                           Adornment="Adornment.Start"
@@ -35,46 +31,51 @@
     </MudPaper>
 
     <MudPaper Class="pa-2" Outlined>
-        <MudTable Items="_items" Hover="true" Dense="true" Bordered="true" Breakpoint="Breakpoint.Sm" RowsPerPage="20" @ref="_table">
-            <HeaderContent>
-                <MudTh>Id</MudTh>
-                <MudTh>Name</MudTh>
-                <MudTh>Manager</MudTh>
-                <MudTh>Supervisor</MudTh>
-                <MudTh>Organization</MudTh>
-                <MudTh>Sub-Org</MudTh>
-                <MudTh>Active</MudTh>
-                <MudTh></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Id">@context.Id</MudTd>
-                <MudTd DataLabel="Name">@context.LastName, @context.FirstName</MudTd>
-                <MudTd DataLabel="Manager">@context.Manager</MudTd>
-                <MudTd DataLabel="Supervisor">@context.Supervisor</MudTd>
-                <MudTd DataLabel="Organization">@context.Organization</MudTd>
-                <MudTd DataLabel="Sub-Org">@context.SubOrganization</MudTd>
-                <MudTd DataLabel="Active">@(context.IsActive ? "Yes" : "No")</MudTd>
-                <MudTd>
-                    <MudButton Size="Size.Small"
-                               Variant="Variant.Outlined"
-                               OnClick="@(() => GoTo(context.Id))">
-                        Details
-                    </MudButton>
-                </MudTd>
-            </RowTemplate>
+        <MudDataGrid T="EmployeeListItem" Items="_items" Hover="true" Dense="true" Bordered="true"
+                     Filterable="true" SortMode="SortMode.Multiple" QuickFilter="@_quickFilter">
+            <Columns>
+                <PropertyColumn Property="x => x.Id" Title="Id" Sortable="true" Filterable="true" />
+
+                <PropertyColumn Property="x => x.LastName" Title="Last Name" Sortable="true" Filterable="true" />
+                <PropertyColumn Property="x => x.FirstName" Title="First Name" Sortable="true" Filterable="true" />
+
+                <PropertyColumn Property="x => x.Manager" Title="Manager" Sortable="true" Filterable="true" />
+                <PropertyColumn Property="x => x.Supervisor" Title="Supervisor" Sortable="true" Filterable="true" />
+
+                <PropertyColumn Property="x => x.Organization" Title="Organization" Sortable="true" Filterable="true" />
+                <PropertyColumn Property="x => x.SubOrganization" Title="Sub-Org" Sortable="true" Filterable="true" />
+
+                <TemplateColumn Title="Active" Sortable="true" Filterable="false">
+                    <CellTemplate>
+                        @(context.Item.IsActive ? "Yes" : "No")
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn CellClass="d-flex justify-end" Sortable="false" Filterable="false">
+                    <CellTemplate>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => GoTo(context.Item.Id))">
+                            Details
+                        </MudButton>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="EmployeeListItem" />
+            </PagerContent>
             <NoRecordsContent>
                 <MudText Class="pa-4">No employees found.</MudText>
             </NoRecordsContent>
-        </MudTable>
+        </MudDataGrid>
     </MudPaper>
 </MudStack>
 
 @code {
-    private MudTable<EmployeeListItem> _table = default!;
     private string _query = string.Empty;
     private bool _activeOnly = true;
     private List<EmployeeListItem> _items = new();
     private CancellationTokenSource _cts = new();
+
+    private Func<EmployeeListItem, bool> _quickFilter => x => true;
 
     protected override async Task OnInitializedAsync() => await RefreshAsync();
 
@@ -84,24 +85,16 @@
         await RefreshAsync();
     }
 
-    private bool ActiveOnly
-    {
-        get => _activeOnly;
-        set
-        {
-            if (_activeOnly == value) return;
-            _activeOnly = value;
-            _ = RefreshAsync(); // fire-and-forget is fine here
-        }
-    }
-
     private async Task RefreshAsync()
     {
         _cts.Cancel();
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
 
-        _items = await Repo.SearchAsync(_query, _activeOnly, take: 200, ct);
+        // FIX: Added 'ct:' name to the argument.
+        // Once 'take:' (named argument) is used, all subsequent arguments must also be named.
+        _items = await Repo.SearchAsync(_query, _activeOnly, take: 1000, ct: ct);
+
         StateHasChanged();
     }
 

@@ -1,0 +1,63 @@
+﻿@using MyApplication.Components.Model.AOM.Aws
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Aws
+@inject AwsRoutingService Service
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="Queue.Name"
+                              Label="Queue Name"
+                              Required="true"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+
+                <MudSelect T="int?"
+                           Label="Required Skill"
+                           @bind-Value="Queue.SkillTypeId"
+                           Clearable="true"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var st in _skillTypes)
+                    {
+                        <MudSelectItem Value="@((int?)st.Id)">@st.Name</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudCheckBox @bind-Value="Queue.IsActive"
+                             Label="Active"
+                             Color="Color.Primary" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public CallQueue Queue { get; set; }
+
+    private MudForm _form;
+    private List<SkillType> _skillTypes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _skillTypes = await Service.GetSkillTypesAsync();
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (_form.IsValid)
+        {
+            await Service.SaveQueueAsync(Queue);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+    }
+    private void Cancel() => MudDialog.Cancel();
+}

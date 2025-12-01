@@ -57,35 +57,33 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
 builder.Services.AddHttpContextAccessor();
+
+// This Enricher will now query the DB and add claims like Role="Admin", Role="WFM"
 builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, WindowsClaimsEnricher>();
 
 builder.Services.AddAuthorization(options =>
 {
-    // Roles definitions
-    const string RoleSmitTodAdmin = @"LEIDOS-CORP\SMIT_TODAdmin";
-    const string RoleSmitOst = @"LEIDOS-CORP\SMIT_OST";
-    const string RoleSmitPfrm = @"LEIDOS-CORP\sftp_SMIT_PFRM";
-    const string RoleItAdmin = @"YOURDOMAIN\IT Admin";
-    const string UserDayNg = @"LEIDOS-CORP\dayng";
+    // 1. Admin Policy: Requires 'Admin' role from DB
+    options.AddPolicy("Admin", policy =>
+        policy.RequireRole("Admin"));
 
-    // Admin Policy
-    options.AddPolicy("Admin", policy => policy.RequireAssertion(ctx =>
-        ctx.User.IsInRole(RoleSmitTodAdmin) ||
-        string.Equals(ctx.User.Identity?.Name, UserDayNg, StringComparison.OrdinalIgnoreCase)));
+    // 2. OST Policy: Requires 'Admin' OR 'OST' role
+    options.AddPolicy("OST", policy =>
+        policy.RequireRole("Admin", "OST"));
 
-    // OST Policy
-    options.AddPolicy("OST", policy => policy.RequireAssertion(ctx =>
-        ctx.User.IsInRole(RoleSmitTodAdmin) ||
-        ctx.User.IsInRole(RoleSmitOst)));
-
-    // Standard Management Policies (Currently sharing same roles)
-    var managementRoles = new[] { RoleSmitPfrm, RoleItAdmin };
+    // 3. Management Policies (Shared access for management roles)
+    // Any of these roles can access pages protected by these policies
+    var managementRoles = new[] { "Admin", "Manager", "Supervisor", "WFM" };
 
     foreach (var policyName in new[] { "PFM", "WFM", "C&C", "Supervisor", "Manager" })
     {
-        options.AddPolicy(policyName, policy => policy.RequireAssertion(ctx =>
-            managementRoles.Any(role => ctx.User.IsInRole(role))));
+        options.AddPolicy(policyName, policy =>
+            policy.RequireRole(managementRoles));
     }
+
+    // 4. View Only / General Access
+    options.AddPolicy("ViewOnly", policy =>
+        policy.RequireRole("Admin", "Manager", "Supervisor", "WFM", "OST", "ViewOnly"));
 
     options.FallbackPolicy = options.DefaultPolicy;
 });
@@ -131,6 +129,10 @@ builder.Services.AddScoped<IOiEventRepository, OiEventRepository>();
 builder.Services.AddScoped<OperationalImpactEmailService>();
 
 builder.Services.AddScoped<IProactiveRepository, ProactiveRepository>();
+
+builder.Services.AddScoped<MyApplication.Components.Service.Security.SecurityService>();
+
+builder.Services.AddScoped<MyApplication.Components.Service.Aws.AwsRoutingService>();
 
 
 // ────────────────────────────────────────────────────────────────────────────────

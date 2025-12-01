@@ -1,0 +1,39 @@
+﻿@using MyApplication.Components.Model.AOM.Aws
+@using MyApplication.Components.Service.Aws
+@inject AwsRoutingService Service
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudSelect T="int" Label="Queue" @bind-Value="_model.CallQueueId" Required="true">
+                @foreach (var q in AvailableQueues)
+                {
+                    <MudSelectItem Value="@q.Id">@q.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudNumericField @bind-Value="_model.Priority" Label="Priority" Min="1" />
+            <MudNumericField @bind-Value="_model.Delay" Label="Delay (Seconds)" Min="0" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Assign</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public int ProfileId { get; set; }
+    [Parameter] public List<CallQueue> AvailableQueues { get; set; }
+
+    private RoutingProfileQueue _model = new() { Priority = 1, Delay = 0 };
+    private MudForm _form;
+
+    private async Task Submit()
+    {
+        _model.RoutingProfileId = ProfileId;
+        await Service.AddQueueToProfileAsync(_model);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+    private void Cancel() => MudDialog.Cancel();
+}

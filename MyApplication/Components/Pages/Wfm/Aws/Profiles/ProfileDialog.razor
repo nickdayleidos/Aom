@@ -1,0 +1,43 @@
+﻿@using MyApplication.Components.Model.AOM.Aws
+@using MyApplication.Components.Service.Aws
+@inject AwsRoutingService Service
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="Profile.Name"
+                              Label="Profile Name"
+                              Required="true"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+
+                <MudCheckBox @bind-Value="Profile.IsActive"
+                             Label="Active"
+                             Color="Color.Primary" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public RoutingProfile Profile { get; set; } = new();
+
+    private MudForm _form;
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (_form.IsValid)
+        {
+            await Service.SaveProfileAsync(Profile);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+    }
+    private void Cancel() => MudDialog.Cancel();
+}

@@ -1,13 +1,28 @@
 ﻿@page "/employees/{Id:int}"
-@attribute [Authorize(Policy = "Admin")]
+@* 1. PAGE ACCESS: Expanded to include OST, WFM, Managers, Supervisors *@
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+
 @using MyApplication.Components.Service.Employee
+@using MyApplication.Components.Service.Employee.Dtos
+@using MyApplication.Components.Pages.Employees.Dialogs
+@using MyApplication.Common.Time
 @inject EmployeesRepository Repository
 @inject NavigationManager Nav
+@inject IDialogService DialogService
 
 <MudStack Spacing="4" Class="mb-8">
     <MudStack Row="true" AlignItems="AlignItems.Center">
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/employees"))" />
         <MudText Typo="Typo.h5">Employee Details</MudText>
+        <MudSpacer />
+        <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.caption">Time:</MudText>
+            <MudSelect T="TimeDisplayMode" Dense="true" Margin="Margin.Dense" @bind-Value="_mode" Variant="Variant.Outlined" Style="min-width:160px">
+                <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (Site)</MudSelectItem>
+                <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern</MudSelectItem>
+                <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain</MudSelectItem>
+            </MudSelect>
+        </MudStack>
     </MudStack>
 
     @if (_loading)
@@ -23,7 +38,21 @@
         <MudGrid>
             <MudItem xs="12" md="6">
                 <MudPaper Class="pa-4 h-100" Outlined="true">
-                    <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Primary">Profile</MudText>
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+                        <MudText Typo="Typo.h6" Color="Color.Primary">Profile</MudText>
+
+                        @* 2. EDIT PROFILE: Allowed for WFM, Manager, Supervisor, Admin *@
+                        <AuthorizeView Roles="Admin,WFM,Manager,Supervisor">
+                            <Authorized>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                               Size="Size.Small"
+                                               Color="Color.Primary"
+                                               OnClick="EditProfileAsync" />
+                            </Authorized>
+                        </AuthorizeView>
+
+                    </MudStack>
+
                     <MudSimpleTable Dense="true" Hover="false" Striped="false" Elevation="0">
                         <tbody>
                             <tr><td><b>Name</b></td><td>@_vm.LastName, @_vm.FirstName @_vm.MiddleInitial</td></tr>
@@ -32,6 +61,19 @@
                             <tr><td><b>Email</b></td><td>@_vm.CorporateEmail</td></tr>
                             <tr><td><b>NMCI</b></td><td>@_vm.NmciEmail</td></tr>
                             <tr><td><b>USN IDs</b></td><td>@_vm.UsnOperatorId / @_vm.UsnAdminId</td></tr>
+                            <tr>
+                                <td><b>AWS User</b></td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(_vm.AwsUsername))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@_vm.AwsUsername</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <span class="mud-text-secondary">-</span>
+                                    }
+                                </td>
+                            </tr>
                         </tbody>
                     </MudSimpleTable>
                 </MudPaper>
@@ -82,12 +124,7 @@
                 <MudChipSet T="string" ReadOnly="true">
                     @foreach (var skill in _vm.Skills)
                     {
-                        <MudChip T="string"
-                                 Size="Size.Small"
-                                 Color="Color.Primary"
-                                 Variant="Variant.Outlined">
-                            @skill
-                        </MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@skill</MudChip>
                     }
                 </MudChipSet>
             }
@@ -96,6 +133,8 @@
                 <MudText Typo="Typo.caption">No active skills recorded.</MudText>
             }
         </MudPaper>
+
+        <EmployeeRoutingAssignment EmployeeId="@Id" />
 
         @if (_vm.Schedule != null)
         {
@@ -107,13 +146,13 @@
                     <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
                     <tbody>
                         <tr>
-                            <td>@_vm.Schedule.Mon</td>
-                            <td>@_vm.Schedule.Tue</td>
-                            <td>@_vm.Schedule.Wed</td>
-                            <td>@_vm.Schedule.Thu</td>
-                            <td>@_vm.Schedule.Fri</td>
-                            <td>@_vm.Schedule.Sat</td>
-                            <td>@_vm.Schedule.Sun</td>
+                            <td>@DisplayTime(_vm.Schedule.MonStart, _vm.Schedule.MonEnd)</td>
+                            <td>@DisplayTime(_vm.Schedule.TueStart, _vm.Schedule.TueEnd)</td>
+                            <td>@DisplayTime(_vm.Schedule.WedStart, _vm.Schedule.WedEnd)</td>
+                            <td>@DisplayTime(_vm.Schedule.ThuStart, _vm.Schedule.ThuEnd)</td>
+                            <td>@DisplayTime(_vm.Schedule.FriStart, _vm.Schedule.FriEnd)</td>
+                            <td>@DisplayTime(_vm.Schedule.SatStart, _vm.Schedule.SatEnd)</td>
+                            <td>@DisplayTime(_vm.Schedule.SunStart, _vm.Schedule.SunEnd)</td>
                         </tr>
                     </tbody>
                 </MudSimpleTable>
@@ -125,13 +164,13 @@
                         <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
                         <tbody>
                             <tr>
-                                <td>@_vm.Schedule2.Mon</td>
-                                <td>@_vm.Schedule2.Tue</td>
-                                <td>@_vm.Schedule2.Wed</td>
-                                <td>@_vm.Schedule2.Thu</td>
-                                <td>@_vm.Schedule2.Fri</td>
-                                <td>@_vm.Schedule2.Sat</td>
-                                <td>@_vm.Schedule2.Sun</td>
+                                <td>@DisplayTime(_vm.Schedule2.MonStart, _vm.Schedule2.MonEnd)</td>
+                                <td>@DisplayTime(_vm.Schedule2.TueStart, _vm.Schedule2.TueEnd)</td>
+                                <td>@DisplayTime(_vm.Schedule2.WedStart, _vm.Schedule2.WedEnd)</td>
+                                <td>@DisplayTime(_vm.Schedule2.ThuStart, _vm.Schedule2.ThuEnd)</td>
+                                <td>@DisplayTime(_vm.Schedule2.FriStart, _vm.Schedule2.FriEnd)</td>
+                                <td>@DisplayTime(_vm.Schedule2.SatStart, _vm.Schedule2.SatEnd)</td>
+                                <td>@DisplayTime(_vm.Schedule2.SunStart, _vm.Schedule2.SunEnd)</td>
                             </tr>
                         </tbody>
                     </MudSimpleTable>
@@ -222,8 +261,8 @@
                             <MudTd>@context.RequestId</MudTd>
                             <MudTd>@context.Type</MudTd>
                             <MudTd>@context.SubType</MudTd>
-                            <MudTd>@context.StartTime</MudTd>
-                            <MudTd>@context.EndTime</MudTd>
+                            <MudTd>@DisplayDateTime(context.StartTime)</MudTd>
+                            <MudTd>@DisplayDateTime(context.EndTime)</MudTd>
                             <MudTd>@context.Status</MudTd>
                         </RowTemplate>
                     </MudTable>
@@ -239,9 +278,118 @@
     private EmployeeFullDetailsVm _vm;
     private bool _loading = true;
 
+    // Default to Local time (Site)
+    private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
+
     protected override async Task OnInitializedAsync()
     {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
         _vm = await Repository.GetFullDetailsAsync(Id);
         _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task EditProfileAsync()
+    {
+        if (_vm == null) return;
+
+        // Map VM to DTO
+        var dto = new EmployeeProfileUpdateDto
+        {
+            Id = _vm.EmployeeId,
+            FirstName = _vm.FirstName,
+            LastName = _vm.LastName,
+            MiddleInitial = _vm.MiddleInitial,
+            NmciEmail = _vm.NmciEmail,
+            UsnOperatorId = _vm.UsnOperatorId,
+            UsnAdminId = _vm.UsnAdminId,
+            CorporateEmail = _vm.CorporateEmail,
+            CorporateId = _vm.CorporateId,
+            DomainLoginName = _vm.DomainLoginName,
+            AwsId = _vm.AwsId
+        };
+
+        var parameters = new DialogParameters { ["Model"] = dto };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = await DialogService.ShowAsync<EditProfileDialog>("Edit Profile", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var updatedDto = (EmployeeProfileUpdateDto)result.Data;
+            await Repository.UpdateProfileAsync(updatedDto);
+            // Refresh
+            await LoadDataAsync();
+        }
+    }
+
+    private string DisplayTime(TimeOnly? start, TimeOnly? end)
+    {
+        if (start is null || end is null) return "OFF";
+        var s = Convert(start);
+        var e = Convert(end);
+        if (s is null || e is null) return "OFF";
+        return $"{s:HH:mm}-{e:HH:mm}";
+    }
+
+    private string DisplayDateTime(DateTime et)
+    {
+        var targetTz = GetTargetTimeZone();
+        var easternTz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+        // Treat DB time as ET (Unspecified)
+        var dtOffset = new DateTimeOffset(et, easternTz.GetUtcOffset(et));
+        var dtLocal = TimeZoneInfo.ConvertTime(dtOffset, targetTz);
+
+        return dtLocal.ToString("MM/dd/yy HH:mm");
+    }
+
+    private TimeOnly? Convert(TimeOnly? et)
+    {
+        if (et is null) return null;
+        if (_mode == TimeDisplayMode.Eastern) return et;
+
+        var targetTz = GetTargetTimeZone();
+        var easternTz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+        // Use a dummy date to perform the conversion
+        var dtEt = new DateTime(2000, 1, 1, et.Value.Hour, et.Value.Minute, 0, DateTimeKind.Unspecified);
+
+        // Treat input as ET, convert to UTC, then to Target
+        var dtOffset = new DateTimeOffset(dtEt, easternTz.GetUtcOffset(dtEt));
+        var dtLocal = TimeZoneInfo.ConvertTime(dtOffset, targetTz);
+
+        return new TimeOnly(dtLocal.Hour, dtLocal.Minute);
+    }
+
+    private TimeZoneInfo GetTargetTimeZone()
+    {
+        if (_mode == TimeDisplayMode.Eastern)
+            return TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+
+        var targetTzId = _mode switch
+        {
+            TimeDisplayMode.EmployeeLocal => string.IsNullOrWhiteSpace(_vm?.SiteTimeZoneId)
+                ? "Eastern Standard Time"
+                : _vm.SiteTimeZoneId,
+            TimeDisplayMode.Mountain => "Mountain Standard Time",
+            _ => "Eastern Standard Time"
+        };
+
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(targetTzId);
+        }
+        catch
+        {
+            // Fallback to ET if lookup fails
+            return TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+        }
     }
 }

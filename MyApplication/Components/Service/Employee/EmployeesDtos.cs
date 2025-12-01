@@ -12,6 +12,20 @@ namespace MyApplication.Components.Service.Employee.Dtos
         public string? Supervisor { get; set; }
         public string? Organization { get; set; }
         public string? SubOrganization { get; set; }
+        public string? WeekdayProfile { get; set; }
+        public string? WeekendProfile { get; set; }
+        public string? Schedule { get; set; }
+        public List<string> Skills { get; set; } = new();
+        public List<DayScheduleDto> DailySchedules { get; set; } = new();
+    }
+    public class DayScheduleDto
+    {
+        public string Day { get; set; }
+        public TimeOnly? Start { get; set; }
+        public TimeOnly? End { get; set; }
+
+        public bool IsOff => Start == null || End == null;
+        public string DisplayTime => IsOff ? "OFF" : $"{Start:HH:mm}-{End:HH:mm}";
     }
 
     public sealed class EmployeeDetailDto
@@ -63,5 +77,54 @@ namespace MyApplication.Components.Service.Employee.Dtos
         public TimeOnly AfterShiftSaturday { get; set; }
         public TimeOnly BeforeShiftSunday { get; set; }
         public TimeOnly AfterShiftSunday { get; set; }
+    }
+    public class DailyScheduleRow
+    {
+        public int DetailedScheduleId { get; set; }
+        public int EmployeeId { get; set; }
+        public string? EmployeeName { get; set; } // Nullable just in case
+        public DateOnly ScheduleDate { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+
+        // FIXED: Database column is nullable (bool?), so this must be nullable
+        public bool? IsImpacting { get; set; }
+
+        public int ActivityTypeId { get; set; }
+        public string? ActivityName { get; set; } // Nullable just in case
+        public int? ActivitySubTypeId { get; set; }
+
+        // FIXED: These come from LEFT JOINs, so they can be NULL
+        public string? SubActivityName { get; set; }
+        public string? AwsStatusName { get; set; }
+
+        public string SiteName { get; set; } // Handled by ISNULL in View
+        public string SiteTimeZoneId { get; set; } // Handled by ISNULL in View
+
+        // FIXED: These come from OUTER APPLY, so they can be NULL
+        public string? OrganizationName { get; set; }
+        public string? SubOrganizationName { get; set; }
+        public string? SupervisorName { get; set; }
+    }
+
+    public class EmployeeProfileUpdateDto
+    {
+        public int Id { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? MiddleInitial { get; set; }
+        public string? NmciEmail { get; set; }
+        public string? UsnOperatorId { get; set; }
+        public string? UsnAdminId { get; set; }
+        public string? CorporateEmail { get; set; }
+        public string? CorporateId { get; set; }
+        public string? DomainLoginName { get; set; }
+        public int? AwsId { get; set; } // For mapping
+    }
+
+    public class AwsIdentifierLookupDto
+    {
+        public int Id { get; set; }
+        public string? AwsUsername { get; set; }
     }
 }

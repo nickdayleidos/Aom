@@ -1,29 +1,106 @@
-﻿@* Routes.razor *@
-@using Microsoft.AspNetCore.Components.Authorization
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using MyApplication.Components.Layout
 
-<CascadingAuthenticationState>
-    <Router AppAssembly="@typeof(App).Assembly" PreferExactMatches="true">
-        <Found Context="routeData">
-            <AuthorizeRouteView RouteData="@routeData"
-                                DefaultLayout="@typeof(MyApplication.Components.Layout.MainLayout)">
-                <NotAuthorized>
-                    <MudPaper Class="pa-6">
-                        <MudText Typo="Typo.h5">Not authorized</MudText>
-                        <MudText>You don’t have access to this page.</MudText>
-                    </MudPaper>
-                </NotAuthorized>
-                <Authorizing>
-                    <MudProgressCircular Indeterminate="true" />
-                </Authorizing>
-            </AuthorizeRouteView>
-        </Found>
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+            <NotAuthorized>
+                <MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+                    @if (context.User.Identity?.IsAuthenticated == true)
+                    {
+                        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-4">
+                            <MudText Typo="Typo.h6">Access Denied</MudText>
+                            <MudText>You do not have the required permissions for this page.</MudText>
+                        </MudAlert>
 
-        <NotFound>
-            <LayoutView Layout="@typeof(MyApplication.Components.Layout.MainLayout)">
-                <MudPaper Class="pa-6">
-                    <MudText Typo="Typo.h5">Page not found</MudText>
-                </MudPaper>
-            </LayoutView>
-        </NotFound>
-    </Router>
-</CascadingAuthenticationState>
+                        <MudPaper Class="pa-4" Outlined="true">
+                            <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-2">Diagnostic Info</MudText>
+                            <MudDivider Class="mb-3" />
+
+                            <MudSimpleTable Dense="true" Hover="false" Elevation="0">
+                                <tbody>
+                                    <tr><td><b>User</b></td><td>@context.User.Identity.Name</td></tr>
+                                    <tr><td><b>Auth Type</b></td><td>@context.User.Identity.AuthenticationType</td></tr>
+                                </tbody>
+                            </MudSimpleTable>
+
+                            <MudText Class="mt-4 mb-1"><b>Active Roles:</b></MudText>
+                            @if (HasRoles(context.User))
+                            {
+                                <MudChipSet T="string" ReadOnly="true">
+                                    @foreach (var role in GetRoles(context.User))
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Check">@role</MudChip>
+                                    }
+                                </MudChipSet>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true">No roles detected.</MudAlert>
+                            }
+
+                            <MudText Class="mt-4 mb-1"><b>Enricher Debug Log:</b></MudText>
+                            <MudList T="string" Dense="true" DisablePadding="true">
+                                @foreach (var claim in context.User.Claims.Where(c => c.Type.StartsWith("Debug:")).OrderBy(c => c.Type))
+                                {
+                                    <MudListItem Icon="@Icons.Material.Filled.BugReport" IconSize="Size.Small">
+                                        <b>@claim.Type.Replace("Debug:", ""):</b> @claim.Value
+                                    </MudListItem>
+                                }
+                                @if (!context.User.Claims.Any(c => c.Type.StartsWith("Debug:")))
+                                {
+                                    <MudListItem Icon="@Icons.Material.Filled.Warning" IconColor="Color.Warning">
+                                        No debug claims found. (Enricher might not be running)
+                                    </MudListItem>
+                                }
+                            </MudList>
+
+                        </MudPaper>
+
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-4" Href="/">
+                            Return Home
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled">
+                            <MudText Typo="Typo.h6">Not Authenticated</MudText>
+                            <MudText>Please log in to continue.</MudText>
+                        </MudAlert>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="@(() => NavigationManager.NavigateTo(NavigationManager.Uri, true))">
+                            Log In
+                        </MudButton>
+                    }
+                </MudContainer>
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <MudContainer MaxWidth="MaxWidth.Small" Class="mt-16 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.SentimentVeryDissatisfied" Size="Size.Large" Color="Color.Secondary" />
+                <MudText Typo="Typo.h4" Class="mt-4">Page Not Found</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" Href="/">Go Home</MudButton>
+            </MudContainer>
+        </LayoutView>
+    </NotFound>
+</Router>
+
+@inject NavigationManager NavigationManager
+
+@code {
+    private bool HasRoles(ClaimsPrincipal user)
+    {
+        return user.Claims.Any(c => c.Type == user.Identities.FirstOrDefault()?.RoleClaimType || c.Type == ClaimTypes.Role);
+    }
+
+    private IEnumerable<string> GetRoles(ClaimsPrincipal user)
+    {
+        return user.Claims
+            .Where(c => c.Type == user.Identities.FirstOrDefault()?.RoleClaimType || c.Type == ClaimTypes.Role)
+            .Select(c => c.Value);
+    }
+}

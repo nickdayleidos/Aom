@@ -1,5 +1,5 @@
 ﻿@page "/acr/{Id:int}/edit"
-@attribute [Authorize(Policy = "Admin")]
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
 @inject IAcrQueryService Query
 @inject IAcrService Acr
 @inject NavigationManager Nav

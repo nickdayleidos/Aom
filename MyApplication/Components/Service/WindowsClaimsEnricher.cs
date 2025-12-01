@@ -1,81 +1,91 @@
 using System.Security.Claims;
-using System.Security.Principal;                 // SecurityIdentifier, NTAccount
+using System.Security.Principal;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Negotiate;
-using System.Runtime.Versioning;
+using Microsoft.EntityFrameworkCore;
+using MyApplication.Components.Data;
+using MyApplication.Components.Model.AOM.Security;
 
 namespace MyApplication.Components.Service
 {
     public sealed class WindowsClaimsEnricher : IClaimsTransformation
     {
-        public Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
+        private readonly IDbContextFactory<AomDbContext> _dbFactory;
+
+        public WindowsClaimsEnricher(IDbContextFactory<AomDbContext> dbFactory)
         {
-            if (principal.Identity is not ClaimsIdentity id || !id.IsAuthenticated)
-                return Task.FromResult(principal);
-
-            // Only enrich Negotiate/Windows identities
-            var authType = id.AuthenticationType ?? string.Empty;
-            if (!authType.Equals(NegotiateDefaults.AuthenticationScheme, StringComparison.OrdinalIgnoreCase))
-                return Task.FromResult(principal);
-
-            // Roles from groups (translate SIDs -> names on Windows; otherwise fall back to raw SIDs)
-            foreach (var g in GetGroupNames(principal))
-            {
-                if (!id.HasClaim(ClaimTypes.Role, g))
-                    id.AddClaim(new Claim(ClaimTypes.Role, g));
-            }
-
-#if WINDOWS
-            // Email from AD (best-effort)
-            if (!id.HasClaim(c => c.Type == ClaimTypes.Email))
-            {
-                var email = LookupEmailFromAd(principal);
-                if (!string.IsNullOrWhiteSpace(email))
-                    id.AddClaim(new Claim(ClaimTypes.Email, email!));
-            }
-#endif
-
-            return Task.FromResult(principal);
+            _dbFactory = dbFactory;
         }
 
-        private static IEnumerable<string> GetGroupNames(ClaimsPrincipal principal)
+        public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
-#if WINDOWS
-            foreach (var sid in principal.Claims.Where(c => c.Type == ClaimTypes.GroupSid).Select(c => c.Value))
+            // We need the underlying Windows Identity to perform IsInRole checks against AD Groups
+            if (principal.Identity is not WindowsIdentity wid || !wid.IsAuthenticated)
+                return principal;
+
+            // Avoid running twice
+            if (wid.HasClaim(c => c.Type == "Debug:EnricherRan"))
+                return principal;
+
+            wid.AddClaim(new Claim("Debug:EnricherRan", DateTime.Now.ToString()));
+
+            // Wrap in WindowsPrincipal to unlock the native .IsInRole() capability
+            var wp = new WindowsPrincipal(wid);
+
+            using (var ctx = await _dbFactory.CreateDbContextAsync())
             {
-                try
+                // Fetch ALL assignments (cached/scoped context makes this cheap)
+                var allAssignments = await ctx.AppRoleAssignments
+                    .AsNoTracking()
+                    .Include(a => a.AppRole)
+                    .ToListAsync();
+
+                // ---------------------------------------------------------
+                // 1. CHECK USERS (Direct String Match)
+                // ---------------------------------------------------------
+                var userMatches = allAssignments
+                    .Where(a => a.Type == "User" &&
+                                string.Equals(a.Identifier, wid.Name, StringComparison.OrdinalIgnoreCase));
+
+                foreach (var match in userMatches)
                 {
-                    var name = new SecurityIdentifier(sid).Translate(typeof(NTAccount)).ToString();
-                    yield return name;
+                    AddRole(wid, match.AppRole.Name, "UserMatch");
                 }
-                catch { /* ignore bad/foreign SIDs */ }
+
+                // ---------------------------------------------------------
+                // 2. CHECK GROUPS (The "Previous Setup" Logic)
+                // ---------------------------------------------------------
+                // We iterate the DB Groups and ask Windows: "Is this user in this group?"
+                // This bypasses the need to translate SIDs manually.
+                var groupAssignments = allAssignments.Where(a => a.Type == "Group");
+
+                foreach (var assignment in groupAssignments)
+                {
+                    try
+                    {
+                        // assignment.Identifier should be "LEIDOS-CORP\Group"
+                        if (wp.IsInRole(assignment.Identifier))
+                        {
+                            AddRole(wid, assignment.AppRole.Name, "GroupMatch");
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore invalid groups in DB (e.g. typos) that cause IsInRole to throw
+                    }
+                }
             }
-#else
-            // Non-Windows: you can only show SIDs (no translation available)
-            foreach (var sid in principal.Claims.Where(c => c.Type == ClaimTypes.GroupSid).Select(c => c.Value))
-                yield return sid;
-#endif
+
+            return principal;
         }
 
-#if WINDOWS
-        [SupportedOSPlatform("windows")]
-        private static string? LookupEmailFromAd(ClaimsPrincipal user)
+        private void AddRole(ClaimsIdentity id, string roleName, string source)
         {
-            var sam = user.Identity?.Name?.Split('\\').LastOrDefault();
-            if (string.IsNullOrWhiteSpace(sam)) return null;
-
-            try
+            // Use the Identity's specific Role Claim Type (usually matches what policies look for)
+            if (!id.HasClaim(id.RoleClaimType, roleName))
             {
-                using var ctx = new System.DirectoryServices.AccountManagement.PrincipalContext(
-                    System.DirectoryServices.AccountManagement.ContextType.Domain);
-                using var up = System.DirectoryServices.AccountManagement.UserPrincipal.FindByIdentity(
-                    ctx,
-                    System.DirectoryServices.AccountManagement.IdentityType.SamAccountName,
-                    sam);
-                return up?.EmailAddress;
+                id.AddClaim(new Claim(id.RoleClaimType, roleName));
+                id.AddClaim(new Claim($"Debug:{source}", roleName));
             }
-            catch { return null; }
         }
-#endif
     }
 }

@@ -16,7 +16,7 @@
 @inject AuthenticationStateProvider Auth
 @inject NavigationManager Nav
 @using Microsoft.JSInterop;
-@attribute [Authorize(Policy = "OST")]
+@attribute [Authorize(Roles = "Admin,OST,WFM")]
 
 <MudStack Spacing="2">
     <MudPaper Class="pa-3 d-flex gap-2 align-center" Outlined="true">

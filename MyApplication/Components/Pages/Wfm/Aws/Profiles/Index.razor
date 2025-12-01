@@ -1,0 +1,83 @@
+﻿@page "/wfm/aws/profiles"
+@attribute [Authorize(Roles = "Admin,WFM,OST")]
+@using MyApplication.Components.Model.AOM.Aws
+@using MyApplication.Components.Service.Aws
+@inject AwsRoutingService Service
+@inject IDialogService DialogService
+@inject NavigationManager Nav
+
+<MudStack Spacing="4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+        <MudText Typo="Typo.h5">Routing Profiles</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => OpenDialog(null))">Create Profile</MudButton>
+    </MudStack>
+
+    <MudDataGrid Items="_profiles"
+                 Filterable="true"
+                 SortMode="SortMode.Multiple"
+                 Dense="true"
+                 Hover="true"
+                 Bordered="true"
+                 Striped="true"
+                 RowsPerPage="25">
+        <Columns>
+            <PropertyColumn Property="x => x.Name" Title="Profile Name" />
+
+            <TemplateColumn Title="Assigned Queues" Sortable="false" Filterable="false">
+                <CellTemplate>
+                    <MudChipSet T="string" ReadOnly="true">
+                        @foreach (var q in context.Item.RoutingProfileQueues
+                                                .Select(rpq => rpq.CallQueue)
+                                                .Where(q => q != null)
+                                                .OrderBy(q => q.Name))
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">
+                                @q.Name
+                            </MudChip>
+                        }
+                    </MudChipSet>
+                </CellTemplate>
+            </TemplateColumn>
+
+            <TemplateColumn Title="Active">
+                <CellTemplate>
+                    <MudCheckBox Value="@context.Item.IsActive" ReadOnly="true" Color="Color.Primary" Dense="true" />
+                </CellTemplate>
+            </TemplateColumn>
+
+            <TemplateColumn CellClass="d-flex justify-end">
+                <CellTemplate>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="mr-2"
+                               OnClick="@(() => Nav.NavigateTo($"/wfm/aws/profiles/{context.Item.Id}"))">
+                        Manage Queues
+                    </MudButton>
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenDialog(context.Item))" />
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="RoutingProfile" PageSizeOptions="@(new int[] { 25, 50, 100 })" />
+        </PagerContent>
+    </MudDataGrid>
+</MudStack>
+
+@code {
+    private List<RoutingProfile> _profiles = new();
+    protected override async Task OnInitializedAsync() => await LoadData();
+    private async Task LoadData() => _profiles = await Service.GetProfilesAsync();
+
+    private async Task OpenDialog(RoutingProfile? profile = null)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Profile"] = profile ?? new RoutingProfile { IsActive = true }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = await DialogService.ShowAsync<ProfileDialog>("Profile Details", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled) await LoadData();
+    }
+}

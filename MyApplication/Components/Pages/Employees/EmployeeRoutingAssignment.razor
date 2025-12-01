@@ -1,0 +1,109 @@
+﻿@using MyApplication.Components.Model.AOM.Aws
+@using MyApplication.Components.Service.Aws
+@inject AwsRoutingService AwsService
+@inject ISnackbar Snackbar
+
+<MudPaper Class="pa-4" Outlined="true">
+    <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Tertiary">AWS Routing Assignment</MudText>
+
+    @if (_loading)
+    {
+        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+    }
+    else
+    {
+        <AuthorizeView Roles="Admin,WFM" Context="authContext">
+            <Authorized>
+                @* Authorized: Full Editing *@
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int?" Label="Weekday Profile" @bind-Value="_assignment.WeekdayProfileId"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Clearable="true">
+                            @foreach (var p in _profiles)
+                            {
+                                <MudSelectItem T="int?" Value="@p.Id">@p.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int?" Label="Weekend Profile" @bind-Value="_assignment.WeekendProfileId"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Clearable="true">
+                            @foreach (var p in _profiles)
+                            {
+                                <MudSelectItem T="int?" Value="@p.Id">@p.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" Class="d-flex justify-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAssignment" Disabled="_saving">
+                            @(_saving ? "Saving..." : "Update Routing")
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </Authorized>
+            <NotAuthorized>
+                @* Not Authorized: Read Only View *@
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int?" Label="Weekday Profile" Value="_assignment.WeekdayProfileId"
+                                   ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            @foreach (var p in _profiles)
+                            {
+                                <MudSelectItem T="int?" Value="@p.Id">@p.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int?" Label="Weekend Profile" Value="_assignment.WeekendProfileId"
+                                   ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            @foreach (var p in _profiles)
+                            {
+                                <MudSelectItem T="int?" Value="@p.Id">@p.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+            </NotAuthorized>
+        </AuthorizeView>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public int EmployeeId { get; set; }
+
+    private EmployeeRoutingProfile _assignment = new();
+    private List<RoutingProfile> _profiles = new();
+    private bool _loading = true;
+    private bool _saving = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        try
+        {
+            _profiles = await AwsService.GetProfilesAsync();
+            var existing = await AwsService.GetEmployeeAssignmentAsync(EmployeeId);
+
+            if (existing != null)
+            {
+                _assignment = existing;
+            }
+            else
+            {
+                _assignment = new EmployeeRoutingProfile { EmployeeId = EmployeeId };
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAssignment()
+    {
+        _saving = true;
+        await AwsService.SaveEmployeeAssignmentAsync(_assignment);
+        Snackbar.Add("Routing profiles updated successfully.", Severity.Success);
+        _saving = false;
+    }
+}

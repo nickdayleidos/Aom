@@ -1,0 +1,99 @@
+﻿@using MyApplication.Components.Service.Employee.Dtos
+@using MyApplication.Components.Service.Employee
+@inject EmployeesRepository Repository
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudGrid>
+                <MudItem xs="12" sm="5">
+                    <MudTextField @bind-Value="Model.FirstName" Label="First Name" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="2">
+                    <MudTextField @bind-Value="Model.MiddleInitial" Label="MI" MaxLength="1" />
+                </MudItem>
+                <MudItem xs="12" sm="5">
+                    <MudTextField @bind-Value="Model.LastName" Label="Last Name" Required="true" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Model.CorporateId" Label="Corp ID" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="Model.DomainLoginName" Label="Domain Login" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.CorporateEmail" Label="Corporate Email" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.NmciEmail" Label="NMCI Email" />
+                </MudItem>
+
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="Model.UsnOperatorId" Label="USN Operator ID" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="Model.UsnAdminId" Label="USN Admin ID" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudAutocomplete T="AwsIdentifierLookupDto"
+                                     Label="Map AWS User Name"
+                                     Value="_selectedAwsIdentifier"
+                                     ValueChanged="OnAwsChanged"
+                                     SearchFunc="@SearchAws"
+                                     ToStringFunc="@(x => x?.AwsUsername)"
+                                     ResetValueOnEmptyText="true"
+                                     Clearable="true"
+                                     AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Save Changes</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public EmployeeProfileUpdateDto Model { get; set; } = new();
+
+    private MudForm _form;
+    private AwsIdentifierLookupDto? _selectedAwsIdentifier;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Pre-load the selected autocomplete value if an ID exists
+        if (Model.AwsId.HasValue)
+        {
+            _selectedAwsIdentifier = await Repository.GetAwsIdentifierAsync(Model.AwsId.Value);
+        }
+    }
+
+    private async Task<IEnumerable<AwsIdentifierLookupDto>> SearchAws(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value)) return Enumerable.Empty<AwsIdentifierLookupDto>();
+        return await Repository.SearchAwsIdentifiersAsync(value, token);
+    }
+
+    private void OnAwsChanged(AwsIdentifierLookupDto value)
+    {
+        _selectedAwsIdentifier = value;
+        Model.AwsId = value?.Id;
+    }
+
+    private void Submit()
+    {
+        _form.Validate();
+        if (_form.IsValid)
+        {
+            MudDialog.Close(DialogResult.Ok(Model));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

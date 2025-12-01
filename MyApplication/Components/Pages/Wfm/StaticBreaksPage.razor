@@ -1,5 +1,5 @@
 ﻿@page "/wfm/static-breaks"
-@attribute [Authorize(Policy = "Admin")]
+@attribute [Authorize(Roles = "Admin,WFM")]
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Wfm
 @using System.Text.Json

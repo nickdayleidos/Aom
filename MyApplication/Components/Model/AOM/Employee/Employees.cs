@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using MyApplication.Components.Model.AOM.Aws;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MyApplication.Components.Model.AOM.Employee
@@ -24,10 +25,9 @@ namespace MyApplication.Components.Model.AOM.Employee
         [Column(TypeName = "varchar(64)")] public string? CorporateEmail { get; set; }
         [Column(TypeName = "varchar(32)")] public string? CorporateId { get; set; }
         [Column(TypeName = "varchar(32)")] public string? DomainLoginName { get; set; }
-
+        public int? AwsId { get; set; }
+        public Identifiers? Aws { get; set; }
         public bool IsActive { get; set; } = true;
-
-      
     }
 
     public class EmployeeHistory
