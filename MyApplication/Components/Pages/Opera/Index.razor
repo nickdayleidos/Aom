@@ -5,11 +5,13 @@
 @using MudBlazor
 @using MyApplication.Common.Time
 @using MyApplication.Components.Service
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inject IOperaRepository Repo
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject UserProfileService UserProfile
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudStack Spacing="2">
     <MudPaper Class="pa-3" Outlined="true">
@@ -47,6 +49,7 @@
 
     <MudTabs @bind-ActivePanelIndex="_activeTab" Rounded="true">
         <MudTabPanel Text="All Requests">@TableBlock(AllItems)</MudTabPanel>
+        <MudTabPanel Text="Pending Approval - Past">@TableBlock(PendingPastItems)</MudTabPanel>
         <MudTabPanel Text="Pending Approval - Today">@TableBlock(PendingTodayItems)</MudTabPanel>
         <MudTabPanel Text="Pending Approval - Future">@TableBlock(PendingFutureItems)</MudTabPanel>
         <MudTabPanel Text="Today's Approved Requests">@TableBlock(TodaysApprovedItems)</MudTabPanel>
@@ -85,8 +88,24 @@
     private DateTime _todayEt;
     private DateTime _todayMt;
 
+    // Roles
+    private bool _isAdmin;
+    private bool _isWfm;
+    private bool _isOst;
+    private bool _isManager;
+    private bool _isSupervisor;
+
     protected override async Task OnInitializedAsync()
     {
+        // Get Current User Roles
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAdmin = user.IsInRole("Admin");
+        _isWfm = user.IsInRole("WFM");
+        _isOst = user.IsInRole("OST");
+        _isManager = user.IsInRole("Manager");
+        _isSupervisor = user.IsInRole("Supervisor");
+
         // Use Repo methods (safe for Factory usage)
         _statuses = (await Repo.GetStatusesAsync()).ToList();
         _types = await Repo.GetActivityTypesAsync();
@@ -132,7 +151,7 @@
     private Task Reload() => LoadAsync();
     private void GoSubmit() => Nav.NavigateTo("/opera/new");
 
-    // ---------- Helpers for Sorting (Fixes Quote Issues) ----------
+    // ---------- Helpers for Sorting ----------
 
     private object SortByEmployee(OperaRequest x)
     {
@@ -169,12 +188,53 @@
     }
 
     private static int? GetStatusId(OperaRequest r) => r.OperaStatusId;
-    private bool CanApprove(OperaRequest r) => GetStatusId(r) == SubmittedStatusId;
-    private bool CanReject(OperaRequest r) => GetStatusId(r) == SubmittedStatusId;
+
+    // ---------- Logic for Permissions ----------
+
+    private bool IsPendingPastOrFuture(OperaRequest r)
+    {
+        if (GetStatusId(r) != SubmittedStatusId) return false;
+        return !IsTodayInEtOrMt(r.StartTime);
+    }
+
+    private bool CanOpen(OperaRequest r)
+    {
+        if (IsPendingPastOrFuture(r))
+        {
+            return _isAdmin || _isWfm;
+        }
+        return true;
+    }
+
+    private bool CanApprove(OperaRequest r)
+    {
+        if (GetStatusId(r) != SubmittedStatusId) return false;
+
+        if (IsPendingPastOrFuture(r))
+        {
+            return _isAdmin || _isWfm;
+        }
+        else
+        {
+            return _isOst || _isWfm || _isAdmin;
+        }
+    }
+
+    private bool CanReject(OperaRequest r) => CanApprove(r);
+
     private bool CanCancel(OperaRequest r)
     {
         var s = GetStatusId(r);
-        return s == SubmittedStatusId || s == ApprovedStatusId || s == ProcessedStatusId;
+        if (s != SubmittedStatusId && s != ApprovedStatusId && s != ProcessedStatusId) return false;
+
+        if (IsPendingPastOrFuture(r))
+        {
+            return _isAdmin || _isWfm;
+        }
+        else
+        {
+            return true;
+        }
     }
 
     // ---------- tab-specific views ----------
@@ -186,6 +246,16 @@
         var mtDate = Et.ToMt(etStored).Date;
         return etDate == _todayEt || mtDate == _todayMt;
     }
+
+    private IEnumerable<OperaRequest> PendingPastItems =>
+        _items.Where(r =>
+        {
+            var s = GetStatusId(r);
+            if (s != SubmittedStatusId) return false;
+            var etDate = r.StartTime.Date;
+            var mtDate = Et.ToMt(r.StartTime).Date;
+            return etDate < _todayEt && mtDate < _todayMt;
+        });
 
     private IEnumerable<OperaRequest> PendingTodayItems =>
         _items.Where(r => GetStatusId(r) == SubmittedStatusId && IsTodayInEtOrMt(r.StartTime));
@@ -219,6 +289,7 @@
             StatusAction.Cancel => "Cancel",
             _ => ""
         };
+
         var status = _statuses.FirstOrDefault(
             s => s.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase));
 
@@ -230,6 +301,7 @@
 
         var profile = await UserProfile.GetAsync();
         var actor = profile.UserName;
+
         await Repo.SetStatusAsync(req.RequestId, status.Id, actor);
 
         Snackbar.Add($"Request #{req.RequestId} set to {status.Name}.", Severity.Success);
@@ -263,7 +335,7 @@
                 <MudTd DataLabel="Status">@_statuses.FirstOrDefault(s => s.Id == GetStatusId(context))?.Name</MudTd>
                 <MudTd DataLabel="Actions">
                     <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true">
-                        <MudMenuItem OnClick="@(() => Nav.NavigateTo($"/opera/{context.RequestId}"))">Open</MudMenuItem>
+                        <MudMenuItem OnClick="@(() => Nav.NavigateTo($"/opera/{context.RequestId}"))" Disabled="@(!CanOpen(context))">Open</MudMenuItem>
                         <MudMenuItem OnClick="@(() => SetStatusAsync(context, StatusAction.Approve))" Disabled="@(!CanApprove(context))">Approve</MudMenuItem>
                         <MudMenuItem OnClick="@(() => SetStatusAsync(context, StatusAction.Reject))" Disabled="@(!CanReject(context))">Reject</MudMenuItem>
                         <MudMenuItem OnClick="@(() => SetStatusAsync(context, StatusAction.Cancel))" Disabled="@(!CanCancel(context))">Cancel</MudMenuItem>

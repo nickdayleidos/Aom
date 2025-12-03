@@ -19,8 +19,8 @@ public sealed record AcrIndexFilter(
     int? AcrStatusId,
     string? EmployeeSearch,
     DateOnly? EffectiveFrom,
-    DateOnly? EffectiveTo
+    DateOnly? EffectiveTo,
+    bool ActiveOnly // NEW: Added this field
 );
-
 // NEW: Paged Result Wrapper
 public sealed record PagedResult<T>(List<T> Items, int TotalCount);

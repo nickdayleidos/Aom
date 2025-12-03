@@ -359,34 +359,69 @@ namespace MyApplication.Components.Service.Employee
                .FirstOrDefaultAsync();
         }
 
+        // ====================================================================
+        // NEW: GetDailySchedulesAsync with DetailedSchedule + AWS Status Logic
+        // ====================================================================
         public async Task<ScheduleDashboardVm> GetDailySchedulesAsync(DateOnly date, TimeDisplayMode mode, CancellationToken ct = default)
         {
             if (date == DateOnly.MinValue) return new ScheduleDashboardVm { Date = date };
 
             using var ctx = await _factory.CreateDbContextAsync();
-            var rows = await ctx.DailyScheduleRows.Where(x => x.ScheduleDate == date).AsNoTracking().ToListAsync(ct);
 
-            if (!rows.Any()) return new ScheduleDashboardVm { Date = date };
+            // 1. Get raw schedule data
+            var rawData = await ctx.DetailedSchedule.AsNoTracking()
+                .Where(x => x.ScheduleDate == date)
+                .Include(x => x.ActivityType)
+                .Include(x => x.ActivitySubType)
+                .Include(x => x.AwsStatus)
+                .ToListAsync(ct);
+
+            if (!rawData.Any()) return new ScheduleDashboardVm { Date = date };
+
+            // 2. Get Employee/Site context (names, orgs, timezones)
+            var empIds = rawData.Select(x => x.EmployeeId).Distinct().ToList();
+            var histories = await ctx.EmployeeHistory.AsNoTracking()
+                .Where(h => empIds.Contains(h.EmployeeId))
+                // Optimistic: Get active history, or latest if none active
+                .Include(h => h.Site)
+                .Include(h => h.Organization)
+                .Include(h => h.SubOrganization)
+                .Include(h => h.Supervisor).ThenInclude(s => s.Employee)
+                .Include(h => h.Employee) // For Employee Name
+                .ToListAsync(ct);
+
+            // Filter to best history row per employee
+            var bestHistory = histories
+                .GroupBy(h => h.EmployeeId)
+                .Select(g => g.OrderByDescending(x => x.IsActive == true).ThenByDescending(x => x.EffectiveDate).First())
+                .ToList();
 
             var dashboard = new ScheduleDashboardVm { Date = date };
-            var groupedBySite = rows.GroupBy(x => (x.SiteName, x.SiteTimeZoneId)).OrderBy(g => g.Key.SiteName);
 
-            foreach (var group in groupedBySite)
+            // 3. Group by Site
+            var groupedBySite = bestHistory.GroupBy(x => x.Site?.SiteCode ?? "Unknown")
+                                           .OrderBy(g => g.Key);
+
+            foreach (var siteGroup in groupedBySite)
             {
-                var (siteName, siteTz) = group.Key;
-                var siteVm = new SiteScheduleGroupVm { SiteName = siteName, TimeZoneId = siteTz };
-                var empGroups = group.GroupBy(x => x.EmployeeId);
+                var siteName = siteGroup.Key;
+                // Grab TZ from first employee in site group
+                var first = siteGroup.First();
+                var siteTz = first.Site?.TimeZoneWindows ?? first.Site?.TimeZoneIana ?? "Eastern Standard Time";
 
-                foreach (var empGroup in empGroups)
+                var siteVm = new SiteScheduleGroupVm { SiteName = siteName, TimeZoneId = siteTz };
+
+                foreach (var hist in siteGroup)
                 {
-                    var first = empGroup.First();
+                    var empSchedules = rawData.Where(x => x.EmployeeId == hist.EmployeeId).OrderBy(x => x.StartTime).ToList();
+
                     var empVm = new EmployeeDailyScheduleVm
                     {
-                        EmployeeId = first.EmployeeId,
-                        EmployeeName = first.EmployeeName,
-                        OrganizationName = first.OrganizationName,
-                        SubOrganizationName = first.SubOrganizationName,
-                        SupervisorName = first.SupervisorName
+                        EmployeeId = hist.EmployeeId,
+                        EmployeeName = hist.Employee != null ? $"{hist.Employee.LastName}, {hist.Employee.FirstName}" : $"#{hist.EmployeeId}",
+                        OrganizationName = hist.Organization?.Name ?? "",
+                        SubOrganizationName = hist.SubOrganization?.Name ?? "",
+                        SupervisorName = hist.Supervisor?.Employee != null ? $"{hist.Supervisor.Employee.LastName}, {hist.Supervisor.Employee.FirstName}" : ""
                     };
 
                     string targetTzId = mode switch
@@ -400,31 +435,40 @@ namespace MyApplication.Components.Service.Employee
                     DateTime? minDt = null;
                     DateTime? maxDt = null;
 
-                    foreach (var item in empGroup.OrderBy(x => x.StartTime))
+                    foreach (var item in empSchedules)
                     {
                         var localStart = Tz.FromEtToSite(item.StartTime, targetTzId);
                         var localEnd = Tz.FromEtToSite(item.EndTime, targetTzId);
+
                         if (minDt == null || localStart < minDt) minDt = localStart;
                         if (maxDt == null || localEnd > maxDt) maxDt = localEnd;
 
                         segments.Add(new ScheduleSegmentVm
                         {
                             ActivityTypeId = item.ActivityTypeId,
-                            ActivityName = item.ActivityName ?? "?",
-                            SubActivityName = item.SubActivityName ?? "-",
-                            AwsStatusName = item.AwsStatusName ?? "-",
+                            ActivitySubTypeId = item.ActivitySubTypeId,
+                            ActivityName = item.ActivityType?.Name ?? "?",
+                            SubActivityName = item.ActivitySubType?.Name ?? "-",
+                            AwsStatusId = item.AwsStatusId,
+                            AwsStatusName = item.AwsStatus?.Name ?? "-",
                             Start = TimeOnly.FromDateTime(localStart),
                             End = TimeOnly.FromDateTime(localEnd),
                             IsImpacting = item.IsImpacting ?? false
                         });
                     }
+
                     empVm.Segments = segments;
                     empVm.ShiftString = (minDt.HasValue && maxDt.HasValue) ? $"{minDt.Value:HH:mm} - {maxDt.Value:HH:mm}" : "OFF";
-                    siteVm.Employees.Add(empVm);
+
+                    if (segments.Any())
+                        siteVm.Employees.Add(empVm);
                 }
+
                 siteVm.Employees = siteVm.Employees.OrderBy(e => e.EmployeeName).ToList();
-                dashboard.Sites.Add(siteVm);
+                if (siteVm.Employees.Any())
+                    dashboard.Sites.Add(siteVm);
             }
+
             return dashboard;
         }
 

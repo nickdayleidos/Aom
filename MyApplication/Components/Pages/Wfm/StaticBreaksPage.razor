@@ -5,6 +5,7 @@
 @using System.Text.Json
 @inject IWfmService WfmService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService 
 
 <MudText Typo="Typo.h5" Class="mb-4">Static Break Schedules</MudText>
 
@@ -20,7 +21,6 @@
             </MudStack>
 
             <MudForm @ref="_form" Class="mt-4">
-
                 <MudAutocomplete T="Employees"
                                  Label="Select Employee"
                                  @bind-Value="_selectedEmployee"
@@ -44,88 +44,61 @@
                         <MudItem xs="8">
                             <MudSelect T="int?" @bind-Value="_newSchedule.MondayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
                                 <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
-                                @foreach (var t in _templates)
-                                {
-                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
-                                }
+                                @foreach (var t in _templates) { <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem> }
                             </MudSelect>
                         </MudItem>
                     </MudGrid>
-
                     <MudGrid>
                         <MudItem xs="4" Class="d-flex align-center"><MudText>Tuesday</MudText></MudItem>
                         <MudItem xs="8">
                             <MudSelect T="int?" @bind-Value="_newSchedule.TuesdayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
                                 <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
-                                @foreach (var t in _templates)
-                                {
-                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
-                                }
+                                @foreach (var t in _templates) { <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem> }
                             </MudSelect>
                         </MudItem>
                     </MudGrid>
-
                     <MudGrid>
                         <MudItem xs="4" Class="d-flex align-center"><MudText>Wednesday</MudText></MudItem>
                         <MudItem xs="8">
                             <MudSelect T="int?" @bind-Value="_newSchedule.WednesdayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
                                 <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
-                                @foreach (var t in _templates)
-                                {
-                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
-                                }
+                                @foreach (var t in _templates) { <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem> }
                             </MudSelect>
                         </MudItem>
                     </MudGrid>
-
                     <MudGrid>
                         <MudItem xs="4" Class="d-flex align-center"><MudText>Thursday</MudText></MudItem>
                         <MudItem xs="8">
                             <MudSelect T="int?" @bind-Value="_newSchedule.ThursdayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
                                 <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
-                                @foreach (var t in _templates)
-                                {
-                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
-                                }
+                                @foreach (var t in _templates) { <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem> }
                             </MudSelect>
                         </MudItem>
                     </MudGrid>
-
                     <MudGrid>
                         <MudItem xs="4" Class="d-flex align-center"><MudText>Friday</MudText></MudItem>
                         <MudItem xs="8">
                             <MudSelect T="int?" @bind-Value="_newSchedule.FridayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
                                 <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
-                                @foreach (var t in _templates)
-                                {
-                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
-                                }
+                                @foreach (var t in _templates) { <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem> }
                             </MudSelect>
                         </MudItem>
                     </MudGrid>
-
                     <MudGrid>
                         <MudItem xs="4" Class="d-flex align-center"><MudText>Saturday</MudText></MudItem>
                         <MudItem xs="8">
                             <MudSelect T="int?" @bind-Value="_newSchedule.SaturdayTemplateId" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
                                 <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
-                                @foreach (var t in _templates)
-                                {
-                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
-                                }
+                                @foreach (var t in _templates) { <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem> }
                             </MudSelect>
                         </MudItem>
                     </MudGrid>
-
                     <MudGrid>
                         <MudItem xs="4" Class="d-flex align-center"><MudText>Sunday</MudText></MudItem>
                         <MudItem xs="8">
                             <MudSelect T="int?" @bind-Value="_newSchedule.SundayTemplateID" Margin="Margin.Dense" Dense="true" Variant="Variant.Outlined" Placeholder="-">
                                 <MudSelectItem Value="@((int?)null)">- None -</MudSelectItem>
-                                @foreach (var t in _templates)
-                                {
-                                    <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem>
-                                }
+                                @foreach (var t in _templates) { <MudSelectItem Value="@((int?)t.Id)">@t.Name</MudSelectItem> }
                             </MudSelect>
                         </MudItem>
                     </MudGrid>
@@ -178,6 +151,12 @@
                                    Color="Color.Primary"
                                    OnClick="@(() => EditSchedule(context))"
                                    Title="Edit Schedule" />
+                                   
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Size="Size.Small"
+                                   Color="Color.Error"
+                                   OnClick="@(() => DeleteSchedule(context))"
+                                   Title="Delete Assignment" />
                 </MudTd>
             </RowTemplate>
             <PagerContent>
@@ -193,10 +172,7 @@
     private List<BreakTemplates> _templates = new();
 
     private BreakSchedules _newSchedule = new();
-
-    // We bind the Autocomplete to this object, then sync it to _newSchedule.EmployeeId
     private Employees _selectedEmployee;
-
     private MudForm _form;
     private string _searchString = "";
 
@@ -207,14 +183,9 @@
 
     private async Task LoadData()
     {
-        // Load lookups
         _employees = await WfmService.GetEmployeesAsync();
-
-        // Load only Active templates for the dropdowns
         var allTemplates = await WfmService.GetBreakTemplatesAsync();
         _templates = allTemplates.Where(x => x.IsActive == true).ToList();
-
-        // Load main data
         _scheduleList = await WfmService.GetBreakSchedulesAsync();
     }
 
@@ -222,8 +193,7 @@
     {
         if (string.IsNullOrEmpty(value))
             return Task.FromResult<IEnumerable<Employees>>(_employees);
-
-        // Simple search on Last or First Name
+        
         return Task.FromResult(_employees.Where(x =>
             x.LastName.Contains(value, StringComparison.InvariantCultureIgnoreCase) ||
             x.FirstName.Contains(value, StringComparison.InvariantCultureIgnoreCase)
@@ -232,20 +202,38 @@
 
     private void EditSchedule(BreakScheduleDto dto)
     {
-        // Clone the entity inside the DTO to avoid binding directly to the table row
         var json = JsonSerializer.Serialize(dto.Schedule);
         _newSchedule = JsonSerializer.Deserialize<BreakSchedules>(json);
-
-        // Find the employee object to populate the Autocomplete
         _selectedEmployee = _employees.FirstOrDefault(x => x.Id == _newSchedule.EmployeeId);
-
         _form.ResetValidation();
+    }
+
+    private async Task DeleteSchedule(BreakScheduleDto dto)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Warning", 
+            $"Are you sure you want to remove the static break schedule for {dto.EmployeeName}?", 
+            yesText:"Delete", cancelText:"Cancel");
+
+        if (result == true)
+        {
+            await WfmService.DeleteBreakScheduleAsync(dto.Schedule.Id);
+            Snackbar.Add("Schedule removed", Severity.Success);
+            
+            // If we deleted the item currently being edited, reset the form
+            if (_newSchedule.Id == dto.Schedule.Id)
+            {
+                ResetForm();
+            }
+            
+            await LoadData();
+        }
     }
 
     private void ResetForm()
     {
         _newSchedule = new();
-        _selectedEmployee = null; // Clear autocomplete
+        _selectedEmployee = null; 
         _form.ResetValidation();
         _form.ResetTouched();
     }
@@ -261,9 +249,7 @@
             return;
         }
 
-        // SYNC: Update the ID from the selected object
         _newSchedule.EmployeeId = _selectedEmployee.Id;
-
         await WfmService.SaveBreakScheduleAsync(_newSchedule);
 
         if (_newSchedule.Id == 0)

@@ -1,9 +1,11 @@
 ﻿@page "/acr/{Id:int}/edit"
 @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IAcrQueryService Query
 @inject IAcrService Acr
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthState
 
 <MudPaper Class="pa-2" Outlined="true">
     <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
@@ -53,16 +55,17 @@
                                          EmployeeId="@_vm.EmployeeId"
                                          ShowOrg="@(_vm.Organization is not null)"
                                          ShowSchedule="@(_vm.Schedule is not null)"
-                                         ShowOvertime="@((_vm.Overtime is not null) || (_vm.Schedule?.IsOtAdjustment ?? false))"
-                                         Mode="_mode" />
-                    </MudItem>
+                                         ShowOvertime="@((_vm.Overtime is not null) ||
+                                                                                                  (_vm.Schedule?.IsOtAdjustment ?? false))"
+                                 Mode="_mode" />
+            </MudItem>
 
                     <MudItem xs="12" md="7">
                         <AcrFormHost Value="_vm"
                                      ValueChanged="OnVmChanged"
                                      Mode="_mode" />
                     </MudItem>
-                }
+                        }
             </MudGrid>
         }
     </MudPaper>
@@ -78,6 +81,44 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        // 1. Check Permissions
+        var statusId = await Query.GetStatusIdByAcrIdAsync(Id);
+        if (!statusId.HasValue)
+        {
+            Snackbar.Add("ACR not found.", Severity.Error);
+            Nav.NavigateTo("/acr");
+            return;
+        }
+
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var isAuth = false;
+
+        if (statusId.Value == 1) // Submitted
+        {
+            // Admin, WFM, Manager, Supervisor
+            if (user.IsInRole("Admin") || user.IsInRole("WFM") || user.IsInRole("Manager") || user.IsInRole("Supervisor"))
+            {
+                isAuth = true;
+            }
+        }
+        else // Any other status
+        {
+            // Only Admin, WFM
+            if (user.IsInRole("Admin") || user.IsInRole("WFM"))
+            {
+                isAuth = true;
+            }
+        }
+
+        if (!isAuth)
+        {
+            Snackbar.Add("You are not authorized to edit this ACR in its current status.", Severity.Error);
+            Nav.NavigateTo($"/acr/{Id}");
+            return;
+        }
+
+        // 2. Load Data
         _vm = await Query.LoadForEditAsync(Id);
         RebuildMirror();
     }
@@ -120,7 +161,6 @@
     private async Task SaveAsync()
     {
         if (_vm is null) return;
-
         if (!_vm.EffectiveDate.HasValue)
         {
             Snackbar.Add("Effective Date is required.", Severity.Error);
@@ -165,10 +205,8 @@
     private static TimeOnly? LocalToEastern(DateOnly date, TimeOnly? local, string siteWindowsTz)
     {
         if (local is null) return null;
-
         var tzLocal = TimeZoneInfo.FindSystemTimeZoneById(siteWindowsTz);
         var tzEast = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
-
         var localDt = new DateTime(date.Year, date.Month, date.Day,
                                    local.Value.Hour, local.Value.Minute, 0,
                                    DateTimeKind.Unspecified);
@@ -181,11 +219,9 @@
     private AcrEditVm ConvertScheduleToEastern(AcrEditVm src, string siteWindowsTz)
     {
         if (src.Schedule is null) return src;
-
         var ed = src.EffectiveDate ?? DateOnly.FromDateTime(DateTime.Today);
 
         TimeOnly? ToEt(TimeOnly? local) => LocalToEastern(ed, local, siteWindowsTz);
-
         var sch = src.Schedule with
         {
             MondayStart = ToEt(src.Schedule.MondayStart),
@@ -203,7 +239,6 @@
             SundayStart = ToEt(src.Schedule.SundayStart),
             SundayEnd = ToEt(src.Schedule.SundayEnd)
         };
-
         return src with { Schedule = sch };
     }
 }

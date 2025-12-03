@@ -59,7 +59,6 @@ namespace MyApplication.Components.Model.AOM.Employee
         public AcrRequest? ScheduleRequest { get; set; }
         public int? OvertimeRequestId { get; set; }
         public AcrRequest? OvertimeRequest { get; set; }
-
         public int? SourceAcrId { get; set; } // provenance
     }
 

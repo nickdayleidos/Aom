@@ -1,363 +1,351 @@
-﻿@page "/opera/{id:int}"
+﻿@page "/opera/{RequestId:int}"
 @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
 @using MyApplication.Components.Model.AOM.Employee
-@using MudBlazor
-@using Microsoft.EntityFrameworkCore
 @using MyApplication.Common.Time
-@inject IOperaRepository Repo
-@inject AomDbContext Db
-@inject ISnackbar Snackbar
-@inject NavigationManager Nav
-@inject UserProfileService UserProfile
 @using MyApplication.Components.Service
+@using Microsoft.EntityFrameworkCore
+@inject IOperaRepository Repo
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject UserProfileService UserProfile
 
-<MudStack Spacing="2">
+<MudStack Spacing="4">
     <MudPaper Class="pa-4" Outlined="true">
-        @if (_req is null)
-        {
-            <MudText>Loading...</MudText>
-        }
-        else
-        {
-            <MudStack Spacing="3">
-
-                <!-- Header: title / employee / status -->
-                <MudGrid Spacing="2" AlignItems="Center">
-                    <MudItem xs="12" md="8">
-                        <MudText Typo="Typo.h6">
-                            Opera Request @_req.RequestId
-                        </MudText>
-                        <MudText Typo="Typo.caption" Class="opacity-75">
-                            Employee: @_employeeLabel
-                        </MudText>
-                    </MudItem>
-
-                    <MudItem xs="12" md="4" Class="d-flex justify-end align-center">
-                        <MudChip T="int" Color="Color.Info"
-                                 Variant="Variant.Outlined"
-                                 Class="mr-2">
-                            @_statuses.FirstOrDefault(s => s.Id == _req.OperaStatusId)?.Name
-                        </MudChip>
-                    </MudItem>
-                </MudGrid>
-
-                <!-- Two main cards: When + Details -->
-                <MudGrid Spacing="2">
-
-                    <!-- WHEN (local) -->
-                    <MudItem xs="12" md="6">
-                        <MudPaper Class="pa-3 h-100" Outlined="true">
-                            <MudText Typo="Typo.subtitle2">When (Local)</MudText>
-                            <MudText Typo="Typo.caption" Class="opacity-75">
-                                Times are shown in the employee’s local site time.
-                            </MudText>
-
-                            <MudDivider Class="my-2" />
-
-                            <MudGrid Spacing="2">
-                                <MudItem xs="12" md="6">
-                                    <MudDatePicker @bind-Date="_startDateLocal"
-                                                   Label="Start Date"
-                                                   Variant="Variant.Outlined"
-                                                   Editable="true"
-                                                   Clearable="true"
-                                                   Dense="true" 
-                                                   ReadOnly="@(!_isEditMode)" />
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudTimePicker @bind-Time="_startTimeLocal"
-                                                   Label="Start Time"
-                                                   Variant="Variant.Outlined"
-                                                   Editable="true"
-                                                   Clearable="true"
-                                                   Dense="true" 
-                                                   ReadOnly="@(!_isEditMode)" />
-                                </MudItem>
-
-                                <MudItem xs="12" md="6">
-                                    <MudDatePicker @bind-Date="_endDateLocal"
-                                                   Label="End Date"
-                                                   Variant="Variant.Outlined"
-                                                   Editable="true"
-                                                   Clearable="true"
-                                                   Dense="true" 
-                                                   ReadOnly="@(!_isEditMode)" />
-                                </MudItem>
-                                <MudItem xs="12" md="6">
-                                    <MudTimePicker @bind-Time="_endTimeLocal"
-                                                   Label="End Time"
-                                                   Variant="Variant.Outlined"
-                                                   Editable="true"
-                                                   Clearable="true"
-                                                   Dense="true" 
-                                                   ReadOnly="@(!_isEditMode)" />
-                                </MudItem>
-                                <MudItem xs="12">
-                                    <MudTextField @bind-Value="_req.SubmittedBy"
-                                                  Label="Submitted By"
-                                                  Variant="Variant.Outlined"
-                                                  Lines="1"
-                                                  FullWidth="true"
-                                                  ReadOnly="@(!_isEditMode)" />
-                                </MudItem>
-                            </MudGrid>
-                        </MudPaper>
-                    </MudItem>
-
-                    <!-- WHAT (type / subtype / comments) -->
-                    <MudItem xs="12" md="6">
-                        <MudPaper Class="pa-3 h-100" Outlined="true">
-                            <MudText Typo="Typo.subtitle2">Request details</MudText>
-
-                            <MudDivider Class="my-2" />
-
-                            <MudGrid Spacing="2">
-                                <MudItem xs="12" md="6">
-                                    <MudSelect @bind-Value="_req.ActivityTypeId"
-                                               Label="Type"
-                                               Variant="Variant.Outlined"
-                                               Dense="true"
-                                               ReadOnly="@(!_isEditMode)">
-                                        @foreach (var t in _types)
-                                        {
-                                            <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </MudItem>
-
-                                <MudItem xs="12" md="6">
-                                    <MudSelect @bind-Value="_req.ActivitySubTypeId"
-                                               Label="SubType"
-                                               Variant="Variant.Outlined"
-                                               Dense="true"
-                                               ReadOnly="@(!_isEditMode)">
-                                        @foreach (var t in _subTypes.Where(s => s.ActivityTypeId == _req.ActivityTypeId))
-                                        {
-                                            <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </MudItem>
-
-                                <MudItem xs="12">
-                                    <MudTextField @bind-Value="_req.SubmitterComments"
-                                                  Label="Submitter Comments"
-                                                  Variant="Variant.Outlined"
-                                                  Lines="4"
-                                                  FullWidth="true"
-                                                  ReadOnly="@(!_isEditMode)" />
-                                </MudItem>
-                            </MudGrid>
-                        </MudPaper>
-                    </MudItem>
-                </MudGrid>
-
-                <MudDivider />
-
-                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                    <MudText Typo="Typo.caption" Class="opacity-50">
-                        Request ID: @_req.RequestId
-                    </MudText>
-
-                    <MudStack Row="true" Spacing="1">
-                        <!-- Edit toggle only affects inputs -->
-                        <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Primary"
-                                   OnClick="@ToggleEdit">
-                            @(_isEditMode ? "DONE EDITING" : "EDIT")
-                        </MudButton>
-
-                        <MudButton Variant="Variant.Outlined"
-                                   OnClick="Save"
-                                   Disabled="@_busy">
-                            SAVE
-                        </MudButton>
-
-                        <MudButton Color="Color.Success"
-                                   OnClick="@(() => SetStatus(ApprovedStatusId))"
-                                   Disabled="@(_busy || !CanApprove)">
-                            APPROVE
-                        </MudButton>
-
-                        <MudButton Color="Color.Error"
-                                   OnClick="@(() => SetStatus(RejectedStatusId))"
-                                   Disabled="@(_busy || !CanReject)">
-                            REJECT
-                        </MudButton>
-
-                        <MudButton Color="Color.Warning"
-                                   OnClick="@(() => SetStatus(CancelledStatusId))"
-                                   Disabled="@(_busy || !CanCancel)">
-                            CANCEL
-                        </MudButton>
-
-                        <MudButton Variant="Variant.Text"
-                                   OnClick="@(() => Nav.NavigateTo("/opera"))">
-                            BACK
-                        </MudButton>
+        <MudGrid AlignItems="AlignItems.Center">
+            <MudItem xs="12" md="5">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/opera"))" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h5">Opera Request #@RequestId</MudText>
+                        @if (_item != null)
+                        {
+                            <MudText Typo="Typo.body2">@_item.Employees?.LastName, @_item.Employees?.FirstName</MudText>
+                        }
                     </MudStack>
                 </MudStack>
+            </MudItem>
 
-          </MudStack>
+            <MudItem xs="12" md="7" Class="d-flex justify-end gap-2 align-center">
 
-        }
+                <MudSelect T="TimeDisplayMode"
+                           @bind-Value="_mode"
+                           Label="Time Display"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Dense="true"
+                           Disabled="@_isEditing"
+                           Style="min-width: 160px;">
+                    <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (Site)</MudSelectItem>
+                    <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern (ET)</MudSelectItem>
+                    <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain (MT)</MudSelectItem>
+                </MudSelect>
+
+                <MudDivider Vertical="true" FlexItem="true" Class="mx-2" />
+
+                @if (_isEditing)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAsync">Save</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="CancelEdit">Cancel</MudButton>
+                }
+                else
+                {
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="StartEdit">Edit Request</MudButton>
+                }
+            </MudItem>
+        </MudGrid>
     </MudPaper>
+
+    @if (_item == null)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4 h-100" Outlined="true">
+                    <MudStack Spacing="3">
+                        <MudText Typo="Typo.h6">Request Details</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2">
+                            Times shown in: <b>@_mode</b>
+                        </MudText>
+
+                        <MudGrid>
+                            <MudItem xs="6">
+                                @if (_isEditing)
+                                {
+                                    <MudDatePicker Label="Start Date" @bind-Date="_editStartDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                    <MudTimePicker Label="Start Time" @bind-Time="_editStartTime" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
+                                }
+                                else
+                                {
+                                    <MudField Label="Start Time" Variant="Variant.Outlined">
+                                        @ToDisplayTime(_item.StartTime).ToString("g")
+                                    </MudField>
+                                }
+                            </MudItem>
+                            <MudItem xs="6">
+                                @if (_isEditing)
+                                {
+                                    <MudDatePicker Label="End Date" @bind-Date="_editEndDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                    <MudTimePicker Label="End Time" @bind-Time="_editEndTime" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2" />
+                                }
+                                else
+                                {
+                                    <MudField Label="End Time" Variant="Variant.Outlined">
+                                        @ToDisplayTime(_item.EndTime).ToString("g")
+                                    </MudField>
+                                }
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudGrid>
+                            <MudItem xs="6">
+                                @if (_isEditing)
+                                {
+                                    <MudSelect T="int" Label="Type" Value="_item.ActivityTypeId" ValueChanged="OnTypeChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                        @foreach (var t in _types)
+                                        {
+                                            <MudSelectItem Value="@t.Key">@t.Value</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                }
+                                else
+                                {
+                                    <MudField Label="Activity Type" Variant="Variant.Outlined">@(_types.TryGetValue(_item.ActivityTypeId, out var t) ? t : _item.ActivityTypeId)</MudField>
+                                }
+                            </MudItem>
+                            <MudItem xs="6">
+                                @if (_isEditing)
+                                {
+                                    <MudSelect T="int" Label="SubType" @bind-Value="_item.ActivitySubTypeId" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                        @foreach (var st in _filteredSubTypes)
+                                        {
+                                            <MudSelectItem Value="@st.Key">@st.Value</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                }
+                                else
+                                {
+                                    <MudField Label="Activity SubType" Variant="Variant.Outlined">@(_subTypes.TryGetValue(_item.ActivitySubTypeId, out var s) ? s : _item.ActivitySubTypeId)</MudField>
+                                }
+                            </MudItem>
+                        </MudGrid>
+
+                        @if (_isEditing)
+                        {
+                            <MudTextField Label="Comments" @bind-Value="_item.SubmitterComments" Lines="3" Variant="Variant.Outlined" />
+                        }
+                        else
+                        {
+                            <MudField Label="Comments" Variant="Variant.Outlined" Lines="3">@_item.SubmitterComments</MudField>
+                        }
+
+                        <MudDivider />
+                        <MudStack Row="true" Spacing="4">
+                            <MudText Typo="Typo.caption"><b>Submitted:</b> @ToDisplayTime(_item.SubmitTime).ToString("g") by @_item.SubmittedBy</MudText>
+                            @if (_item.LastUpdatedTime.HasValue)
+                            {
+                                <MudText Typo="Typo.caption"><b>Last Updated:</b> @ToDisplayTime(_item.LastUpdatedTime.Value).ToString("g") by @_item.LastUpdatedBy</MudText>
+                            }
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4 h-100" Outlined="true">
+                    <MudStack Spacing="3">
+                        <MudText Typo="Typo.h6">Weekly Schedule Context</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2">
+                            Schedule for the week of the request (@_mode)
+                        </MudText>
+
+                        <MudTable Items="_schedule" Dense="true" Hover="true" FixedHeader="true" Height="400px" Striped="true">
+                            <HeaderContent>
+                                <MudTh>Date</MudTh>
+                                <MudTh>Time</MudTh>
+                                <MudTh>Activity</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="sch">
+                                @{
+                                    // Convert schedule items to display time
+                                    var displayStart = ToDisplayTime(sch.StartTime);
+                                    var displayEnd = ToDisplayTime(sch.EndTime);
+                                }
+                                <MudTd>@displayStart.ToString("ddd MM/dd")</MudTd>
+                                <MudTd>@displayStart.ToString("HH:mm") - @displayEnd.ToString("HH:mm")</MudTd>
+                                <MudTd>
+                                    <MudText Typo="Typo.body2">@sch.ActivityType?.Name</MudText>
+                                    <MudText Typo="Typo.caption">@sch.ActivitySubType?.Name</MudText>
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>No schedule found for this week.</NoRecordsContent>
+                        </MudTable>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
 </MudStack>
 
 @code {
-    [Parameter] public int id { get; set; }
-    private bool _isEditMode = false;
+    [Parameter] public int RequestId { get; set; }
 
-    private OperaRequest? _req;
-    private bool _busy;
+    private OperaRequest? _item;
+    private List<DetailedSchedule> _schedule = new();
 
-    private List<ActivityType> _types = new();
-    private List<ActivitySubType> _subTypes = new();
-    private List<OperaStatus> _statuses = new();
+    // Time Display State
+    private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
+    private string? _employeeSiteTzId;
 
-    private string? _employeeLabel;
-    private string? _employeeSiteTzId; // IANA or Windows id for this employee's site
+    // Lookups
+    private Dictionary<int, string> _types = new();
+    private Dictionary<int, string> _subTypes = new();
+    private Dictionary<int, string> _filteredSubTypes = new();
 
-    // Local (site) date+time fields for binding
-    private DateTime? _startDateLocal;
-    private TimeSpan? _startTimeLocal;
-    private DateTime? _endDateLocal;
-    private TimeSpan? _endTimeLocal;
+    [Inject] MyApplication.Components.Data.AomDbContext Db { get; set; } = default!;
 
-    private const int SubmittedStatusId = 1;
-    private const int ApprovedStatusId = 2;
-    private const int ProcessedStatusId = 3;
-    private const int CancelledStatusId = 4;
-    private const int RejectedStatusId = 5;
+    // Edit State
+    private bool _isEditing = false;
+    private DateTime? _editStartDate;
+    private TimeSpan? _editStartTime;
+    private DateTime? _editEndDate;
+    private TimeSpan? _editEndTime;
 
-    private void ToggleEdit() => _isEditMode = !_isEditMode;
+    // Cache raw subtypes for filtering
+    private List<ActivitySubType> _rawSubTypes = new();
 
-
-
-    private int CurrentStatus => _req?.OperaStatusId ?? SubmittedStatusId;
-
-    private bool CanApprove =>
-        _req is not null && CurrentStatus == SubmittedStatusId;
-
-    private bool CanReject =>
-        _req is not null && CurrentStatus == SubmittedStatusId;
-
-    private bool CanCancel =>
-        _req is not null &&
-        (CurrentStatus == SubmittedStatusId
-         || CurrentStatus == ApprovedStatusId
-         || CurrentStatus == ProcessedStatusId);
-
-
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
-        _req = await Repo.GetAsync(id);
-        if (_req == null) return;
-
-        // employee display
-        var emp = await Db.Employees.AsNoTracking()
-            .FirstOrDefaultAsync(e => e.Id == _req.EmployeeId);
-        _employeeLabel = emp is null
-            ? $"#{_req.EmployeeId}"
-            : $"{emp.LastName}, {emp.FirstName} (#{emp.Id})";
-
-        // current EmployeeHistory with Site for timezone
-        var history = await Db.EmployeeHistory
-            .AsNoTracking()
-            .Include(h => h.Site)
-            .Where(h => h.EmployeeId == _req.EmployeeId)
-            .ToListAsync();
-
-        var currentHistory =
-            history.Where(h => h.IsActive == true)
-                   .OrderByDescending(h => h.EffectiveDate)
-                   .FirstOrDefault()
-            ?? history.OrderByDescending(h => h.EffectiveDate)
-                      .FirstOrDefault();
-
-        var site = currentHistory?.Site;
-        _employeeSiteTzId = site?.TimeZoneIana
-                            ?? site?.TimeZoneWindows
-                            ?? null;
-
-        _types = await Db.ActivityTypes
-            .AsNoTracking()
-            .OrderBy(x => x.Name)
-            .ToListAsync();
-
-        _subTypes = await Db.ActivitySubTypes
-            .AsNoTracking()
-            .OrderBy(x => x.Name)
-            .ToListAsync();
-
-        _statuses = (await Repo.GetStatusesAsync()).ToList();
-
-        // Times in DB are ET-local; convert ET -> site local for display/edit
-        var startLocal = Tz.FromEtToSite(_req.StartTime, _employeeSiteTzId);
-        var endLocal = Tz.FromEtToSite(_req.EndTime, _employeeSiteTzId);
-
-        _startDateLocal = startLocal.Date;
-        _startTimeLocal = startLocal.TimeOfDay;
-        _endDateLocal = endLocal.Date;
-        _endTimeLocal = endLocal.TimeOfDay;
+        await LoadDataAsync();
     }
 
-    private async Task Save()
+    private async Task LoadDataAsync()
     {
-        if (_req is null) return;
-        if (!_startDateLocal.HasValue || !_startTimeLocal.HasValue ||
-            !_endDateLocal.HasValue || !_endTimeLocal.HasValue)
+        _item = await Repo.GetAsync(RequestId);
+        if (_item != null)
         {
-            Snackbar.Add("Provide start and end date/time.", Severity.Warning);
-            return;
-        }
-
-        // Local site times from the pickers
-        var startLocal = _startDateLocal.Value.Date + _startTimeLocal.Value;
-        var endLocal = _endDateLocal.Value.Date + _endTimeLocal.Value;
-
-        if (endLocal <= startLocal)
-        {
-            Snackbar.Add("End must be after start.", Severity.Warning);
-            return;
-        }
-
-        // Convert local (site) -> ET for storage
-        _req.StartTime = Tz.FromSiteToEt(startLocal, _employeeSiteTzId);
-        _req.EndTime = Tz.FromSiteToEt(endLocal, _employeeSiteTzId);
-
-        _busy = true;
-        try
-        {
-            await Repo.UpdateAsync(_req);
-            Snackbar.Add("Saved.", Severity.Success);
-        }
-        finally { _busy = false; }
-    }
-
-    private async Task SetStatus(int statusId)
-    {
-        if (_req is null) return;
-
-        _busy = true;
-        try
-        {
-            var profile = await UserProfile.GetAsync();
-            var actor = profile.UserName;
-
-            await Repo.SetStatusAsync(_req.RequestId, statusId, actor);
-
-            string msg = statusId switch
+            // 1. Resolve Timezone for "Local" mode
+            var timezones = await Repo.GetEmployeeSiteTimeZonesAsync(new[] { _item.EmployeeId });
+            if (timezones.TryGetValue(_item.EmployeeId, out var tz))
             {
-                ApprovedStatusId => "Approved.",
-                RejectedStatusId => "Rejected.",
-                CancelledStatusId => "Cancelled.",
-                _ => "Status updated."
-            };
+                _employeeSiteTzId = tz;
+            }
 
-            Snackbar.Add(msg, Severity.Success);
-            Nav.NavigateTo("/opera");
+            // 2. Load lookups
+            _types = await Repo.GetActivityTypesAsync();
+            _rawSubTypes = await Db.ActivitySubTypes.AsNoTracking().Where(x => x.IsActive == true).ToListAsync();
+            _subTypes = _rawSubTypes.ToDictionary(k => k.Id, v => v.Name);
+
+            // 3. Initial filter
+            FilterSubTypes(_item.ActivityTypeId);
+
+            // 4. Load Schedule (Use Start of week based on request start)
+            var startOfWeek = DateOnly.FromDateTime(_item.StartTime.Date.AddDays(-(int)_item.StartTime.DayOfWeek));
+            _schedule = await Repo.GetEmployeeWeeklyScheduleAsync(_item.EmployeeId, startOfWeek);
         }
-        finally { _busy = false; }
     }
 
+    // --- Time Conversion Helpers ---
+
+    private string GetTargetTzId()
+    {
+        return _mode switch
+        {
+            TimeDisplayMode.Eastern => "Eastern Standard Time",
+            TimeDisplayMode.Mountain => "Mountain Standard Time",
+            _ => _employeeSiteTzId ?? "Eastern Standard Time"
+        };
+    }
+
+    private DateTime ToDisplayTime(DateTime etTime)
+    {
+        var targetTz = GetTargetTzId();
+        return Tz.FromEtToSite(etTime, targetTz);
+    }
+
+    private DateTime FromDisplayTime(DateTime displayTime)
+    {
+        var targetTz = GetTargetTzId();
+        return Tz.FromSiteToEt(displayTime, targetTz);
+    }
+
+    // --- UI Logic ---
+
+    private void FilterSubTypes(int typeId)
+    {
+        _filteredSubTypes = _rawSubTypes
+            .Where(x => x.ActivityTypeId == typeId)
+            .ToDictionary(k => k.Id, v => v.Name);
+    }
+
+    private void OnTypeChanged(int newTypeId)
+    {
+        if (_item == null) return;
+        _item.ActivityTypeId = newTypeId;
+        FilterSubTypes(newTypeId);
+
+        if (!_filteredSubTypes.ContainsKey(_item.ActivitySubTypeId))
+        {
+            _item.ActivitySubTypeId = _filteredSubTypes.Keys.FirstOrDefault();
+        }
+    }
+
+    private void StartEdit()
+    {
+        if (_item == null) return;
+
+        // Initialize edit fields using CURRENT display mode
+        var startDisplay = ToDisplayTime(_item.StartTime);
+        var endDisplay = ToDisplayTime(_item.EndTime);
+
+        _editStartDate = startDisplay.Date;
+        _editStartTime = startDisplay.TimeOfDay;
+        _editEndDate = endDisplay.Date;
+        _editEndTime = endDisplay.TimeOfDay;
+
+        FilterSubTypes(_item.ActivityTypeId);
+        _isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        _isEditing = false;
+        _ = LoadDataAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_item == null) return;
+
+        if (!_editStartDate.HasValue || !_editStartTime.HasValue || !_editEndDate.HasValue || !_editEndTime.HasValue)
+        {
+            Snackbar.Add("Start and End times are required.", Severity.Warning);
+            return;
+        }
+
+        // Construct DateTime in the DISPLAY timezone
+        var startDisplay = _editStartDate.Value.Date + _editStartTime.Value;
+        var endDisplay = _editEndDate.Value.Date + _editEndTime.Value;
+
+        // Convert back to ET for storage
+        _item.StartTime = FromDisplayTime(startDisplay);
+        _item.EndTime = FromDisplayTime(endDisplay);
+
+        var user = await UserProfile.GetAsync();
+        _item.LastUpdatedBy = user.UserName ?? "Unknown";
+
+        try
+        {
+            await Repo.UpdateAsync(_item);
+            Snackbar.Add("Request updated successfully.", Severity.Success);
+            _isEditing = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating request: {ex.Message}", Severity.Error);
+        }
+    }
 }

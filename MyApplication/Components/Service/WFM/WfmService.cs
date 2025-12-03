@@ -24,6 +24,18 @@ namespace MyApplication.Components.Service.Wfm
                 .ToListAsync();
         }
 
+        public async Task DeleteBreakScheduleAsync(int id)
+        {
+            using var context = await _factory.CreateDbContextAsync();
+            // Find by ID and remove if exists
+            var entity = await context.BreakSchedules.FindAsync(id);
+            if (entity != null)
+            {
+                context.BreakSchedules.Remove(entity);
+                await context.SaveChangesAsync();
+            }
+        }
+
         public async Task SaveBreakTemplateAsync(BreakTemplates template)
         {
             using var context = await _factory.CreateDbContextAsync();

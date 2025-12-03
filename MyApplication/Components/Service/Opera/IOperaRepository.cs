@@ -27,5 +27,9 @@ namespace MyApplication.Components.Service
         Task<Dictionary<int, string>> GetActivityTypesAsync(CancellationToken ct = default);
         Task<Dictionary<int, string>> GetActivitySubTypesAsync(CancellationToken ct = default);
         Task<Dictionary<int, string?>> GetEmployeeSiteTimeZonesAsync(IEnumerable<int> employeeIds, CancellationToken ct = default);
+
+        // --- EOS Calculation ---
+        Task<DateTime?> GetEndOfShiftAsync(int employeeId, DateTime startEt, CancellationToken ct = default);
+        Task<List<DetailedSchedule>> GetEmployeeWeeklyScheduleAsync(int employeeId, DateOnly weekStart, CancellationToken ct = default);
     }
 }

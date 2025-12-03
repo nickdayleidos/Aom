@@ -58,7 +58,7 @@ namespace MyApplication.Components.Model.AOM.Employee
         public string? SubmitterComments { get; set; }
         public bool Approved { get; set; }
         public string? ApprovedBy { get; set; }
-        public bool ReviewedWfm { get; set; }
+        public bool? ReviewedWfm { get; set; }
         public string? ReviewedBy { get; set; }
         public string? WfmComments { get; set; }
         public DateTime SubmitTime { get; set; }
@@ -72,6 +72,8 @@ namespace MyApplication.Components.Model.AOM.Employee
         public string? CancelledBy { get; set; }
         public DateTime? RejectedTime { get; set; }
         public string? RejectedBy { get; set; }
+        public DateTime? LastUpdatedTime { get; set; }
+        public string? LastUpdatedBy { get; set; }
 
 
     }

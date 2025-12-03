@@ -22,7 +22,6 @@
             </MudButton>
         </MudStack>
 
-        <!-- Filters ----------------------------------------------------->
         <MudStack Class="mt-3" Spacing="2">
             <MudStack Row Spacing="2" AlignItems="AlignItems.Center">
                 <MudTextField @bind-Value="_employeeSearch"
@@ -34,8 +33,8 @@
                               Class="mr-2"
                               OnBlur="@(_ => RefreshAsync())" />
 
-                <!-- Skill type filter (nullable int) -->
-                <MudSelect T="int?" Label="Skill Type"
+                <MudSelect T="int?"
+                           Label="Skill Type"
                            Dense
                            @bind-Value="_selectedSkillTypeId"
                            Class="mr-2"
@@ -57,13 +56,11 @@
                 </MudButton>
             </MudStack>
 
-            <!-- Tabs ----------------------------------------------------->
             <MudTabs @bind-ActivePanelIndex="_tabIndex"
                      Rounded="true"
                      Elevation="0"
                      Class="mt-2">
 
-                <!-- Tab 1: Line-item view -->
                 <MudTabPanel Text="Line Items" Icon="@Icons.Material.Outlined.ViewList">
                     <MudTable Items="_rows"
                               Dense="true"
@@ -71,37 +68,22 @@
                               Bordered="true"
                               Striped="true">
                         <HeaderContent>
-                            <MudTh OnClick="@(() => ChangeLineSort(LineSortColumn.Employee))"
-                                   Style="cursor:pointer;">
-                                Employee
-                                @if (_lineSortColumn == LineSortColumn.Employee)
-                                {
-                                    <MudIcon Icon="@(_lineSortDescending? Icons.Material.Filled.ArrowDownward : Icons.Material.Filled.ArrowUpward)"
-                                             Size="Size.Small"
-                                             Class="ml-1" />
-                                }
+                            <MudTh>
+                                <MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.EmployeeName)">
+                                    Employee
+                                </MudTableSortLabel>
                             </MudTh>
 
-                            <MudTh OnClick="@(() => ChangeLineSort(LineSortColumn.Skill))"
-                                   Style="cursor:pointer;">
-                                Skill
-                                @if (_lineSortColumn == LineSortColumn.Skill)
-                                {
-                                    <MudIcon Icon="@(_lineSortDescending? Icons.Material.Filled.ArrowDownward : Icons.Material.Filled.ArrowUpward)"
-                                             Size="Size.Small"
-                                             Class="ml-1" />
-                                }
+                            <MudTh>
+                                <MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.SkillTypeName ?? string.Empty)">
+                                    Skill
+                                </MudTableSortLabel>
                             </MudTh>
 
-                            <MudTh OnClick="@(() => ChangeLineSort(LineSortColumn.Date))"
-                                   Style="cursor:pointer;">
-                                Date
-                                @if (_lineSortColumn == LineSortColumn.Date)
-                                {
-                                    <MudIcon Icon="@(_lineSortDescending? Icons.Material.Filled.ArrowDownward : Icons.Material.Filled.ArrowUpward)"
-                                             Size="Size.Small"
-                                             Class="ml-1" />
-                                }
+                            <MudTh>
+                                <MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.SkillDate)">
+                                    Date
+                                </MudTableSortLabel>
                             </MudTh>
                         </HeaderContent>
                         <RowTemplate>
@@ -115,7 +97,6 @@
                     </MudTable>
                 </MudTabPanel>
 
-                <!-- Tab 2: Per-employee summary -->
                 <MudTabPanel Text="By Employee" Icon="@Icons.Material.Outlined.Groups">
                     <MudTable Items="_summaryRows"
                               Dense="true"
@@ -123,28 +104,18 @@
                               Bordered="true"
                               Striped="true">
                         <HeaderContent>
-                            <MudTh OnClick="@(() => ChangeSummarySort(SummarySortColumn.Employee))"
-                                   Style="cursor:pointer;">
-                                Employee
-                                @if (_summarySortColumn == SummarySortColumn.Employee)
-                                {
-                                    <MudIcon Icon="@(_summarySortDescending? Icons.Material.Filled.ArrowDownward : Icons.Material.Filled.ArrowUpward)"
-                                             Size="Size.Small"
-                                             Class="ml-1" />
-                                }
+                            <MudTh>
+                                <MudTableSortLabel SortBy="new Func<SkillEmployeeSummaryRow, object>(x => x.EmployeeName)">
+                                    Employee
+                                </MudTableSortLabel>
                             </MudTh>
 
                             <MudTh>Skills</MudTh>
 
-                            <MudTh OnClick="@(() => ChangeSummarySort(SummarySortColumn.EffectiveDate))"
-                                   Style="cursor:pointer;">
-                                Effective Date
-                                @if (_summarySortColumn == SummarySortColumn.EffectiveDate)
-                                {
-                                    <MudIcon Icon="@(_summarySortDescending? Icons.Material.Filled.ArrowDownward : Icons.Material.Filled.ArrowUpward)"
-                                             Size="Size.Small"
-                                             Class="ml-1" />
-                                }
+                            <MudTh>
+                                <MudTableSortLabel SortBy="new Func<SkillEmployeeSummaryRow, object>(x => x.EffectiveDate)">
+                                    Effective Date
+                                </MudTableSortLabel>
                             </MudTh>
                         </HeaderContent>
                         <RowTemplate>
@@ -190,7 +161,6 @@
     private IReadOnlyList<SkillEmployeeSummaryRow> _summaryRows = Array.Empty<SkillEmployeeSummaryRow>();
     private IReadOnlyList<SkillType> _skillTypes = Array.Empty<SkillType>();
 
-
     private static readonly Color[] SkillColorPalette = new[]
     {
         Color.Primary,Color.Secondary,Color.Tertiary,Color.Info,Color.Success,
@@ -203,25 +173,12 @@
         Color.Warning,Color.Error,Color.Dark, Color.Default
     };
 
-
-
-
     private Color GetSkillColorByIndex(int index)
     {
         if (index < 0)
             return Color.Default;
-
         return SkillColorPalette[index % SkillColorPalette.Length];
     }
-
-    // -------- sorting state --------
-    private enum LineSortColumn { Employee, Skill, Date }
-    private LineSortColumn _lineSortColumn = LineSortColumn.Employee;
-    private bool _lineSortDescending = false;
-
-    private enum SummarySortColumn { Employee, EffectiveDate }
-    private SummarySortColumn _summarySortColumn = SummarySortColumn.Employee;
-    private bool _summarySortDescending = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -237,89 +194,12 @@
                 EmployeeSearch: _employeeSearch,
                 SkillTypeId: _selectedSkillTypeId
             );
-
             _rows = await SkillsService.SearchSkillsAsync(search);
             _summaryRows = await SkillsService.GetEmployeeSkillSummariesAsync(search);
-
-            // apply current sort preferences (defaults are Employee asc)
-            ApplyLineSort();
-            ApplySummarySort();
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Error loading skills: {ex.Message}", Severity.Error);
         }
-    }
-
-    // ------- line items sorting -------
-    private void ChangeLineSort(LineSortColumn column)
-    {
-        if (_lineSortColumn == column)
-            _lineSortDescending = !_lineSortDescending;
-        else
-        {
-            _lineSortColumn = column;
-            _lineSortDescending = false; // default to ascending when switching column
-        }
-
-        ApplyLineSort();
-    }
-
-    private void ApplyLineSort()
-    {
-        IEnumerable<SkillLookupRow> query = _rows;
-
-        query = _lineSortColumn switch
-        {
-            LineSortColumn.Employee => _lineSortDescending
-                ? query.OrderByDescending(r => r.EmployeeName)
-                : query.OrderBy(r => r.EmployeeName),
-
-            LineSortColumn.Skill => _lineSortDescending
-                ? query.OrderByDescending(r => r.SkillTypeName)
-                : query.OrderBy(r => r.SkillTypeName),
-
-            LineSortColumn.Date => _lineSortDescending
-                ? query.OrderByDescending(r => r.SkillDate)
-                : query.OrderBy(r => r.SkillDate),
-
-            _ => query
-        };
-
-        _rows = query.ToList();
-    }
-
-    // ------- summary sorting -------
-    private void ChangeSummarySort(SummarySortColumn column)
-    {
-        if (_summarySortColumn == column)
-            _summarySortDescending = !_summarySortDescending;
-        else
-        {
-            _summarySortColumn = column;
-            _summarySortDescending = false;
-        }
-
-        ApplySummarySort();
-    }
-
-    private void ApplySummarySort()
-    {
-        IEnumerable<SkillEmployeeSummaryRow> query = _summaryRows;
-
-        query = _summarySortColumn switch
-        {
-            SummarySortColumn.Employee => _summarySortDescending
-                ? query.OrderByDescending(r => r.EmployeeName)
-                : query.OrderBy(r => r.EmployeeName),
-
-            SummarySortColumn.EffectiveDate => _summarySortDescending
-                ? query.OrderByDescending(r => r.EffectiveDate)
-                : query.OrderBy(r => r.EffectiveDate),
-
-            _ => query
-        };
-
-        _summaryRows = query.ToList();
     }
 }

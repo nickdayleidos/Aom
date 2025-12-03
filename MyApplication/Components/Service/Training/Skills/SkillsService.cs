@@ -172,7 +172,9 @@ namespace MyApplication.Components.Service.Training
         {
             using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-            var q = db.Employees.AsNoTracking();
+            // UPDATED: Filter for Active employees only
+            var q = db.Employees.AsNoTracking()
+                      .Where(e => e.IsActive == true);
 
             if (!string.IsNullOrWhiteSpace(term))
             {

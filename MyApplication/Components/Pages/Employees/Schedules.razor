@@ -2,19 +2,19 @@
 @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Common.Time
+@using Microsoft.AspNetCore.Components.Authorization
 @inject EmployeesRepository Repository
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthState
 @implements IDisposable
 
 <style>
     @@media print {
-        /* Hide Sidebar, Appbar, and Toolbars */
         .mud-layout-drawer, .mud-appbar, .d-print-none {
             display: none !important;
         }
-        
-        /* Reset margins for the main content area */
+
         .mud-main-content {
             padding: 0 !important;
             margin: 0 !important;
@@ -22,31 +22,69 @@
             overflow: visible !important;
         }
 
-        /* Ensure text remains dark on white paper */
         body, .mud-typography {
             color: black !important;
             -webkit-print-color-adjust: exact;
         }
-        
-        /* Expansion Panels: Allow them to break across pages, 
-           but keep the header with at least some content if possible */
+
         .mud-expand-panel {
             box-shadow: none !important;
             border: 1px solid #eee;
             margin-bottom: 1rem;
-            
         }
 
-        /* KEY FIX: Prevent individual table rows (employees) from splitting */
         tr {
             break-inside: avoid !important;
-            page-break-inside: avoid !important; /* For older browsers */
+            page-break-inside: avoid !important;
         }
-        
-        /* Optional: Ensure table headers repeat on new pages (browser dependent) */
+
         thead {
-            display: table-header-group; 
+            display: table-header-group;
         }
+    }
+
+    /* Timeline styles */
+    .timeline-track {
+        position: relative;
+        height: 100%;
+        background-color: #fafafa;
+    }
+
+    .timeline-bar {
+        position: absolute;
+        height: 24px;
+        top: 6px;
+        border-radius: 4px;
+        opacity: 0.85;
+        border: 1px solid rgba(0,0,0,0.15);
+        transition: opacity 0.2s;
+        cursor: help;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+        .timeline-bar:hover {
+            opacity: 1.0;
+            z-index: 100 !important; /* Bring to front on hover */
+            border-color: #000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    /* Legend Chip */
+    .legend-chip {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 12px;
+        font-size: 0.75rem;
+    }
+
+    .legend-box {
+        width: 12px;
+        height: 12px;
+        border-radius: 2px;
+        margin-right: 4px;
+        border: 1px solid rgba(0,0,0,0.1);
     }
 </style>
 
@@ -106,83 +144,169 @@
         }
         else
         {
-            <MudExpansionPanels MultiExpansion="true">
-                @foreach (var site in _vm.Sites)
-                {
-                    <MudExpansionPanel Text="@($"{site.SiteName} ({site.Employees.Count} employees)")"
-                                       @bind-IsExpanded="@site.IsExpanded">
-                        <MudTable Items="@site.Employees" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.None">
-                            <HeaderContent>
-                                <MudTh>Employee</MudTh>
-                                <MudTh>Shift Overview</MudTh>
-                                <MudTh>Detailed Schedule</MudTh>
-                                <MudTh Class="d-print-none"></MudTh>
-                            </HeaderContent>
-                            <RowTemplate Context="emp">
-                                <MudTd DataLabel="Employee" Valign="Valign.Top">
-                                    <MudText Typo="Typo.body2" Style="font-weight:bold;">@emp.EmployeeName</MudText>
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">ID: @emp.EmployeeId</MudText>
+            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="mt-4">
 
-                                    <MudStack Spacing="0" Class="mt-2">
-                                        @if (!string.IsNullOrEmpty(emp.OrganizationName))
-                                        {
-                                            <MudText Typo="Typo.caption">
-                                                <b>Org:</b> @emp.OrganizationName / @emp.SubOrganizationName
-                                            </MudText>
-                                        }
-                                        @if (!string.IsNullOrEmpty(emp.SupervisorName))
-                                        {
-                                            <MudText Typo="Typo.caption">
-                                                <b>Sup:</b> @emp.SupervisorName
-                                            </MudText>
-                                        }
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Shift" Valign="Valign.Top">
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
-                                        @emp.ShiftString
-                                    </MudChip>
-                                </MudTd>
-                                <MudTd DataLabel="Activities">
-                                    <MudStack Spacing="1">
-                                        @foreach (var seg in emp.Segments)
-                                        {
-                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                                <MudText Typo="Typo.body2" Style="font-family:monospace; min-width:90px;">
-                                                    @seg.Start.ToString("HH:mm") - @seg.End.ToString("HH:mm")
-                                                </MudText>
-
-                                                @if (seg.ActivityTypeId == 6)
+                <MudTabPanel Text="List View" Icon="@Icons.Material.Filled.List">
+                    <MudExpansionPanels MultiExpansion="true">
+                        @foreach (var site in _vm.Sites)
+                        {
+                            <MudExpansionPanel Text="@($"{site.SiteName} - {_vm.Date:ddd, MMM d, yyyy} ({site.Employees.Count} employees)")"
+                                               @bind-IsExpanded="@site.IsExpanded">
+                                <MudTable Items="@site.Employees" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.None">
+                                    <HeaderContent>
+                                        <MudTh>Employee</MudTh>
+                                        <MudTh>Shift Overview</MudTh>
+                                        <MudTh>Detailed Schedule</MudTh>
+                                        <MudTh Class="d-print-none"></MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate Context="emp">
+                                        <MudTd DataLabel="Employee" Valign="Valign.Top">
+                                            <MudText Typo="Typo.body2" Style="font-weight:bold;">@emp.EmployeeName</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">ID: @emp.EmployeeId</MudText>
+                                            <MudStack Spacing="0" Class="mt-2">
+                                                @if (!string.IsNullOrEmpty(emp.OrganizationName))
                                                 {
-                                                    <MudText Typo="Typo.body2" Style="font-weight:bold;">
-                                                        @seg.SubActivityName
-                                                    </MudText>
+                                                    <MudText Typo="Typo.caption"><b>Org:</b> @emp.OrganizationName / @emp.SubOrganizationName</MudText>
                                                 }
-                                                else
+                                                @if (!string.IsNullOrEmpty(emp.SupervisorName))
                                                 {
-                                                    <MudText Typo="Typo.body2" Style="font-weight:bold;">
-                                                        @seg.ActivityName - @seg.SubActivityName
-                                                    </MudText>
+                                                    <MudText Typo="Typo.caption"><b>Sup:</b> @emp.SupervisorName</MudText>
                                                 }
-
-                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info" Class="ml-auto">
-                                                    AWS: @seg.AwsStatusName
-                                                </MudChip>
                                             </MudStack>
-                                            <MudDivider />
+                                        </MudTd>
+                                        <MudTd DataLabel="Shift" Valign="Valign.Top">
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                                                @emp.ShiftString
+                                            </MudChip>
+                                        </MudTd>
+                                        <MudTd DataLabel="Activities">
+                                            <MudStack Spacing="1">
+                                                @foreach (var seg in emp.Segments)
+                                                {
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                        <MudText Typo="Typo.body2" Style="font-family:monospace; min-width:90px;">
+                                                            @seg.Start.ToString("HH:mm") - @seg.End.ToString("HH:mm")
+                                                        </MudText>
+                                                        @if (seg.ActivityTypeId == 6)
+                                                        {
+                                                            <MudText Typo="Typo.body2" Style="font-weight:bold;">@seg.SubActivityName</MudText>
+                                                        }
+                                                        else
+                                                        {
+                                                            <MudText Typo="Typo.body2" Style="font-weight:bold;">@seg.ActivityName - @seg.SubActivityName</MudText>
+                                                        }
+                                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info" Class="ml-auto">
+                                                            AWS: @seg.AwsStatusName
+                                                        </MudChip>
+                                                    </MudStack>
+                                                    <MudDivider />
+                                                }
+                                            </MudStack>
+                                        </MudTd>
+                                        <MudTd Valign="Valign.Top" Class="d-print-none">
+                                            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
+                                                           OnClick="@(() => Nav.NavigateTo($"/employees/{emp.EmployeeId}"))" />
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudExpansionPanel>
+                        }
+                    </MudExpansionPanels>
+                </MudTabPanel>
+
+                @if (_isAdmin)
+                {
+                    <MudTabPanel Text="Timeline View" Icon="@Icons.Material.Filled.Timeline">
+
+                        <MudPaper Class="pa-3 mb-3 d-flex flex-wrap align-center" Outlined="true">
+                            <MudText Typo="Typo.subtitle2" Class="mr-4">Legend:</MudText>
+                            @foreach (var l in _legendItems)
+                            {
+                                <div class="legend-chip">
+                                    <div class="legend-box @l.Class"></div>
+                                    <span>@l.Name</span>
+                                </div>
+                            }
+                        </MudPaper>
+
+                        @foreach (var site in _vm.Sites)
+                        {
+                            // 1. Calculate Timeline Dimensions for this Site
+                            int maxMinutes = 1440; // Default 24h
+                            foreach (var e in site.Employees)
+                            {
+                                foreach (var s in e.Segments)
+                                {
+                                    var sMin = s.Start.Hour * 60 + s.Start.Minute;
+                                    var eMin = s.End.Hour * 60 + s.End.Minute;
+                                    if (eMin < sMin) eMin += 1440; // Overnight
+                                    if (eMin > maxMinutes) maxMinutes = eMin;
+                                }
+                            }
+
+                            // Round up to nearest hour
+                            int totalHours = (int)Math.Ceiling(maxMinutes / 60.0);
+                            if (totalHours < 24) totalHours = 24;
+
+                            // Width: 50px per hour approx
+                            int minWidth = 250 + (totalHours * 50);
+
+                            <MudPaper Class="pa-4 mb-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-4">
+                                    @site.SiteName - @_vm.Date.ToString("ddd, MMM d, yyyy")
+                                    <span class="mud-typography-caption">(@site.TimeZoneId)</span>
+                                </MudText>
+
+                                <div style="overflow-x:auto;">
+                                    <div style="@($"display:flex; min-width: {minWidth}px; border-bottom:1px solid #ddd; margin-bottom:4px;")">
+                                        <div style="width:250px; flex-shrink:0; font-weight:bold; padding-left:8px;">Employee</div>
+                                        @for (int h = 0; h < totalHours; h++)
+                                        {
+                                            var displayH = h % 24;
+                                            <div style="flex:1; text-align:left; border-left:1px solid #eee; font-size:0.75rem; padding-left:2px; color:#888;">
+                                                @($"{displayH:00}:00")
+                                            </div>
                                         }
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd Valign="Valign.Top" Class="d-print-none">
-                                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
-                                                   Size="Size.Small"
-                                                   OnClick="@(() => Nav.NavigateTo($"/employees/{emp.EmployeeId}"))" />
-                                </MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </MudExpansionPanel>
+                                    </div>
+
+                                    @foreach (var emp in site.Employees)
+                                    {
+                                        <div style="@($"display:flex; min-width: {minWidth}px; height: 36px; align-items:center; border-bottom:1px solid #f0f0f0; position:relative;")">
+                                            <div style="width:250px; flex-shrink:0; padding-right:8px; padding-left:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                <MudText Typo="Typo.body2"><b>@emp.EmployeeName</b></MudText>
+                                                <MudText Typo="Typo.caption" Style="font-size:0.7rem;">@emp.ShiftString</MudText>
+                                            </div>
+
+                                            <div class="timeline-track" style="flex:1;">
+                                                @foreach (var seg in emp.Segments)
+                                                {
+                                                    // Calculate positioning
+                                                    var startMin = seg.Start.Hour * 60 + seg.Start.Minute;
+                                                    var endMin = seg.End.Hour * 60 + seg.End.Minute;
+
+                                                    // Handle day wrapping
+                                                    if (endMin < startMin) endMin += 1440;
+
+                                                    // Percentage based on TotalHours * 60
+                                                    var totalMin = totalHours * 60.0;
+                                                    var leftPct = (startMin / totalMin) * 100;
+                                                    var widthPct = ((endMin - startMin) / totalMin) * 100;
+
+                                                    <div title="@($"{seg.ActivityName} - {seg.SubActivityName}\nAWS: {seg.AwsStatusName}\n{seg.Start:HH:mm} - {seg.End:HH:mm}")"
+                                                         class="timeline-bar @seg.ColorClass"
+                                                         style="left:@($"{leftPct:F2}%"); width:@($"{widthPct:F2}%"); z-index:@seg.ZIndex;">
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </MudPaper>
+                        }
+                    </MudTabPanel>
                 }
-            </MudExpansionPanels>
+
+            </MudTabs>
         }
     }
 </MudStack>
@@ -192,8 +316,25 @@
     private ScheduleDashboardVm? _vm;
     private bool _loading = false;
     private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
-
     private CancellationTokenSource? _cts;
+    private bool _isAdmin = false;
+
+    // Defined Legend Items
+    private List<(string Name, string Class)> _legendItems = new()
+    {
+        ("Offline", "mud-theme-dark"),
+        ("Available", "mud-theme-success"),
+        ("OL Customer Work", "mud-theme-info"),
+        ("Admin Tasks", "mud-theme-secondary"),
+        ("Break", "mud-theme-warning"),
+        ("Coaching", "mud-theme-primary"),
+        ("Lunch", "mud-theme-info"),
+        ("Meeting", "mud-theme-primary"),
+        ("Peer Mentoring", "mud-theme-primary"),
+        ("System", "mud-theme-dark"),
+        ("Training", "mud-theme-primary"),
+        ("Corp Engagement", "mud-theme-secondary")
+    };
 
     private TimeDisplayMode Mode
     {
@@ -207,7 +348,17 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadAsync();
+        var state = await AuthState.GetAuthenticationStateAsync();
+        _isAdmin = state.User.IsInRole("Admin");
+        // No data load here to prevent F5 lag
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadAsync();
+        }
     }
 
     private async Task OnDateChanged(DateTime? newDate)
@@ -219,14 +370,12 @@
     private async Task LoadAsync()
     {
         if (!_date.HasValue) return;
-
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
         _loading = true;
         StateHasChanged();
-
         try
         {
             var dateOnly = DateOnly.FromDateTime(_date.Value);
@@ -243,22 +392,16 @@
         }
     }
 
-    // NEW: Handles the Print Logic
     private async Task PrintAsync()
     {
         if (_vm == null) return;
 
-        // 1. Expand all panels so the printer sees the content
         foreach (var site in _vm.Sites)
         {
             site.IsExpanded = true;
         }
         StateHasChanged();
-
-        // 2. Short delay to let the UI render the expanded tables
         await Task.Delay(500);
-
-        // 3. Trigger Browser Print (User can select "Save as PDF")
         await JS.InvokeVoidAsync("print");
     }
 

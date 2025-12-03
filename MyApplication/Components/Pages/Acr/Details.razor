@@ -1,9 +1,11 @@
 ﻿@page "/acr/{Id:int}"
 @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IAcrQueryService Query
 @inject IAcrService Acr
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthState
 
 <MudPaper Class="pa-2" Outlined="true">
     <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
@@ -72,10 +74,13 @@
                     </MudStack>
                 }
 
-                <MudButton Variant="Variant.Text"
-                           OnClick="@(() => Nav.NavigateTo($"/acr/{Id}/edit"))">
-                    Edit
-                </MudButton>
+                @if (_canEdit)
+                {
+                    <MudButton Variant="Variant.Text"
+                               OnClick="@(() => Nav.NavigateTo($"/acr/{Id}/edit"))">
+                        Edit
+                    </MudButton>
+                }
             </MudStack>
 
             <MudDivider Class="my-2" />
@@ -101,9 +106,10 @@
                                          EmployeeId="@_vm.EmployeeId"
                                          ShowOrg="@(_vm.Organization is not null)"
                                          ShowSchedule="@(_vm.Schedule is not null)"
-                                         ShowOvertime="@((_vm.Overtime is not null) || (_vm.Schedule?.IsOtAdjustment ?? false))"
-                                         Mode="_mode" />
-                    </MudItem>
+                                         ShowOvertime="@((_vm.Overtime is not null) ||
+                                                                                                  (_vm.Schedule?.IsOtAdjustment ?? false))"
+                                 Mode="_mode" />
+            </MudItem>
 
                     <MudItem xs="12" md="7">
                         <AcrFormHost Value="@_mirror"
@@ -114,7 +120,7 @@
                                      ForceShowOvertimeOnly="@(_vm.TypeKey == AcrTypeKey.OvertimeAdjustment)"
                                      Mode="_mode" />
                     </MudItem>
-                }
+                        }
             </MudGrid>
         }
     </MudPaper>
@@ -137,6 +143,12 @@
     private string? _siteWindowsTz;
     private NewHireDto? _newHire;
 
+    // Roles
+    private bool _isAdmin;
+    private bool _isWfm;
+    private bool _isManager;
+    private bool _isSupervisor;
+
     private TimeDisplayMode _modeBacking = TimeDisplayMode.EmployeeLocal;
     private TimeDisplayMode _mode
     {
@@ -145,7 +157,6 @@
         {
             if (_modeBacking == value)
                 return;
-
             _modeBacking = value;
 
             if (_vm is not null)
@@ -174,27 +185,56 @@
                      or AcrTypeKey.OvertimeAdjustment);
 
     private bool _canManagerApprove =>
-        IsApprovalFlow && _statusId == StatusSubmitted;
+        IsApprovalFlow &&
+        _statusId == StatusSubmitted &&
+        (_isAdmin || _isWfm || _isManager);
 
     private bool _canWfmApprove =>
-        IsApprovalFlow && _statusId == StatusManagerApproved;
+        IsApprovalFlow &&
+        _statusId == StatusManagerApproved &&
+        (_isAdmin || _isWfm);
 
     private bool _canReject =>
         IsApprovalFlow &&
-        (_statusId == StatusSubmitted || _statusId == StatusManagerApproved);
+        (_statusId == StatusSubmitted || _statusId == StatusManagerApproved) &&
+        (_isAdmin || _isWfm || _isManager);
 
-    // Cancel allowed on statuses 1–4 for all button-enabled types
     private bool _canCancel =>
         ShowAnyButtons &&
         (_statusId == StatusSubmitted
          || _statusId == StatusManagerApproved
          || _statusId == StatusWfmApproved
-         || _statusId == StatusProcessed);
+         || _statusId == StatusProcessed) &&
+        (_isAdmin || _isWfm || _isManager);
+
+    private bool _canEdit
+    {
+        get
+        {
+            if (!_statusId.HasValue) return false;
+            if (_statusId == StatusSubmitted)
+            {
+                // Admin, WFM, Manager, Supervisor
+                return _isAdmin || _isWfm || _isManager || _isSupervisor;
+            }
+            // Other statuses: only WFM and Admin
+            return _isAdmin || _isWfm;
+        }
+    }
 
     // --------------------------------------------------------
 
     protected override async Task OnParametersSetAsync()
     {
+        // 1. Get User Roles
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAdmin = user.IsInRole("Admin");
+        _isWfm = user.IsInRole("WFM");
+        _isManager = user.IsInRole("Manager");
+        _isSupervisor = user.IsInRole("Supervisor");
+
+        // 2. Load Data
         _vm = await Query.LoadDetailsAsync(Id);
         _statusName = await Query.GetStatusNameByAcrIdAsync(Id);
         _statusId = await Query.GetStatusIdByAcrIdAsync(Id);
@@ -252,7 +292,6 @@
         if (_mode == TimeDisplayMode.Eastern) return et;
 
         var easternTz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
-
         var targetTzId = _mode switch
         {
             TimeDisplayMode.EmployeeLocal => string.IsNullOrWhiteSpace(_siteWindowsTz)
@@ -261,7 +300,6 @@
             TimeDisplayMode.Mountain => "Mountain Standard Time",
             _ => "Eastern Standard Time"
         };
-
         var targetTz = TimeZoneInfo.FindSystemTimeZoneById(targetTzId);
 
         var dtEt = new DateTime(2000, 1, 1, et.Value.Hour, et.Value.Minute, 0, DateTimeKind.Unspecified);
@@ -300,7 +338,8 @@
             EmployeeId = d.EmployeeId,
             TypeId = (int)d.TypeKey,
             EffectiveDate = d.EffectiveDate,
-            IncludeOvertimeAdjustment = (d.Schedule?.IsOtAdjustment ?? false) || (d.Overtime is not null),
+            IncludeOvertimeAdjustment = (d.Schedule?.IsOtAdjustment ?? false) ||
+                                        (d.Overtime is not null),
             Organization = d.Organization,
             Schedule = schedule,
             Overtime = d.Overtime,

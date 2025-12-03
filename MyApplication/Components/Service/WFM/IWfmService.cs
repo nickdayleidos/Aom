@@ -14,6 +14,7 @@ namespace MyApplication.Components.Service.Wfm
 
         // Helpers for Dropdowns
         Task<List<Employees>> GetEmployeesAsync();
+        Task DeleteBreakScheduleAsync(int id);
     }
 
     // DTO to help display names in the table instead of just IDs

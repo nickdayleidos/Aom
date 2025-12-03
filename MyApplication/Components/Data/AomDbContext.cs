@@ -176,8 +176,9 @@ namespace MyApplication.Components.Data
              .HasForeignKey(x => x.EmployeeId)
              .OnDelete(DeleteBehavior.Restrict);
 
+            // FIX: Changed .HasOne<Employees>() to .HasOne(x => x.Employee) to use the navigation property
             b.Entity<Supervisor>()
-             .HasOne<Employees>()
+             .HasOne(x => x.Employee)
              .WithMany()
              .HasForeignKey(x => x.EmployeeId)
              .OnDelete(DeleteBehavior.Restrict);

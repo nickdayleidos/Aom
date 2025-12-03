@@ -16,12 +16,12 @@ public sealed class AcrQueryService : IAcrQueryService
 
     // ========= Lookups used by forms/details =========
     public async Task<PagedResult<AcrRequestListItem>> SearchAsync(
-            AcrIndexFilter filter,
-            int pageIndex,
-            int pageSize,
-            string? sortLabel,
-            bool sortDescending,
-            CancellationToken ct = default)
+             AcrIndexFilter filter,
+             int pageIndex,
+             int pageSize,
+             string? sortLabel,
+             bool sortDescending,
+             CancellationToken ct = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
@@ -33,6 +33,8 @@ public sealed class AcrQueryService : IAcrQueryService
             from t in tt.DefaultIfEmpty()
             join s in db.Set<AcrStatus>().AsNoTracking() on r.AcrStatusId equals s.Id into ss
             from s in ss.DefaultIfEmpty()
+                // FILTER: Apply Active Only logic here
+            where !filter.ActiveOnly || e.IsActive == true
             select new
             {
                 r.Id,
@@ -83,11 +85,10 @@ public sealed class AcrQueryService : IAcrQueryService
             }
         }
 
-        // 3. Get Total Count (before paging)
+        // 3. Get Total Count
         var totalCount = await q.CountAsync(ct);
 
         // 4. Apply Sorting
-        // Default sort: SubmitTime Desc
         if (string.IsNullOrEmpty(sortLabel))
         {
             q = q.OrderByDescending(x => x.SubmitTime);
@@ -111,7 +112,7 @@ public sealed class AcrQueryService : IAcrQueryService
             .Take(pageSize)
             .ToListAsync(ct);
 
-        // 6. Map to DTO
+        // 6. Map
         var items = data.Select(x => new AcrRequestListItem(
             x.Id,
             x.EmployeeId,
@@ -124,6 +125,8 @@ public sealed class AcrQueryService : IAcrQueryService
 
         return new PagedResult<AcrRequestListItem>(items, totalCount);
     }
+
+    // ... (rest of the file unchanged) ...
     public async Task<List<KeyValuePair<int, string>>> GetOrganizationsAsync(CancellationToken ct = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
@@ -537,7 +540,7 @@ public sealed class AcrQueryService : IAcrQueryService
         public string? SchSun { get; set; }
 
         public int? ShiftNumber { get; set; }
-       public bool? IsStaticBreakSchedule { get; set; }
+        public bool? IsStaticBreakSchedule { get; set; }
         public string? OTMon { get; set; }
         public string? OTTue { get; set; }
         public string? OTWed { get; set; }
@@ -825,5 +828,3 @@ public sealed class AcrQueryService : IAcrQueryService
             .FirstOrDefaultAsync(ct);
     }
 }
-
-
