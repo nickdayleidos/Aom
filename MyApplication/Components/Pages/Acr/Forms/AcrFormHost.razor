@@ -3,7 +3,7 @@
 @using MyApplication.Components.Service.Acr
 @using MyApplication.Components.Pages.Acr.Forms
 @using MyApplication.Common.Time
-@using MyApplication.Components.Service.Acr.MyApplication.Components.Service.Acr
+@using MyApplication.Components.Service.Acr
 
 <MudPaper Class="pa-4 h-full" Outlined="true">
     <MudStack Spacing="2">
@@ -404,9 +404,7 @@
         => new(null, null, null, null, null, null, false, null, null);
 
     private static ScheduleChangeDto NewSchedule()
-        => new(false, 1,
-               null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-               false, false);
+    => new ScheduleChangeDto();
 
     private static OvertimeAdjustmentDto NewOvertime()
         => new(null, null, null, null, null, null, null);

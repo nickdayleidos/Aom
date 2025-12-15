@@ -9,9 +9,10 @@
 
 <MudStack Spacing="2">
     <MudPaper Class="pa-4" Outlined>
-        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
             <MudText Typo="Typo.h5">Employees</MudText>
             <MudSpacer />
+
             <MudSwitch Value="_activeOnly"
                        ValueChanged="@(async (bool v) => { _activeOnly = v; await RefreshAsync(); })"
                        Color="Color.Primary"
@@ -28,30 +29,62 @@
                           AdornmentIcon="@Icons.Material.Filled.Search"
                           Class="w-64" />
         </MudStack>
+
+        <MudDivider Class="my-2" />
+
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudAutocomplete T="string" Label="Manager"
+                                 Value="_selectedManager"
+                                 ValueChanged="@(async (string s) => { _selectedManager = s; await RefreshAsync(); })"
+                                 SearchFunc="@((x, ct) => SearchList(x, _options.Managers))"
+                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudAutocomplete T="string" Label="Supervisor"
+                                 Value="_selectedSupervisor"
+                                 ValueChanged="@(async (string s) => { _selectedSupervisor = s; await RefreshAsync(); })"
+                                 SearchFunc="@((x, ct) => SearchList(x, _options.Supervisors))"
+                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudAutocomplete T="string" Label="Organization"
+                                 Value="_selectedOrg"
+                                 ValueChanged="@(async (string s) => { _selectedOrg = s; await RefreshAsync(); })"
+                                 SearchFunc="@((x, ct) => SearchList(x, _options.Organizations))"
+                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudAutocomplete T="string" Label="Sub-Organization"
+                                 Value="_selectedSubOrg"
+                                 ValueChanged="@(async (string s) => { _selectedSubOrg = s; await RefreshAsync(); })"
+                                 SearchFunc="@((x, ct) => SearchList(x, _options.SubOrganizations))"
+                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true" />
+            </MudItem>
+        </MudGrid>
+
     </MudPaper>
 
     <MudPaper Class="pa-2" Outlined>
         <MudDataGrid T="EmployeeListItem" Items="_items" Hover="true" Dense="true" Bordered="true"
-                     Filterable="true" SortMode="SortMode.Multiple" QuickFilter="@_quickFilter">
+                     Filterable="false" SortMode="SortMode.Multiple">
             <Columns>
-                <PropertyColumn Property="x => x.Id" Title="Id" Sortable="true" Filterable="true" />
+                <PropertyColumn Property="x => x.DisplayName" Title="Employee" Sortable="true" />
 
-                <PropertyColumn Property="x => x.LastName" Title="Last Name" Sortable="true" Filterable="true" />
-                <PropertyColumn Property="x => x.FirstName" Title="First Name" Sortable="true" Filterable="true" />
+                <PropertyColumn Property="x => x.Manager" Title="Manager" Sortable="true" />
+                <PropertyColumn Property="x => x.Supervisor" Title="Supervisor" Sortable="true" />
+                <PropertyColumn Property="x => x.Organization" Title="Organization" Sortable="true" />
+                <PropertyColumn Property="x => x.SubOrganization" Title="Sub-Org" Sortable="true" />
 
-                <PropertyColumn Property="x => x.Manager" Title="Manager" Sortable="true" Filterable="true" />
-                <PropertyColumn Property="x => x.Supervisor" Title="Supervisor" Sortable="true" Filterable="true" />
-
-                <PropertyColumn Property="x => x.Organization" Title="Organization" Sortable="true" Filterable="true" />
-                <PropertyColumn Property="x => x.SubOrganization" Title="Sub-Org" Sortable="true" Filterable="true" />
-
-                <TemplateColumn Title="Active" Sortable="true" Filterable="false">
-                    <CellTemplate>
-                        @(context.Item.IsActive ? "Yes" : "No")
-                    </CellTemplate>
-                </TemplateColumn>
-
-                <TemplateColumn CellClass="d-flex justify-end" Sortable="false" Filterable="false">
+                <TemplateColumn CellClass="d-flex justify-end" Sortable="false">
                     <CellTemplate>
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => GoTo(context.Item.Id))">
                             Details
@@ -72,12 +105,23 @@
 @code {
     private string _query = string.Empty;
     private bool _activeOnly = true;
+
+    // Filter Selections
+    private string? _selectedManager;
+    private string? _selectedSupervisor;
+    private string? _selectedOrg;
+    private string? _selectedSubOrg;
+
     private List<EmployeeListItem> _items = new();
-    private CancellationTokenSource _cts = new();
+    private EmployeeFilterOptionsDto _options = new(); 
 
-    private Func<EmployeeListItem, bool> _quickFilter => x => true;
+    private CancellationTokenSource? _cts;
 
-    protected override async Task OnInitializedAsync() => await RefreshAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        _options = await Repo.GetFilterOptionsAsync();
+        await RefreshAsync();
+    }
 
     private async Task OnQueryChanged(string value)
     {
@@ -85,24 +129,58 @@
         await RefreshAsync();
     }
 
+    // Helper for Autocomplete search
+    private Task<IEnumerable<string>> SearchList(string value, List<string> list)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult<IEnumerable<string>>(list);
+        
+        return Task.FromResult(list.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+    }
+
     private async Task RefreshAsync()
     {
-        _cts.Cancel();
+        try
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+        }
+        catch (ObjectDisposedException) { }
+
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
 
-        // FIX: Added 'ct:' name to the argument.
-        // Once 'take:' (named argument) is used, all subsequent arguments must also be named.
-        _items = await Repo.SearchAsync(_query, _activeOnly, take: 1000, ct: ct);
+        try
+        {
+            _items = await Repo.SearchAsync(
+                query: _query,
+                activeOnly: _activeOnly,
+                manager: _selectedManager,
+                supervisor: _selectedSupervisor,
+                org: _selectedOrg,
+                subOrg: _selectedSubOrg,
+                take: 1000,
+                ct: ct);
 
-        StateHasChanged();
+            StateHasChanged();
+        }
+        catch (TaskCanceledException)
+        {
+            // Ignore
+        }
     }
 
     private void GoTo(int id) => Nav.NavigateTo($"/employees/{id}");
 
     public void Dispose()
     {
-        _cts.Cancel();
-        _cts.Dispose();
+        try
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+        }
+        catch (ObjectDisposedException) { }
+
+        _cts = null;
     }
 }

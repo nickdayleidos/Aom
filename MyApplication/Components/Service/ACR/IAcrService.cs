@@ -19,10 +19,5 @@ namespace MyApplication.Components.Service.Acr
         Task SetStatusAsync(int acrRequestId, int newStatusId, CancellationToken ct = default);
     }
 
-    public sealed record LastOvertimeAdjustment(
-        int AcrRequestId,
-        AcrTypeKey TypeKey,
-        DateOnly EffectiveDate,
-        OvertimeAdjustmentDto Overtime
-    );
+
 }

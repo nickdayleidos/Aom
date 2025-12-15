@@ -10,13 +10,15 @@ namespace MyApplication.Components.Data.Configurations
         {
             builder.ToTable("AcrOvertimeSchedules", "Employee").HasKey(x => x.Id);
 
+            // FIX: Point .WithMany() to the new collection in AcrRequest
             builder.HasOne(x => x.AcrRequest)
-                 .WithMany()
-                 .HasForeignKey(x => x.AcrRequestId)
-                 .OnDelete(DeleteBehavior.Cascade);
+            .WithOne(r => r.AcrOvertimeSchedule)
+            .HasForeignKey<AcrOvertimeSchedules>(x => x.AcrRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasIndex(x => x.AcrRequestId).IsUnique();
 
+            // ... (Rest of your FKs remain the same)
             builder.HasOne(x => x.MondayType).WithMany().HasForeignKey(x => x.MondayTypeId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_AcrOvertimeSchedules_MondayType_OvertimeTypes");
             builder.HasOne(x => x.TuesdayType).WithMany().HasForeignKey(x => x.TuesdayTypeId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_AcrOvertimeSchedules_TuesdayType_OvertimeTypes");
             builder.HasOne(x => x.WednesdayType).WithMany().HasForeignKey(x => x.WednesdayTypeId).OnDelete(DeleteBehavior.Restrict).HasConstraintName("FK_AcrOvertimeSchedules_WednesdayType_OvertimeTypes");

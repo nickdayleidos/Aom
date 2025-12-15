@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251203202138_EnforceUniqueHistory")]
+    partial class EnforceUniqueHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -225,8 +228,7 @@ namespace MyApplication.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AcrRequestId")
-                        .IsUnique();
+                    b.HasIndex("AcrRequestId");
 
                     b.HasIndex("EmployerId");
 
@@ -795,9 +797,6 @@ namespace MyApplication.Migrations
                     b.Property<bool?>("IsRemote")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime?>("LastUpdateTime")
-                        .HasColumnType("datetime2");
-
                     b.Property<int?>("ManagerId")
                         .HasColumnType("int");
 
@@ -842,9 +841,10 @@ namespace MyApplication.Migrations
 
                     b.HasIndex("SupervisorId");
 
-                    b.HasIndex("EmployeeId", "EffectiveDate");
+                    b.HasIndex("EmployeeId", "EffectiveDate")
+                        .IsUnique();
 
-                    b.ToTable("EmployeeHistory", "Employee");
+                    b.ToTable("EmployeeHistory");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Employees", b =>
@@ -1859,8 +1859,8 @@ namespace MyApplication.Migrations
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrOrganization", b =>
                 {
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", "AcrRequest")
-                        .WithOne("AcrOrganization")
-                        .HasForeignKey("MyApplication.Components.Model.AOM.Employee.AcrOrganization", "AcrRequestId")
+                        .WithMany()
+                        .HasForeignKey("AcrRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1912,8 +1912,8 @@ namespace MyApplication.Migrations
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrOvertimeSchedules", b =>
                 {
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", "AcrRequest")
-                        .WithOne("AcrOvertimeSchedule")
-                        .HasForeignKey("MyApplication.Components.Model.AOM.Employee.AcrOvertimeSchedules", "AcrRequestId")
+                        .WithMany()
+                        .HasForeignKey("AcrRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -2005,7 +2005,7 @@ namespace MyApplication.Migrations
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrSchedule", b =>
                 {
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", "AcrRequest")
-                        .WithMany("AcrSchedules")
+                        .WithMany()
                         .HasForeignKey("AcrRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2162,13 +2162,11 @@ namespace MyApplication.Migrations
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Manager", b =>
                 {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employee")
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", null)
                         .WithMany()
                         .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaRequest", b =>
@@ -2257,15 +2255,6 @@ namespace MyApplication.Migrations
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Aws.RoutingProfile", b =>
                 {
                     b.Navigation("RoutingProfileQueues");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrRequest", b =>
-                {
-                    b.Navigation("AcrOrganization");
-
-                    b.Navigation("AcrOvertimeSchedule");
-
-                    b.Navigation("AcrSchedules");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.ActivityType", b =>

@@ -8,84 +8,120 @@
 @inject NavigationManager Nav
 
 <MudStack Spacing="2">
-    <MudPaper Class="pa-4" Outlined>
+    <MudPaper Class="pa-4" Outlined="true">
 
         <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
             <MudText Typo="Typo.h5">ACRs</MudText>
-
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Outlined.Add"
                        OnClick="@(() => Nav.NavigateTo("/acr/new"))">
-                New
+                New Request
             </MudButton>
         </MudStack>
 
         <MudTabs @bind-ActivePanelIndex="TabIndex"
                  Rounded="true"
                  Elevation="0"
+                 Color="Color.Transparent"
                  Class="mt-2">
             <MudTabPanel Text="All ACRs" Icon="@Icons.Material.Outlined.ListAlt" />
             <MudTabPanel Text="Manager Approve" Icon="@Icons.Material.Outlined.Badge" />
             <MudTabPanel Text="WFM Approve" Icon="@Icons.Material.Outlined.CheckCircleOutline" />
         </MudTabs>
 
-        <MudGrid Class="mt-3 mb-2" AlignItems="Center" GutterSize="2">
-            <MudItem xs="12" md="4">
+        <MudDivider Class="my-3" />
+
+        <MudGrid Spacing="2" AlignItems="Center">
+            
+            <MudItem xs="12" md="3">
                 <MudTextField T="string"
-                              Label="Employee"
-                              Placeholder="Search by employee name or id"
+                              Placeholder="Search (Name or ID)..."
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Outlined.Search"
                               @bind-Value="_searchText"
                               Immediate="true"
                               DebounceInterval="500"
-                              OnDebounceIntervalElapsed="OnSearchChanged" />
+                              OnDebounceIntervalElapsed="OnSearchChanged"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" 
+                              Clearable="true" />
             </MudItem>
 
-            <MudItem xs="12" md="3">
-                <MudSelect T="int?"
-                           Label="Type"
-                           Dense="true"
-                           Clearable="true"
-                           Value="_selectedTypeId"
-                           ValueChanged="OnTypeChanged"
-                           Class="w-100">
-                    <MudSelectItem Value="@((int?)null)">All Types</MudSelectItem>
-                    @foreach (var kv in _types)
-                    {
-                        <MudSelectItem Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
-                    }
-                </MudSelect>
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="KeyValuePair<int, string>?"
+                                 Label="Type"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Value="_selectedTypeKv"
+                                 ValueChanged="OnTypeKvChanged"
+                                 SearchFunc="SearchTypes"
+                                 ToStringFunc="@(kv => kv?.Value)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
             </MudItem>
 
-            <MudItem xs="12" md="3">
-                <MudSelect T="int?"
-                           Label="Status"
-                           Dense="true"
-                           Clearable="true"
-                           Disabled="@(TabIndex != 0)"
-                           Value="_selectedStatusId"
-                           ValueChanged="OnStatusChanged"
-                           Class="w-100">
-                    <MudSelectItem Value="@((int?)null)">All Statuses</MudSelectItem>
-                    @foreach (var kv in _statuses)
-                    {
-                        <MudSelectItem Value="@((int?)kv.Key)">@kv.Value</MudSelectItem>
-                    }
-                </MudSelect>
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="KeyValuePair<int, string>?"
+                                 Label="Status"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Disabled="@(TabIndex != 0)"
+                                 Value="_selectedStatusKv"
+                                 ValueChanged="OnStatusKvChanged"
+                                 SearchFunc="SearchStatuses"
+                                 ToStringFunc="@(kv => kv?.Value)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
             </MudItem>
 
-            <MudItem xs="12" md="2" Class="d-flex align-center">
-                <MudSwitch T="bool" Value="_activeOnly" ValueChanged="OnActiveOnlyChanged" Color="Color.Primary" Label="Active Only" />
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="KeyValuePair<int, string>?"
+                                 Label="Manager"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Value="_selectedManagerKv"
+                                 ValueChanged="OnManagerKvChanged"
+                                 SearchFunc="SearchManagers"
+                                 ToStringFunc="@(kv => kv?.Value)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
             </MudItem>
 
-            <MudItem xs="12" md="12" Class="d-flex justify-end">
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="KeyValuePair<int, string>?"
+                                 Label="Supervisor"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Value="_selectedSupervisorKv"
+                                 ValueChanged="OnSupervisorKvChanged"
+                                 SearchFunc="SearchSupervisors"
+                                 ToStringFunc="@(kv => kv?.Value)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+            </MudItem>
+
+            <MudItem xs="12" md="12" Class="d-flex justify-space-between align-center mt-1">
+                <MudSwitch T="bool" Value="_activeOnly" ValueChanged="OnActiveOnlyChanged" Color="Color.Primary" Label="Active Employees Only" />
+                
                 <MudButton Variant="Variant.Text"
                            Color="Color.Secondary"
-                           StartIcon="@Icons.Material.Outlined.ClearAll"
-                           OnClick="ClearFilters">
-                    Clear
+                           StartIcon="@Icons.Material.Outlined.FilterAltOff"
+                           OnClick="ClearFilters"
+                           Size="Size.Small">
+                    Reset Filters
                 </MudButton>
             </MudItem>
         </MudGrid>
@@ -95,9 +131,12 @@
                   @ref="_table"
                   Hover="true"
                   Dense="true"
-                  Bordered="true"
+                  Bordered="false"
+                  Striped="true"
                   RowClick="OnRowClick"
-                  RowsPerPage="50">
+                  RowsPerPage="50"
+                  Class="mt-4"
+                  Elevation="0">
 
             <HeaderContent>
                 <MudTh>
@@ -115,23 +154,26 @@
                 <MudTh>
                     <MudTableSortLabel SortLabel="SubmitTime" T="AcrRequestListItem" InitialDirection="SortDirection.Descending">Submitted</MudTableSortLabel>
                 </MudTh>
-                <MudTh></MudTh>
+                <MudTh Style="width: 50px;"></MudTh>
             </HeaderContent>
 
             <RowTemplate>
                 <MudTd>@context.EmployeeName</MudTd>
                 <MudTd>@context.AcrType</MudTd>
-                <MudTd>@(context.AcrStatus ?? "-")</MudTd>
-                <MudTd>@context.EffectiveDate</MudTd>
-                <MudTd>@(context.SubmitTime?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudTd>
                 <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                    <MudChip T="int" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">@(context.AcrStatus ?? "-")</MudChip>
+                </MudTd>
+                <MudTd>@context.EffectiveDate.ToString("MM/dd/yyyy")</MudTd>
+                <MudTd>@(context.SubmitTime?.ToString("MM/dd/yyyy HH:mm") ?? "-")</MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" 
+                                   Size="Size.Small"
                                    OnClick="@(e => Nav.NavigateTo($"/acr/{context.Id}"))"
                                    OnClick:stopPropagation="true" />
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
-                <MudText>No items found</MudText>
+                <MudText Class="pa-4 text-center">No ACRs found matching these filters.</MudText>
             </NoRecordsContent>
             <LoadingContent>
                 <MudStack AlignItems="AlignItems.Center" Class="pa-4">
@@ -150,83 +192,126 @@
     private const int StatusSubmitted = 1;
     private const int StatusManagerApproved = 2;
 
-    private MudTable<AcrRequestListItem> _table; // Reference to table
+    private MudTable<AcrRequestListItem> _table;
 
     private int _tabIndex;
     private int TabIndex
     {
         get => _tabIndex;
-        set
-        {
-            if (_tabIndex == value) return;
-            _tabIndex = value;
-            _table?.ReloadServerData(); // Reload table when tab changes
-        }
+        set { if (_tabIndex != value) { _tabIndex = value; _table?.ReloadServerData(); } }
     }
 
     private string _searchText = string.Empty;
+    
+    // Data Sources
     private Dictionary<int, string> _types = new();
     private Dictionary<int, string> _statuses = new();
+    private List<KeyValuePair<int, string>> _managers = new();
+    private List<KeyValuePair<int, string>> _supervisors = new();
 
-    private int? _selectedTypeId;
-    private int? _selectedStatusId;
-    private bool _activeOnly = true; // Default to true
+    // Bound Objects for Autocompletes
+    private KeyValuePair<int, string>? _selectedTypeKv;
+    private KeyValuePair<int, string>? _selectedStatusKv;
+    private KeyValuePair<int, string>? _selectedManagerKv;
+    private KeyValuePair<int, string>? _selectedSupervisorKv;
 
-    // FIXED: Added the 6th argument (true) for ActiveOnly
-    private AcrIndexFilter _filter = new(null, null, null, null, null, true);
+    // Derived IDs for Filtering
+    private int? _selectedTypeId => _selectedTypeKv?.Key;
+    private int? _selectedStatusId => _selectedStatusKv?.Key;
+    private int? _selectedManagerId => _selectedManagerKv?.Key;
+    private int? _selectedSupervisorId => _selectedSupervisorKv?.Key;
+
+    private bool _activeOnly = true;
+
+    private AcrIndexFilter _filter = new(null, null, null, null, null, null, null, true);
 
     protected override async Task OnInitializedAsync()
     {
-        _types = await Query.GetTypesAsync();
-        _statuses = await Query.GetStatusesAsync();
+        try 
+        {
+            var tTypes = Query.GetTypesAsync();
+            var tStatus = Query.GetStatusesAsync();
+            var tManagers = Query.GetManagersAsync();
+            var tSupervisors = Query.GetSupervisorsAsync();
+
+            await Task.WhenAll(tTypes, tStatus, tManagers, tSupervisors);
+
+            _types = tTypes.Result;
+            _statuses = tStatus.Result;
+            _managers = tManagers.Result;
+            _supervisors = tSupervisors.Result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading lookups: {ex.Message}");
+        }
     }
 
-    // --- Filters / search ---------------------------------------------------
+    // --- Search Helpers for Autocompletes ---
 
-    private void OnSearchChanged(string text)
+    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchTypes(string value, CancellationToken ct)
     {
-        _searchText = text;
-        _table.ReloadServerData();
+        if (string.IsNullOrEmpty(value)) 
+            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_types.Select(x => (KeyValuePair<int, string>?)x));
+        
+        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
+            _types.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
+                  .Select(x => (KeyValuePair<int, string>?)x));
     }
 
-    private void OnTypeChanged(int? value)
+    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchStatuses(string value, CancellationToken ct)
     {
-        _selectedTypeId = value;
-        _table.ReloadServerData();
+        if (string.IsNullOrEmpty(value)) 
+            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_statuses.Select(x => (KeyValuePair<int, string>?)x));
+
+        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
+            _statuses.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
+                     .Select(x => (KeyValuePair<int, string>?)x));
     }
 
-    private void OnStatusChanged(int? value)
+    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchManagers(string value, CancellationToken ct)
     {
-        _selectedStatusId = value;
-        _table.ReloadServerData();
+        if (string.IsNullOrEmpty(value)) 
+            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_managers.Select(x => (KeyValuePair<int, string>?)x));
+
+        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
+            _managers.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
+                     .Select(x => (KeyValuePair<int, string>?)x));
     }
 
-    private void OnActiveOnlyChanged(bool value)
+    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchSupervisors(string value, CancellationToken ct)
     {
-        _activeOnly = value;
-        _table.ReloadServerData();
+        if (string.IsNullOrEmpty(value)) 
+            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_supervisors.Select(x => (KeyValuePair<int, string>?)x));
+
+        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
+            _supervisors.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
+                        .Select(x => (KeyValuePair<int, string>?)x));
     }
+
+    // --- Change Handlers ---
+
+    private void OnSearchChanged(string text) { _searchText = text; _table.ReloadServerData(); }
+    
+    private void OnTypeKvChanged(KeyValuePair<int, string>? val) { _selectedTypeKv = val; _table.ReloadServerData(); }
+    private void OnStatusKvChanged(KeyValuePair<int, string>? val) { _selectedStatusKv = val; _table.ReloadServerData(); }
+    private void OnManagerKvChanged(KeyValuePair<int, string>? val) { _selectedManagerKv = val; _table.ReloadServerData(); }
+    private void OnSupervisorKvChanged(KeyValuePair<int, string>? val) { _selectedSupervisorKv = val; _table.ReloadServerData(); }
+    
+    private void OnActiveOnlyChanged(bool value) { _activeOnly = value; _table.ReloadServerData(); }
 
     private void ClearFilters()
     {
         _searchText = string.Empty;
-        _selectedTypeId = null;
-        _selectedStatusId = null;
-        _activeOnly = true; // Reset to default
-
-        _filter = _filter with
-        {
-            AcrTypeId = null,
-            AcrStatusId = null,
-            EmployeeSearch = null,
-            EffectiveFrom = null,
-            EffectiveTo = null,
-            ActiveOnly = true
-        };
+        _selectedTypeKv = null;
+        _selectedStatusKv = null;
+        _selectedManagerKv = null;
+        _selectedSupervisorKv = null;
+        _activeOnly = true;
         _table.ReloadServerData();
     }
 
-    // --- Data load (ServerData) ----------------------------------------------------------
+    // --- Data Loading ---
 
     private async Task<TableData<AcrRequestListItem>> ServerReload(TableState state, CancellationToken ct)
     {
@@ -234,19 +319,23 @@
 
         if (TabIndex == 1) statusId = StatusSubmitted;
         else if (TabIndex == 2) statusId = StatusManagerApproved;
-        else statusId = _selectedStatusId;
+        else statusId = _selectedStatusId; // Uses the computed property from KV
 
         var search = string.IsNullOrWhiteSpace(_searchText) ? null : _searchText.Trim();
-        _filter = _filter with
-        {
-            AcrTypeId = _selectedTypeId,
-            AcrStatusId = statusId,
-            EmployeeSearch = search,
-            ActiveOnly = _activeOnly // Pass current state
-        };
+
+        _filter = new AcrIndexFilter(
+            _selectedTypeId,       // Uses computed property
+            statusId,
+            search,
+            _selectedManagerId,    // Uses computed property
+            _selectedSupervisorId, // Uses computed property
+            null, 
+            null,
+            _activeOnly
+        );
+
         var sortDescending = state.SortDirection == SortDirection.Descending;
 
-        // Call the new Search Service
         var result = await Query.SearchAsync(
             _filter,
             state.Page,
@@ -254,6 +343,7 @@
             state.SortLabel,
             sortDescending,
             ct);
+
         return new TableData<AcrRequestListItem>()
         {
             TotalItems = result.TotalCount,

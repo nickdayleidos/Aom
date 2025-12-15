@@ -1,6 +1,7 @@
 ﻿@page "/employees/schedules"
 @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
 @using MyApplication.Components.Service.Employee
+@using MyApplication.Components.Service.Employee.Dtos
 @using MyApplication.Common.Time
 @using Microsoft.AspNetCore.Components.Authorization
 @inject EmployeesRepository Repository
@@ -48,6 +49,7 @@
         position: relative;
         height: 100%;
         background-color: #fafafa;
+        overflow: hidden;
     }
 
     .timeline-bar {
@@ -55,22 +57,57 @@
         height: 24px;
         top: 6px;
         border-radius: 4px;
-        opacity: 0.85;
-        border: 1px solid rgba(0,0,0,0.15);
-        transition: opacity 0.2s;
+        opacity: 0.9;
+        border: 1px solid rgba(0,0,0,0.1);
         cursor: help;
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: bold;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        white-space: nowrap;
     }
 
         .timeline-bar:hover {
             opacity: 1.0;
-            z-index: 100 !important; /* Bring to front on hover */
+            z-index: 100 !important;
             border-color: #000;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
+
+    /* Colors */
+    .mud-theme-success {
+        background-color: #00c853 !important;
+    }
+
+    .mud-theme-info {
+        background-color: #2196f3 !important;
+    }
+
+    .mud-theme-warning {
+        background-color: #ff9800 !important;
+        color: #fff !important;
+    }
+
+    .mud-theme-primary {
+        background-color: #594ae2 !important;
+    }
+
+    .mud-theme-secondary {
+        background-color: #ff4081 !important;
+    }
+
+    .mud-theme-dark {
+        background-color: #424242 !important;
+    }
+
+    .mud-theme-error {
+        background-color: #f44336 !important;
+    }
+
     /* Legend Chip */
     .legend-chip {
         display: inline-flex;
@@ -104,6 +141,17 @@
                 Export to PDF
             </MudButton>
 
+            <MudSelect T="SortOption"
+                       @bind-Value="SortBy"
+                       Label="Sort By"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Dense="true"
+                       Style="min-width: 150px; background-color: var(--mud-palette-surface);">
+                <MudSelectItem Value="SortOption.StartTime">Start Time</MudSelectItem>
+                <MudSelectItem Value="SortOption.Name">Name</MudSelectItem>
+            </MudSelect>
+
             <MudSelect T="TimeDisplayMode"
                        @bind-Value="Mode"
                        Label="Display Time"
@@ -119,6 +167,55 @@
     </MudStack>
 
     <MudPaper Class="pa-4 d-print-none" Outlined="true">
+        <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudSwitch Value="_activeOnly"
+                       ValueChanged="@(async (bool v) => { _activeOnly = v; await LoadAsync(); })"
+                       Color="Color.Primary"
+                       Class="mr-2" />
+            <MudText Class="mr-4">Active only</MudText>
+        </MudStack>
+
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudAutocomplete T="string" Label="Manager"
+                                 Value="_selectedManager"
+                                 ValueChanged="@(async (string s) => { _selectedManager = s; await LoadAsync(); })"
+                                 SearchFunc="@((x, ct) => SearchList(x, _options.Managers))"
+                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudAutocomplete T="string" Label="Supervisor"
+                                 Value="_selectedSupervisor"
+                                 ValueChanged="@(async (string s) => { _selectedSupervisor = s; await LoadAsync(); })"
+                                 SearchFunc="@((x, ct) => SearchList(x, _options.Supervisors))"
+                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudAutocomplete T="string" Label="Organization"
+                                 Value="_selectedOrg"
+                                 ValueChanged="@(async (string s) => { _selectedOrg = s; await LoadAsync(); })"
+                                 SearchFunc="@((x, ct) => SearchList(x, _options.Organizations))"
+                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudAutocomplete T="string" Label="Sub-Organization"
+                                 Value="_selectedSubOrg"
+                                 ValueChanged="@(async (string s) => { _selectedSubOrg = s; await LoadAsync(); })"
+                                 SearchFunc="@((x, ct) => SearchList(x, _options.SubOrganizations))"
+                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 d-print-none" Outlined="true">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4">
             <MudDatePicker Label="Select Date"
                            Date="_date"
@@ -126,6 +223,18 @@
                            Variant="Variant.Outlined"
                            Margin="Margin.Dense"
                            Editable="true" />
+
+            <MudTextField T="string"
+                          Value="@_query"
+                          ValueChanged="OnQueryChanged"
+                          Placeholder="Search Employee (Name or ID)..."
+                          Immediate="true"
+                          DebounceInterval="350"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="w-64" />
 
             <MudSpacer />
 
@@ -140,7 +249,7 @@
     {
         @if (!_vm.Sites.Any())
         {
-            <MudAlert Severity="Severity.Info">No schedules found for this date.</MudAlert>
+            <MudAlert Severity="Severity.Info">No schedules found for this date (and filters).</MudAlert>
         }
         else
         {
@@ -231,24 +340,27 @@
 
                         @foreach (var site in _vm.Sites)
                         {
-                            // 1. Calculate Timeline Dimensions for this Site
-                            int maxMinutes = 1440; // Default 24h
+                            // 1. Calculate Bounds based on Midnight
+                            var referenceTime = _vm.Date.ToDateTime(TimeOnly.MinValue);
+                            double totalMinutesToRender = 1440;
+
                             foreach (var e in site.Employees)
                             {
-                                foreach (var s in e.Segments)
+                                if (e.Segments.Any())
                                 {
-                                    var sMin = s.Start.Hour * 60 + s.Start.Minute;
-                                    var eMin = s.End.Hour * 60 + s.End.Minute;
-                                    if (eMin < sMin) eMin += 1440; // Overnight
-                                    if (eMin > maxMinutes) maxMinutes = eMin;
+                                    var maxEnd = e.Segments.Max(s => s.End);
+                                    var offset = (maxEnd - referenceTime).TotalMinutes;
+                                    if (offset > totalMinutesToRender) totalMinutesToRender = offset;
+                                }
+                                if (e.AwsSegments.Any())
+                                {
+                                    var maxEnd = e.AwsSegments.Max(s => s.End);
+                                    var offset = (maxEnd - referenceTime).TotalMinutes;
+                                    if (offset > totalMinutesToRender) totalMinutesToRender = offset;
                                 }
                             }
 
-                            // Round up to nearest hour
-                            int totalHours = (int)Math.Ceiling(maxMinutes / 60.0);
-                            if (totalHours < 24) totalHours = 24;
-
-                            // Width: 50px per hour approx
+                            int totalHours = (int)Math.Ceiling(totalMinutesToRender / 60.0);
                             int minWidth = 250 + (totalHours * 50);
 
                             <MudPaper Class="pa-4 mb-4" Outlined="true">
@@ -258,6 +370,7 @@
                                 </MudText>
 
                                 <div style="overflow-x:auto;">
+                                    @* Header Row (Hours) *@
                                     <div style="@($"display:flex; min-width: {minWidth}px; border-bottom:1px solid #ddd; margin-bottom:4px;")">
                                         <div style="width:250px; flex-shrink:0; font-weight:bold; padding-left:8px;">Employee</div>
                                         @for (int h = 0; h < totalHours; h++)
@@ -271,33 +384,62 @@
 
                                     @foreach (var emp in site.Employees)
                                     {
-                                        <div style="@($"display:flex; min-width: {minWidth}px; height: 36px; align-items:center; border-bottom:1px solid #f0f0f0; position:relative;")">
-                                            <div style="width:250px; flex-shrink:0; padding-right:8px; padding-left:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                                                <MudText Typo="Typo.body2"><b>@emp.EmployeeName</b></MudText>
-                                                <MudText Typo="Typo.caption" Style="font-size:0.7rem;">@emp.ShiftString</MudText>
+                                        <div style="@($"display:flex; flex-direction:column; border-bottom:1px solid #ddd;")">
+
+                                            @* ROW 1: SCHEDULE (Plan) *@
+                                            <div style="@($"display:flex; min-width: {minWidth}px; height: 32px; align-items:center; position:relative;")">
+                                                <div style="width:250px; flex-shrink:0; padding-right:8px; padding-left:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                    <MudText Typo="Typo.body2" Style="font-weight:bold;">@emp.EmployeeName</MudText>
+                                                    <MudText Typo="Typo.caption" Style="font-size:0.7rem; color:#888;">Plan: @emp.ShiftString</MudText>
+                                                </div>
+
+                                                <div class="timeline-track" style="flex:1;">
+                                                    @foreach (var seg in emp.Segments)
+                                                    {
+                                                        var startOffset = (seg.Start - referenceTime).TotalMinutes;
+                                                        var endOffset = (seg.End - referenceTime).TotalMinutes;
+
+                                                        if (endOffset <= 0) continue;
+
+                                                        var leftPct = (startOffset / totalMinutesToRender) * 100;
+                                                        var widthPct = ((endOffset - startOffset) / totalMinutesToRender) * 100;
+
+                                                        <div title="@($"SCHEDULE: {seg.ActivityName}\n{seg.Start:MM/dd HH:mm} - {seg.End:HH:mm}")"
+                                                             class="timeline-bar @seg.ColorClass"
+                                                             style="left:@($"{leftPct:F2}%"); width:@($"{widthPct:F2}%"); z-index:@seg.ZIndex;">
+                                                        </div>
+                                                    }
+                                                </div>
                                             </div>
 
-                                            <div class="timeline-track" style="flex:1;">
-                                                @foreach (var seg in emp.Segments)
-                                                {
-                                                    // Calculate positioning
-                                                    var startMin = seg.Start.Hour * 60 + seg.Start.Minute;
-                                                    var endMin = seg.End.Hour * 60 + seg.End.Minute;
+                                            @* ROW 2: ACTUAL (AWS) *@
+                                            <div style="@($"display:flex; min-width: {minWidth}px; height: 32px; align-items:center; position:relative; background-color:#f9f9f9;")">
+                                                <div style="width:250px; flex-shrink:0; padding-right:8px; padding-left:24px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-right: 1px solid #f0f0f0;">
+                                                    <MudText Typo="Typo.caption" Style="font-size:0.7rem; color:#666; font-style:italic;">Actual (AWS)</MudText>
+                                                </div>
 
-                                                    // Handle day wrapping
-                                                    if (endMin < startMin) endMin += 1440;
+                                                <div class="timeline-track" style="flex:1; background-color:#f9f9f9;">
+                                                    @if (emp.AwsSegments != null && emp.AwsSegments.Any())
+                                                    {
+                                                        foreach (var seg in emp.AwsSegments)
+                                                        {
+                                                            var startOffset = (seg.Start - referenceTime).TotalMinutes;
+                                                            var endOffset = (seg.End - referenceTime).TotalMinutes;
 
-                                                    // Percentage based on TotalHours * 60
-                                                    var totalMin = totalHours * 60.0;
-                                                    var leftPct = (startMin / totalMin) * 100;
-                                                    var widthPct = ((endMin - startMin) / totalMin) * 100;
+                                                            if (endOffset <= 0) continue;
 
-                                                    <div title="@($"{seg.ActivityName} - {seg.SubActivityName}\nAWS: {seg.AwsStatusName}\n{seg.Start:HH:mm} - {seg.End:HH:mm}")"
-                                                         class="timeline-bar @seg.ColorClass"
-                                                         style="left:@($"{leftPct:F2}%"); width:@($"{widthPct:F2}%"); z-index:@seg.ZIndex;">
-                                                    </div>
-                                                }
+                                                            var leftPct = (startOffset / totalMinutesToRender) * 100;
+                                                            var widthPct = ((endOffset - startOffset) / totalMinutesToRender) * 100;
+
+                                                            <div title="@($"AWS: {seg.AwsStatusName}\n{seg.Start:MM/dd HH:mm} - {seg.End:HH:mm}")"
+                                                                 class="timeline-bar @seg.ColorClass"
+                                                                 style="left:@($"{leftPct:F2}%"); width:@($"{widthPct:F2}%"); z-index:20; height: 18px; top: 7px; border: 1px solid rgba(0,0,0,0.3);">
+                                                            </div>
+                                                        }
+                                                    }
+                                                </div>
                                             </div>
+
                                         </div>
                                     }
                                 </div>
@@ -312,12 +454,24 @@
 </MudStack>
 
 @code {
+    public enum SortOption { Name, StartTime }
+
     private DateTime? _date = DateTime.Today;
     private ScheduleDashboardVm? _vm;
     private bool _loading = false;
     private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
+    private SortOption _sortBy = SortOption.StartTime; // Default sort
     private CancellationTokenSource? _cts;
     private bool _isAdmin = false;
+
+    // Filter Logic
+    private string _query = string.Empty;
+    private bool _activeOnly = true;
+    private string? _selectedManager;
+    private string? _selectedSupervisor;
+    private string? _selectedOrg;
+    private string? _selectedSubOrg;
+    private EmployeeFilterOptionsDto _options = new();
 
     // Defined Legend Items
     private List<(string Name, string Class)> _legendItems = new()
@@ -346,11 +500,22 @@
         }
     }
 
+    private SortOption SortBy
+    {
+        get => _sortBy;
+        set
+        {
+            _sortBy = value;
+            ApplySort();
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthState.GetAuthenticationStateAsync();
         _isAdmin = state.User.IsInRole("Admin");
-        // No data load here to prevent F5 lag
+        // Load options
+        _options = await Repository.GetFilterOptionsAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -367,19 +532,54 @@
         await LoadAsync();
     }
 
+    private async Task OnQueryChanged(string value)
+    {
+        _query = value ?? string.Empty;
+        await LoadAsync();
+    }
+
+    // Helper for Autocomplete search
+    private Task<IEnumerable<string>> SearchList(string value, List<string> list)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult<IEnumerable<string>>(list);
+
+        return Task.FromResult(list.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+    }
+
     private async Task LoadAsync()
     {
         if (!_date.HasValue) return;
-        _cts?.Cancel();
+
+        try
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+        }
+        catch (ObjectDisposedException) { }
+
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
         _loading = true;
         StateHasChanged();
+
         try
         {
             var dateOnly = DateOnly.FromDateTime(_date.Value);
-            _vm = await Repository.GetDailySchedulesAsync(dateOnly, _mode, token);
+            _vm = await Repository.GetDailySchedulesAsync(
+                dateOnly,
+                _mode,
+                _query,
+                _activeOnly,
+                _selectedManager,
+                _selectedSupervisor,
+                _selectedOrg,
+                _selectedSubOrg,
+                token);
+
+            // Apply sorting immediately after load
+            ApplySort();
         }
         catch (OperationCanceledException) { }
         finally
@@ -392,10 +592,38 @@
         }
     }
 
-    private async Task PrintAsync()
+    private void ApplySort()
     {
         if (_vm == null) return;
 
+        foreach (var site in _vm.Sites)
+        {
+            if (_sortBy == SortOption.StartTime)
+            {
+                site.Employees = site.Employees
+                    .OrderBy(e =>
+                    {
+                        // Get earliest Start time from Plan or Actual
+                        var planStart = e.Segments.Any() ? e.Segments.Min(s => s.Start) : (DateTime?)null;
+                        var actualStart = e.AwsSegments.Any() ? e.AwsSegments.Min(s => s.Start) : (DateTime?)null;
+
+                        // Use earliest, or MaxValue if no data (puts them at bottom)
+                        return planStart ?? actualStart ?? DateTime.MaxValue;
+                    })
+                    .ThenBy(e => e.EmployeeName)
+                    .ToList();
+            }
+            else
+            {
+                site.Employees = site.Employees.OrderBy(e => e.EmployeeName).ToList();
+            }
+        }
+        StateHasChanged();
+    }
+
+    private async Task PrintAsync()
+    {
+        if (_vm == null) return;
         foreach (var site in _vm.Sites)
         {
             site.IsExpanded = true;
@@ -407,7 +635,12 @@
 
     public void Dispose()
     {
-        _cts?.Cancel();
-        _cts?.Dispose();
+        try
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+        }
+        catch (ObjectDisposedException) { }
+        _cts = null;
     }
 }

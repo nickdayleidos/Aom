@@ -80,6 +80,7 @@ namespace MyApplication.Components.Data
         // NEW: Security Tables
         public DbSet<AppRole> AppRoles { get; set; } = default!;
         public DbSet<AppRoleAssignment> AppRoleAssignments { get; set; } = default!;
+        public DbSet<AwsAgentActivityDto> AwsAgentActivities { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder b)
@@ -170,11 +171,14 @@ namespace MyApplication.Components.Data
             // ============================================================
             // RELATIONSHIPS
             // ============================================================
-            b.Entity<Manager>()
-             .HasOne<Employees>()
-             .WithMany()
-             .HasForeignKey(x => x.EmployeeId)
-             .OnDelete(DeleteBehavior.Restrict);
+            b.Entity<Manager>(e =>
+            {
+                
+                e.HasOne(m => m.Employee)
+                 .WithMany() // Or .WithOne() if a Manager has only 1 Employee record ever
+                 .HasForeignKey(m => m.EmployeeId)
+                 .OnDelete(DeleteBehavior.NoAction); // Optional: prevents cascade cycles
+            });
 
             // FIX: Changed .HasOne<Employees>() to .HasOne(x => x.Employee) to use the navigation property
             b.Entity<Supervisor>()
@@ -206,6 +210,8 @@ namespace MyApplication.Components.Data
              .WithMany()
              .HasForeignKey(x => x.EmployeeId)
              .OnDelete(DeleteBehavior.Restrict);
+
+
 
             b.Entity<EmployeeHistory>(e =>
             {
@@ -312,9 +318,9 @@ namespace MyApplication.Components.Data
             b.Entity<AcrOrganization>(e =>
             {
                 e.HasOne(o => o.AcrRequest)
-                 .WithMany()
-                 .HasForeignKey(o => o.AcrRequestId)
-                 .OnDelete(DeleteBehavior.Cascade);
+     .WithOne(r => r.AcrOrganization)
+     .HasForeignKey<AcrOrganization>(o => o.AcrRequestId)
+     .OnDelete(DeleteBehavior.Cascade);
 
                 e.HasOne(o => o.Manager).WithMany().HasForeignKey(o => o.ManagerId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
                 e.HasOne(o => o.Supervisor).WithMany().HasForeignKey(o => o.SupervisorId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
@@ -327,9 +333,9 @@ namespace MyApplication.Components.Data
             b.Entity<AcrSchedule>(e =>
             {
                 e.HasOne(s => s.AcrRequest)
-                 .WithMany()
-                 .HasForeignKey(s => s.AcrRequestId)
-                 .OnDelete(DeleteBehavior.Cascade);
+      .WithMany(r => r.AcrSchedules)
+      .HasForeignKey(s => s.AcrRequestId)
+      .OnDelete(DeleteBehavior.Cascade);
             });
 
             b.Entity<Skills>(e =>
@@ -392,6 +398,10 @@ namespace MyApplication.Components.Data
                  .HasForeignKey(i => i.EmployeeId)
                  .OnDelete(DeleteBehavior.Restrict);
             });
+
+            b.Entity<AwsAgentActivityDto>()
+                .HasNoKey()
+                .ToView(null);
         }
     }
 }

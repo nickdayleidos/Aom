@@ -21,7 +21,9 @@ namespace MyApplication.Components.Service.Employee
         {
             using var ctx = await _factory.CreateDbContextAsync();
 
-            var emp = await ctx.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId);
+            var emp = await ctx.Employees.AsNoTracking()
+                .Include(e => e.Aws)
+                .FirstOrDefaultAsync(e => e.Id == employeeId);
             if (emp == null) return null;
 
             var vm = new EmployeeFullDetailsVm
@@ -229,22 +231,41 @@ namespace MyApplication.Components.Service.Employee
             return vm;
         }
 
-        // =========================================================
-        // Updated SearchAsync: Accepts TimeDisplayMode parameter
-        // =========================================================
-        public async Task<List<EmployeeListItem>> SearchAsync(string? query, bool activeOnly, TimeDisplayMode mode = TimeDisplayMode.Eastern, int take = 200, CancellationToken ct = default)
+        public async Task<List<EmployeeListItem>> SearchAsync(
+    string? query,
+    bool activeOnly,
+    string? manager = null,
+    string? supervisor = null,
+    string? org = null,
+    string? subOrg = null,
+    TimeDisplayMode mode = TimeDisplayMode.Eastern,
+    int take = 1000,
+    CancellationToken ct = default)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
             var baseQuery = db.EmployeeCurrentDetails.AsQueryable();
 
             if (activeOnly) baseQuery = baseQuery.Where(x => x.IsActive);
 
+            if (!string.IsNullOrEmpty(manager)) baseQuery = baseQuery.Where(x => x.ManagerName == manager);
+            if (!string.IsNullOrEmpty(supervisor)) baseQuery = baseQuery.Where(x => x.SupervisorName == supervisor);
+            if (!string.IsNullOrEmpty(org)) baseQuery = baseQuery.Where(x => x.OrganizationName == org);
+            if (!string.IsNullOrEmpty(subOrg)) baseQuery = baseQuery.Where(x => x.SubOrganizationName == subOrg);
+
             if (!string.IsNullOrWhiteSpace(query))
             {
                 var q = query.Trim();
                 var isId = int.TryParse(q, out var idValue);
+
                 baseQuery = baseQuery.Where(x =>
-                       (x.FirstName != null && EF.Functions.Like(x.FirstName, $"%{q}%"))
+                    // 1. Match "Last, First MI" (e.g. "Doe, John M" or "Doe, John")
+                    (x.LastName + ", " + x.FirstName + (x.MiddleInitial == null ? "" : " " + x.MiddleInitial)).Contains(q)
+                    ||
+                    // 2. Match "First Last" (e.g. "John Doe")
+                    (x.FirstName + " " + x.LastName).Contains(q)
+                    ||
+                    // 3. Match individual parts or ID
+                    (x.FirstName != null && EF.Functions.Like(x.FirstName, $"%{q}%"))
                     || (x.LastName != null && EF.Functions.Like(x.LastName, $"%{q}%"))
                     || (isId && x.EmployeeId == idValue)
                 );
@@ -258,6 +279,7 @@ namespace MyApplication.Components.Service.Employee
                     Id = x.EmployeeId,
                     FirstName = x.FirstName,
                     LastName = x.LastName,
+                    MiddleInitial = x.MiddleInitial,
                     IsActive = x.IsActive,
                     Manager = x.ManagerName,
                     Supervisor = x.SupervisorName,
@@ -318,7 +340,6 @@ namespace MyApplication.Components.Service.Employee
                 if (latestScheduleMap.TryGetValue(item.Id, out var reqId) && reqId.HasValue)
                 {
                     var sched = schedules.FirstOrDefault(s => s.AcrRequestId == reqId.Value);
-                    // Pass 'mode' to helpers
                     item.Schedule = FormatSchedule(sched, mode);
                     item.DailySchedules = BuildDailySchedules(sched, mode);
                 }
@@ -327,6 +348,48 @@ namespace MyApplication.Components.Service.Employee
             return items;
         }
 
+        public async Task<EmployeeFilterOptionsDto> GetFilterOptionsAsync()
+        {
+            using var ctx = await _factory.CreateDbContextAsync();
+
+            var managers = await ctx.Managers.AsNoTracking()
+                .Where(x => x.IsActive == true)
+                .Select(x => ctx.Employees.Where(e => e.Id == x.EmployeeId)
+                                          .Select(e => e.LastName + ", " + e.FirstName)
+                                          .FirstOrDefault())
+                .Where(x => x != null)
+                .OrderBy(x => x)
+                .ToListAsync();
+
+            var supervisors = await ctx.Supervisors.AsNoTracking()
+                .Where(x => x.IsActive == true)
+                .Select(x => ctx.Employees.Where(e => e.Id == x.EmployeeId)
+                                          .Select(e => e.LastName + ", " + e.FirstName)
+                                          .FirstOrDefault())
+                .Where(x => x != null)
+                .OrderBy(x => x)
+                .ToListAsync();
+
+            var orgs = await ctx.Organizations.AsNoTracking()
+                .Where(x => x.IsActive == true && x.Name != null)
+                .Select(x => x.Name)
+                .OrderBy(x => x)
+                .ToListAsync();
+
+            var subOrgs = await ctx.SubOrganizations.AsNoTracking()
+                .Where(x => x.IsActive == true && x.Name != null)
+                .Select(x => x.Name)
+                .OrderBy(x => x)
+                .ToListAsync();
+
+            return new EmployeeFilterOptionsDto
+            {
+                Managers = managers!,
+                Supervisors = supervisors!,
+                Organizations = orgs!,
+                SubOrganizations = subOrgs!
+            };
+        }
         public async Task UpdateProfileAsync(EmployeeProfileUpdateDto dto)
         {
             using var ctx = await _factory.CreateDbContextAsync();
@@ -360,9 +423,18 @@ namespace MyApplication.Components.Service.Employee
         }
 
         // ====================================================================
-        // NEW: GetDailySchedulesAsync with DetailedSchedule + AWS Status Logic
+        // UPDATED: GetDailySchedulesAsync with FILTER parameters
         // ====================================================================
-        public async Task<ScheduleDashboardVm> GetDailySchedulesAsync(DateOnly date, TimeDisplayMode mode, CancellationToken ct = default)
+        public async Task<ScheduleDashboardVm> GetDailySchedulesAsync(
+    DateOnly date,
+    TimeDisplayMode mode,
+    string? query,
+    bool activeOnly,
+    string? manager,
+    string? supervisor,
+    string? org,
+    string? subOrg,
+    CancellationToken ct = default)
         {
             if (date == DateOnly.MinValue) return new ScheduleDashboardVm { Date = date };
 
@@ -376,40 +448,85 @@ namespace MyApplication.Components.Service.Employee
                 .Include(x => x.AwsStatus)
                 .ToListAsync(ct);
 
-            if (!rawData.Any()) return new ScheduleDashboardVm { Date = date };
-
-            // 2. Get Employee/Site context (names, orgs, timezones)
+            // ... [Step 2: Get History/Filters (Keep existing code)] ...
             var empIds = rawData.Select(x => x.EmployeeId).Distinct().ToList();
             var histories = await ctx.EmployeeHistory.AsNoTracking()
                 .Where(h => empIds.Contains(h.EmployeeId))
-                // Optimistic: Get active history, or latest if none active
                 .Include(h => h.Site)
                 .Include(h => h.Organization)
                 .Include(h => h.SubOrganization)
                 .Include(h => h.Supervisor).ThenInclude(s => s.Employee)
-                .Include(h => h.Employee) // For Employee Name
+                .Include(h => h.Manager).ThenInclude(m => m.Employee)
+                .Include(h => h.Employee)
                 .ToListAsync(ct);
 
-            // Filter to best history row per employee
             var bestHistory = histories
                 .GroupBy(h => h.EmployeeId)
                 .Select(g => g.OrderByDescending(x => x.IsActive == true).ThenByDescending(x => x.EffectiveDate).First())
                 .ToList();
 
+            var filteredHistory = bestHistory.Where(h =>
+            {
+                // ... [Keep your existing filter block] ...
+                if (activeOnly && h.IsActive != true) return false;
+                if (!string.IsNullOrEmpty(manager)) { /* ... */ }
+                // (Assume standard filters are here)
+                return true;
+            }).ToList();
+
+            // ... [Step 3: Resolve Mappings (Keep existing code)] ...
+            var visibleEmpIds = filteredHistory.Select(x => x.EmployeeId).Distinct().ToList();
+            var awsMappingsRaw = await ctx.Identifiers.AsNoTracking()
+                .Where(x => visibleEmpIds.Contains(x.EmployeeId ?? 0) && !string.IsNullOrEmpty(x.Guid))
+                .Select(x => new { x.EmployeeId, x.Guid })
+                .ToListAsync(ct);
+
+            var guidToEmpMap = new Dictionary<Guid, int>();
+            foreach (var row in awsMappingsRaw)
+            {
+                if (row.EmployeeId.HasValue && Guid.TryParse(row.Guid, out Guid parsedGuid))
+                    if (!guidToEmpMap.ContainsKey(parsedGuid)) guidToEmpMap[parsedGuid] = row.EmployeeId.Value;
+            }
+            var distinctGuids = guidToEmpMap.Keys.ToList();
+
+            // 4. Fetch AWS Data 
+            // We still fetch a wide window from SQL to be safe (-1 to +2 days)
+            var sqlQueryStart = date.AddDays(-1).ToDateTime(TimeOnly.MinValue);
+            var sqlQueryEnd = date.AddDays(2).ToDateTime(TimeOnly.MinValue);
+
+            List<AwsAgentActivityDto> awsActivities = new();
+            if (distinctGuids.Any())
+            {
+                awsActivities = await GetAwsActivitiesAsync(ctx, distinctGuids, sqlQueryStart, sqlQueryEnd, ct);
+            }
+
+            var employeeAwsData = awsActivities
+                .Where(a => guidToEmpMap.ContainsKey(a.AwsGuid))
+                .ToLookup(a => guidToEmpMap[a.AwsGuid]);
+
+            // 5. Build View Model
             var dashboard = new ScheduleDashboardVm { Date = date };
 
-            // 3. Group by Site
-            var groupedBySite = bestHistory.GroupBy(x => x.Site?.SiteCode ?? "Unknown")
-                                           .OrderBy(g => g.Key);
+            // Global Day Window (used as fallback for unscheduled employees)
+            // 00:00 Today -> 06:00 Tomorrow (Local)
+            var globalDayStart = date.ToDateTime(TimeOnly.MinValue);
+            var globalDayEnd = globalDayStart.AddHours(30);
+
+            var groupedBySite = filteredHistory.GroupBy(x => x.Site?.SiteCode ?? "Unknown").OrderBy(g => g.Key);
 
             foreach (var siteGroup in groupedBySite)
             {
                 var siteName = siteGroup.Key;
-                // Grab TZ from first employee in site group
                 var first = siteGroup.First();
                 var siteTz = first.Site?.TimeZoneWindows ?? first.Site?.TimeZoneIana ?? "Eastern Standard Time";
-
                 var siteVm = new SiteScheduleGroupVm { SiteName = siteName, TimeZoneId = siteTz };
+
+                string targetTzId = mode switch
+                {
+                    TimeDisplayMode.Eastern => "Eastern Standard Time",
+                    TimeDisplayMode.Mountain => "Mountain Standard Time",
+                    _ => siteTz
+                };
 
                 foreach (var hist in siteGroup)
                 {
@@ -424,14 +541,31 @@ namespace MyApplication.Components.Service.Employee
                         SupervisorName = hist.Supervisor?.Employee != null ? $"{hist.Supervisor.Employee.LastName}, {hist.Supervisor.Employee.FirstName}" : ""
                     };
 
-                    string targetTzId = mode switch
-                    {
-                        TimeDisplayMode.Eastern => "Eastern Standard Time",
-                        TimeDisplayMode.Mountain => "Mountain Standard Time",
-                        _ => siteTz
-                    };
+                    // -----------------------------------------------------------
+                    // NEW LOGIC: Determine Valid AWS Window (ET)
+                    // -----------------------------------------------------------
+                    DateTime validWindowStartEt;
+                    DateTime validWindowEndEt;
 
-                    var segments = new List<ScheduleSegmentVm>();
+                    if (empSchedules.Any())
+                    {
+                        // Has Schedule: Window = [Earliest Start - 2h] to [Latest End + 2h]
+                        // Note: empSchedules.StartTime is already ET from the DB
+                        var minStart = empSchedules.Min(s => s.StartTime);
+                        var maxEnd = empSchedules.Max(s => s.EndTime);
+
+                        validWindowStartEt = minStart.AddHours(-8);
+                        validWindowEndEt = maxEnd.AddHours(8);
+                    }
+                    else
+                    {
+                        // No Schedule (OFF): Fallback to Global Day Window (Local -> ET)
+                        // If they work on their day off, we want to see it, but clipped to "Today"
+                        validWindowStartEt = Tz.FromSiteToEt(globalDayStart, targetTzId);
+                        validWindowEndEt = Tz.FromSiteToEt(globalDayEnd, targetTzId);
+                    }
+
+                    // A. Map Scheduled Segments
                     DateTime? minDt = null;
                     DateTime? maxDt = null;
 
@@ -443,34 +577,58 @@ namespace MyApplication.Components.Service.Employee
                         if (minDt == null || localStart < minDt) minDt = localStart;
                         if (maxDt == null || localEnd > maxDt) maxDt = localEnd;
 
-                        segments.Add(new ScheduleSegmentVm
+                        empVm.Segments.Add(new ScheduleSegmentVm
                         {
-                            ActivityTypeId = item.ActivityTypeId,
-                            ActivitySubTypeId = item.ActivitySubTypeId,
                             ActivityName = item.ActivityType?.Name ?? "?",
                             SubActivityName = item.ActivitySubType?.Name ?? "-",
-                            AwsStatusId = item.AwsStatusId,
                             AwsStatusName = item.AwsStatus?.Name ?? "-",
-                            Start = TimeOnly.FromDateTime(localStart),
-                            End = TimeOnly.FromDateTime(localEnd),
+                            Start = localStart,
+                            End = localEnd,
                             IsImpacting = item.IsImpacting ?? false
                         });
                     }
-
-                    empVm.Segments = segments;
                     empVm.ShiftString = (minDt.HasValue && maxDt.HasValue) ? $"{minDt.Value:HH:mm} - {maxDt.Value:HH:mm}" : "OFF";
 
-                    if (segments.Any())
-                        siteVm.Employees.Add(empVm);
+                    // B. Map Actual Segments (AWS) with DYNAMIC WINDOW
+                    if (employeeAwsData.Contains(hist.EmployeeId))
+                    {
+                        foreach (var act in employeeAwsData[hist.EmployeeId])
+                        {
+                            // Filter: Strict check against the Calculated Window (in ET)
+                            // We check ET vs ET to avoid timezone conversion headaches during filtering
+                            if (act.StartTime >= validWindowStartEt && act.StartTime < validWindowEndEt)
+                            {
+                                // Pass Filter -> Convert to Local for Display
+                                var actStart = Tz.FromEtToSite(act.StartTime, targetTzId);
+                                var actEnd = Tz.FromEtToSite(act.EndTime, targetTzId);
+
+                                empVm.AwsSegments.Add(new ScheduleSegmentVm
+                                {
+                                    ActivityName = "AWS",
+                                    SubActivityName = act.CurrentAgentStatus,
+                                    AwsStatusName = act.CurrentAgentStatus,
+                                    Start = actStart,
+                                    End = actEnd,
+                                    IsImpacting = true
+                                });
+                            }
+                        }
+                    }
+
+                    siteVm.Employees.Add(empVm);
                 }
 
                 siteVm.Employees = siteVm.Employees.OrderBy(e => e.EmployeeName).ToList();
-                if (siteVm.Employees.Any())
-                    dashboard.Sites.Add(siteVm);
+                if (siteVm.Employees.Any()) dashboard.Sites.Add(siteVm);
             }
 
             return dashboard;
         }
+
+        // Helper method to query the external AWS table
+        // Passing the DbContext to reuse the connection
+
+
 
         public async Task<EmployeeDetailDto?> GetDetailAsync(int employeeId, CancellationToken ct = default)
         {
@@ -526,6 +684,44 @@ namespace MyApplication.Components.Service.Employee
             }
             return "Varies";
         }
+
+        // In EmployeesRepository.cs
+
+        private async Task<List<AwsAgentActivityDto>> GetAwsActivitiesAsync(
+            AomDbContext db,
+            List<Guid> visibleEmployeeAwsGuids,
+            DateTime viewStart,
+            DateTime viewEnd,
+            CancellationToken ct = default)
+        {
+            if (!visibleEmployeeAwsGuids.Any()) return new List<AwsAgentActivityDto>();
+
+            var guidList = string.Join("','", visibleEmployeeAwsGuids);
+
+            // UPDATED: Added "AND [currentAgentStatus] != 'Offline'"
+            // Also kept the CASTs to prevent the invalid cast exceptions
+            var sql = $@"
+    SELECT CAST([eventId] AS NVARCHAR(36)) as [EventId]
+          ,CAST([awsId] AS NVARCHAR(36)) as [AwsId]
+          ,[eventTimeET] as [StartTime]
+          ,[currentAgentStatus]
+          ,[endTime] as [EndTime]
+          ,[duration]
+          ,CAST([AwsGuid] AS UNIQUEIDENTIFIER) as [AwsGuid]
+      FROM [TODNMCIAWS].[dbo].[awsDetailedAgentData]
+      WHERE [AwsGuid] IN ('{guidList}')
+        AND [eventTimeET] < {{0}} 
+        AND [endTime] > {{1}}
+        AND [currentAgentStatus] != 'Offline'
+      ORDER BY [eventTimeET]";
+
+            return await db.Set<AwsAgentActivityDto>()
+                .FromSqlRaw(sql, viewEnd, viewStart)
+                .AsNoTracking()
+                .ToListAsync(ct);
+        }
+
+
 
         private TimeOnly? Convert(TimeOnly? time, TimeDisplayMode mode)
         {

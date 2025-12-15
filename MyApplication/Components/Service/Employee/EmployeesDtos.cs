@@ -7,6 +7,7 @@ namespace MyApplication.Components.Service.Employee.Dtos
         public int Id { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
+        public string? MiddleInitial { get; set; } // Added
         public bool IsActive { get; set; }
         public string? Manager { get; set; }
         public string? Supervisor { get; set; }
@@ -17,6 +18,24 @@ namespace MyApplication.Components.Service.Employee.Dtos
         public string? Schedule { get; set; }
         public List<string> Skills { get; set; } = new();
         public List<DayScheduleDto> DailySchedules { get; set; } = new();
+
+        // Computed property for the table column
+        public string DisplayName
+        {
+            get
+            {
+                var name = $"{LastName}, {FirstName}";
+                if (!string.IsNullOrWhiteSpace(MiddleInitial)) name += $" {MiddleInitial}";
+                return $"{name} ({Id})";
+            }
+        }
+    }
+    public class EmployeeFilterOptionsDto
+    {
+        public List<string> Managers { get; set; } = new();
+        public List<string> Supervisors { get; set; } = new();
+        public List<string> Organizations { get; set; } = new();
+        public List<string> SubOrganizations { get; set; } = new();
     }
     public class DayScheduleDto
     {
@@ -122,9 +141,33 @@ namespace MyApplication.Components.Service.Employee.Dtos
         public int? AwsId { get; set; } // For mapping
     }
 
+    public class AwsAgentActivityDto
+    {
+        public string EventId { get; set; }
+        public string AwsId { get; set; }
+        public DateTime StartTime { get; set; } // Maps to eventTimeET
+        public DateTime EndTime { get; set; }
+        public string CurrentAgentStatus { get; set; }
+        public int Duration { get; set; }
+        public Guid AwsGuid { get; set; } // Used to link back to Employee
+    }
+
+   
+
     public class AwsIdentifierLookupDto
     {
         public int Id { get; set; }
         public string? AwsUsername { get; set; }
     }
-}
+
+    public sealed record SchedulesIndexFilter(
+    string? EmployeeSearch,
+    string? Manager,
+    string? Supervisor,
+    string? Organization,
+    string? SubOrganization
+)
+    {
+    }
+    };
+

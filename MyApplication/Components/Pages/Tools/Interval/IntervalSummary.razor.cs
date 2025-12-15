@@ -4,10 +4,10 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.JSInterop;
-using MimeKit; // .eml creation
+using MimeKit;
 using MudBlazor;
-using MyApplication.Common;                // IdentityHelpers
-using MyApplication.Common.Time;           // Et helper
+using MyApplication.Common;
+using MyApplication.Common.Time;
 using MyApplication.Components.Pages.Tools.Interval;
 using MyApplication.Components.Service;
 using MyApplication.Components.Services.Email;
@@ -33,37 +33,38 @@ namespace MyApplication.Components.Pages.Tools.Interval
 
         private IntervalSummaryState State { get; set; } = new();
 
-        // Connection strings
-        private string _connString = string.Empty;   // legacy usage (AWS-first)
-        private string _connAws = string.Empty;      // AWS call data
-        private string _connAom = string.Empty;      // AOM app DB (IntervalSummary table)
+        // Only AWS needed now
+        private string _connAws = string.Empty;
 
         private string _lastError = string.Empty;
         private string? _info;
         private readonly CancellationTokenSource _cts = new();
         private bool _disposed;
 
-        // ======== Interval grid model (right-hand table) ========
         private sealed class IntervalGridRow
         {
-            public string IntervalLabel { get; set; } = string.Empty; // "HH:mm - HH:mm"
+            public string IntervalLabel { get; set; } = string.Empty;
             public int CallsOffered { get; set; }
             public int Answered { get; set; }
-            public decimal ASA { get; set; } // seconds, 2 decimals
+            public decimal ASA { get; set; }
         }
         private List<IntervalGridRow> _intervalRows = new();
 
         protected override void OnInitialized()
         {
-            InitConnStrings();
+            // Only load AWS connection string
+            _connAws = Config.GetConnectionString("AWS") ?? Config["ConnectionStrings:AWS"] ?? "";
 
-            if (string.IsNullOrWhiteSpace(_connAws) && string.IsNullOrWhiteSpace(_connAom))
+            if (string.IsNullOrWhiteSpace(_connAws))
             {
-                _lastError = "No SQL connection strings found. Expected ConnectionStrings:AWS and/or ConnectionStrings:AOM.";
+                _lastError = "No AWS connection string found.";
                 Snackbar.Add(_lastError, Severity.Error, cfg => cfg.RequireInteraction = true);
             }
+            else
+            {
+                _info = "Using connection string: AWS (AOM Disabled)";
+            }
 
-            // Use global ET helper
             var etNowMinus30 = Et.Now.AddMinutes(-30);
             var startHour = (etNowMinus30.Hour / 4) * 4;
             var endHour = startHour + 4;
@@ -79,40 +80,13 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 await PopulateAsync();
         }
 
-        // Initialize both connection strings,
-        // keep _connString behavior for existing WithConn() usage (AWS-first, fallback AOM)
-        private void InitConnStrings()
-        {
-            _connAws = Config.GetConnectionString("AWS") ?? Config["ConnectionStrings:AWS"] ?? "";
-            _connAom = Config.GetConnectionString("AOM") ?? Config["ConnectionStrings:AOM"] ?? "";
-
-            if (!string.IsNullOrWhiteSpace(_connAws))
-            {
-                _connString = _connAws;
-                _info = string.IsNullOrWhiteSpace(_connAom)
-                    ? "Using connection string: AWS"
-                    : "Using connection strings: AWS + AOM";
-            }
-            else if (!string.IsNullOrWhiteSpace(_connAom))
-            {
-                _connString = _connAom; // to avoid nulls if someone calls WithConn by mistake
-                _info = "Using connection string: AOM only (no AWS).";
-            }
-            else
-            {
-                _connString = string.Empty;
-                _info = "No connection string found (looked for AWS, then AOM).";
-            }
-        }
-
-        // ========================= Toolbar actions =========================
         private bool _loading;
 
         private async Task PopulateAsync()
         {
-            if (string.IsNullOrWhiteSpace(_connAws) && string.IsNullOrWhiteSpace(_connAom))
+            if (string.IsNullOrWhiteSpace(_connAws))
             {
-                _lastError = "Populate aborted: no AWS/AOM connection strings.";
+                _lastError = "Populate aborted: no AWS connection string.";
                 Snackbar.Add(_lastError, Severity.Error, cfg => cfg.RequireInteraction = true);
                 return;
             }
@@ -123,109 +97,57 @@ namespace MyApplication.Components.Pages.Tools.Interval
 
             try
             {
-                // selectedDate is ET (date only)
                 var selectedDate = (State.Header.IntervalDate ?? Et.Now).Date;
+                var todayStart = selectedDate;
+                var todayEnd = selectedDate.AddDays(1);
+                var (monthStart, monthEnd) = GetMtdBounds(selectedDate);
 
-                var dayStart = selectedDate;           // 00:00 ET
-                var dayEnd = selectedDate.AddDays(1);  // next day 00:00 ET
+                // Execute ONE round-trip query for everything
+                var (stats, intervals) = await FetchEverythingAsync(todayStart, todayEnd, monthStart, monthEnd, _cts.Token);
 
-                var (mStart, mEnd) = GetMtdBounds(selectedDate); // both ET
+                // --- Assign Current Day ---
+                State.Current.UsnAsa = stats.Cur_UsnASA.ToString(CultureInfo.InvariantCulture);
+                State.Current.UsnCallsOffered = stats.Cur_UsnOffered.ToString(CultureInfo.InvariantCulture);
+                State.Current.UsnCallsAnswered = stats.Cur_UsnAnswered.ToString(CultureInfo.InvariantCulture);
 
-                // Kick off all queries in parallel. Each uses its own connection.
-                // Current Day (AWS call data)
-                var tCurSvd = WithConn(c => QueryCurrentAsync(c, "isreportingweb = 1", dayStart, dayEnd, _cts.Token), _cts.Token);
-                var tCurVip = WithConn(c => QueryCurrentAsync(c, "CMS_Equivalent = 46", dayStart, dayEnd, _cts.Token), _cts.Token);
-                var tCurSipr = WithConn(c => QueryCurrentAsync(c, "CMS_Equivalent = 68", dayStart, dayEnd, _cts.Token), _cts.Token);
-                var tCurNnpi = WithConn(c => QueryCurrentAsync(c, "CMS_Equivalent = 27", dayStart, dayEnd, _cts.Token), _cts.Token);
+                State.Current.VipAsa = stats.Cur_VipASA.ToString(CultureInfo.InvariantCulture);
+                State.Current.VipCallsOffered = stats.Cur_VipOffered.ToString(CultureInfo.InvariantCulture);
+                State.Current.VipCallsAnswered = stats.Cur_VipAnswered.ToString(CultureInfo.InvariantCulture);
 
-                // MTD (AWS call data)
-                var tMtdSvd = WithConn(c => QueryMtdAsync(c, "isreportingweb = 1", mStart, mEnd, _cts.Token), _cts.Token);
-                var tMtdVip = WithConn(c => QueryMtdAsync(c, "CMS_Equivalent = 46", mStart, mEnd, _cts.Token), _cts.Token);
-                var tMtdSipr = WithConn(c => QueryMtdAsync(c, "CMS_Equivalent = 68", mStart, mEnd, _cts.Token), _cts.Token);
-                var tMtdNnpi = WithConn(c => QueryMtdAsync(c, "CMS_Equivalent = 27", mStart, mEnd, _cts.Token), _cts.Token);
+                State.Current.SiprAsa = stats.Cur_SiprASA.ToString(CultureInfo.InvariantCulture);
+                State.Current.SiprCallsOffered = stats.Cur_SiprOffered.ToString(CultureInfo.InvariantCulture);
+                State.Current.SiprCallsAnswered = stats.Cur_SiprAnswered.ToString(CultureInfo.InvariantCulture);
 
-                // Intervals (AWS call data)
-                var tIntervals = WithConn(c => QueryCurrentDayIntervalsAsync(c, dayStart, dayEnd, _cts.Token), _cts.Token);
+                State.Current.NnpiAsa = stats.Cur_NnpiASA.ToString(CultureInfo.InvariantCulture);
+                State.Current.NnpiCallsOffered = stats.Cur_NnpiOffered.ToString(CultureInfo.InvariantCulture);
+                State.Current.NnpiCallsAnswered = stats.Cur_NnpiAnswered.ToString(CultureInfo.InvariantCulture);
 
-                // Latest Notes (AOM DB)
-                var tNotes = !string.IsNullOrWhiteSpace(_connAom)
-                    ? WithConnAom(c => QueryLatestNotesAsync(c, _cts.Token), _cts.Token)
-                    : Task.FromResult<LatestNotesRow?>(null);
+                // --- Assign MTD ---
+                State.Mtd.UsnAsa = stats.Mtd_UsnASA.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.UsnCallsOffered = stats.Mtd_UsnOffered.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.UsnCallsAnswered = stats.Mtd_UsnAnswered.ToString(CultureInfo.InvariantCulture);
 
-                await Task.WhenAll(
-                    tCurSvd, tCurVip, tCurSipr, tCurNnpi,
-                    tMtdSvd, tMtdVip, tMtdSipr, tMtdNnpi,
-                    tIntervals, tNotes
-                );
+                State.Mtd.VipAsa = stats.Mtd_VipASA.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.VipCallsOffered = stats.Mtd_VipOffered.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.VipCallsAnswered = stats.Mtd_VipAnswered.ToString(CultureInfo.InvariantCulture);
 
-                // Assign results (Current)
-                var curSvd = tCurSvd.Result; var mtdSvd = tMtdSvd.Result;
-                var curVip = tCurVip.Result; var mtdVip = tMtdVip.Result;
-                var curSipr = tCurSipr.Result; var mtdSipr = tMtdSipr.Result;
-                var curNnpi = tCurNnpi.Result; var mtdNnpi = tMtdNnpi.Result;
+                State.Mtd.SiprAsa = stats.Mtd_SiprASA.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.SiprCallsOffered = stats.Mtd_SiprOffered.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.SiprCallsAnswered = stats.Mtd_SiprAnswered.ToString(CultureInfo.InvariantCulture);
 
-                State.Current.UsnAsa = curSvd.ASA.ToString(CultureInfo.InvariantCulture);
-                State.Current.UsnCallsOffered = curSvd.CallsOffered.ToString(CultureInfo.InvariantCulture);
-                State.Current.UsnCallsAnswered = curSvd.Answered.ToString(CultureInfo.InvariantCulture);
-
-                State.Current.VipAsa = curVip.ASA.ToString(CultureInfo.InvariantCulture);
-                State.Current.VipCallsOffered = curVip.CallsOffered.ToString(CultureInfo.InvariantCulture);
-                State.Current.VipCallsAnswered = curVip.Answered.ToString(CultureInfo.InvariantCulture);
-
-                State.Current.SiprAsa = curSipr.ASA.ToString(CultureInfo.InvariantCulture);
-                State.Current.SiprCallsOffered = curSipr.CallsOffered.ToString(CultureInfo.InvariantCulture);
-                State.Current.SiprCallsAnswered = curSipr.Answered.ToString(CultureInfo.InvariantCulture);
-
-                State.Current.NnpiAsa = curNnpi.ASA.ToString(CultureInfo.InvariantCulture);
-                State.Current.NnpiCallsOffered = curNnpi.CallsOffered.ToString(CultureInfo.InvariantCulture);
-                State.Current.NnpiCallsAnswered = curNnpi.Answered.ToString(CultureInfo.InvariantCulture);
-
-                // Assign results (MTD)
-                State.Mtd.UsnAsa = mtdSvd.ASA.ToString(CultureInfo.InvariantCulture);
-                State.Mtd.UsnCallsOffered = mtdSvd.CallsOffered.ToString(CultureInfo.InvariantCulture);
-                State.Mtd.UsnCallsAnswered = mtdSvd.Answered.ToString(CultureInfo.InvariantCulture);
-
-                State.Mtd.VipAsa = mtdVip.ASA.ToString(CultureInfo.InvariantCulture);
-                State.Mtd.VipCallsOffered = mtdVip.CallsOffered.ToString(CultureInfo.InvariantCulture);
-                State.Mtd.VipCallsAnswered = mtdVip.Answered.ToString(CultureInfo.InvariantCulture);
-
-                State.Mtd.SiprAsa = mtdSipr.ASA.ToString(CultureInfo.InvariantCulture);
-                State.Mtd.SiprCallsOffered = mtdSipr.CallsOffered.ToString(CultureInfo.InvariantCulture);
-                State.Mtd.SiprCallsAnswered = mtdSipr.Answered.ToString(CultureInfo.InvariantCulture);
-
-                State.Mtd.NnpiAsa = mtdNnpi.ASA.ToString(CultureInfo.InvariantCulture);
-                State.Mtd.NnpiCallsOffered = mtdNnpi.CallsOffered.ToString(CultureInfo.InvariantCulture);
-                State.Mtd.NnpiCallsAnswered = mtdNnpi.Answered.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.NnpiAsa = stats.Mtd_NnpiASA.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.NnpiCallsOffered = stats.Mtd_NnpiOffered.ToString(CultureInfo.InvariantCulture);
+                State.Mtd.NnpiCallsAnswered = stats.Mtd_NnpiAnswered.ToString(CultureInfo.InvariantCulture);
 
                 // Intervals
-                _intervalRows = tIntervals.Result;
-
-                // Latest Notes
-                var latest = tNotes.Result;
-                if (latest is not null)
-                {
-                    State.Notes.FocusArea = latest.NaTodaysFocusArea ?? "";
-                    State.Notes.CirImpactAsa = latest.NaMajorCirImpact ?? "";
-                    State.Notes.ImpactEvents = latest.NaImpactingEvents ?? "";
-                    State.Notes.HpsmStatus = latest.NaHpsmStatus ?? "";
-                    State.Notes.ManagementNotes = latest.NaManagementNotes ?? "";
-                }
+                _intervalRows = intervals;
 
                 await SafeStateHasChangedAsync();
                 Snackbar.Add($"Populate complete for {selectedDate:yyyy-MM-dd}. Intervals: {_intervalRows.Count}.", Severity.Success);
             }
-            catch (TaskCanceledException) { }
-            catch (JSDisconnectedException) { }
-            catch (ObjectDisposedException) { }
-            catch (SqlException ex)
-            {
-                _lastError = $"SQL error during Populate: {ex.Message}";
-                Console.WriteLine(ex);
-                Snackbar.Add(_lastError, Severity.Error, cfg => cfg.RequireInteraction = true);
-            }
             catch (Exception ex)
             {
-                _lastError = $"Unexpected error during Populate: {ex.Message}";
+                _lastError = $"Error during Populate: {ex.Message}";
                 Console.WriteLine(ex);
                 Snackbar.Add(_lastError, Severity.Error, cfg => cfg.RequireInteraction = true);
             }
@@ -235,6 +157,182 @@ namespace MyApplication.Components.Pages.Tools.Interval
             }
         }
 
+        // ========================= Consolidated Data Access =========================
+
+        private sealed class CombinedStatsRow
+        {
+            // Current Day
+            public int Cur_UsnASA { get; set; }
+            public int Cur_UsnOffered { get; set; }
+            public int Cur_UsnAnswered { get; set; }
+            public int Cur_VipASA { get; set; }
+            public int Cur_VipOffered { get; set; }
+            public int Cur_VipAnswered { get; set; }
+            public int Cur_SiprASA { get; set; }
+            public int Cur_SiprOffered { get; set; }
+            public int Cur_SiprAnswered { get; set; }
+            public int Cur_NnpiASA { get; set; }
+            public int Cur_NnpiOffered { get; set; }
+            public int Cur_NnpiAnswered { get; set; }
+
+            // MTD
+            public int Mtd_UsnASA { get; set; }
+            public int Mtd_UsnOffered { get; set; }
+            public int Mtd_UsnAnswered { get; set; }
+            public int Mtd_VipASA { get; set; }
+            public int Mtd_VipOffered { get; set; }
+            public int Mtd_VipAnswered { get; set; }
+            public int Mtd_SiprASA { get; set; }
+            public int Mtd_SiprOffered { get; set; }
+            public int Mtd_SiprAnswered { get; set; }
+            public int Mtd_NnpiASA { get; set; }
+            public int Mtd_NnpiOffered { get; set; }
+            public int Mtd_NnpiAnswered { get; set; }
+        }
+
+        private async Task<(CombinedStatsRow, List<IntervalGridRow>)> FetchEverythingAsync(
+            DateTime todayStart, DateTime todayEnd, DateTime monthStart, DateTime monthEnd, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(_connAws))
+                throw new InvalidOperationException("AWS connection string is empty.");
+
+            // This script has 2 statements:
+            // 1. A single row containing ALL Current AND MTD aggregates (using conditional SUM)
+            // 2. The list of interval rows for the Current Day
+            var sql = @"
+-- 1. Aggregates (Current + MTD in one scan)
+SELECT 
+    -- === CURRENT DAY (Filtered by @TodayStart) ===
+    -- USN
+    CAST(CASE WHEN SUM(CASE WHEN isreportingweb = 1 AND CAST(edate AS date) >= @TodayStart THEN ACDcalls + voicemails ELSE 0 END) > 0 
+         THEN ROUND(SUM(CASE WHEN isreportingweb = 1 AND CAST(edate AS date) >= @TodayStart THEN CAST(anstime AS FLOAT) ELSE 0 END) / SUM(CASE WHEN isreportingweb = 1 AND CAST(edate AS date) >= @TodayStart THEN CAST(ACDcalls + voicemails AS FLOAT) ELSE 0 END), 0)
+         ELSE 0 END AS INT) as Cur_UsnASA,
+    SUM(CASE WHEN isreportingweb = 1 AND CAST(edate AS date) >= @TodayStart THEN callsoffered ELSE 0 END) as Cur_UsnOffered,
+    SUM(CASE WHEN isreportingweb = 1 AND CAST(edate AS date) >= @TodayStart THEN acdcalls + voicemails + callbacks ELSE 0 END) as Cur_UsnAnswered,
+
+    -- VIP
+    CAST(CASE WHEN SUM(CASE WHEN CMS_Equivalent = 46 AND CAST(edate AS date) >= @TodayStart THEN ACDcalls + voicemails ELSE 0 END) > 0 
+         THEN ROUND(SUM(CASE WHEN CMS_Equivalent = 46 AND CAST(edate AS date) >= @TodayStart THEN CAST(anstime AS FLOAT) ELSE 0 END) / SUM(CASE WHEN CMS_Equivalent = 46 AND CAST(edate AS date) >= @TodayStart THEN CAST(ACDcalls + voicemails AS FLOAT) ELSE 0 END), 0)
+         ELSE 0 END AS INT) as Cur_VipASA,
+    SUM(CASE WHEN CMS_Equivalent = 46 AND CAST(edate AS date) >= @TodayStart THEN callsoffered ELSE 0 END) as Cur_VipOffered,
+    SUM(CASE WHEN CMS_Equivalent = 46 AND CAST(edate AS date) >= @TodayStart THEN acdcalls + voicemails + callbacks ELSE 0 END) as Cur_VipAnswered,
+
+    -- SIPR
+    CAST(CASE WHEN SUM(CASE WHEN CMS_Equivalent = 68 AND CAST(edate AS date) >= @TodayStart THEN ACDcalls + voicemails ELSE 0 END) > 0 
+         THEN ROUND(SUM(CASE WHEN CMS_Equivalent = 68 AND CAST(edate AS date) >= @TodayStart THEN CAST(anstime AS FLOAT) ELSE 0 END) / SUM(CASE WHEN CMS_Equivalent = 68 AND CAST(edate AS date) >= @TodayStart THEN CAST(ACDcalls + voicemails AS FLOAT) ELSE 0 END), 0)
+         ELSE 0 END AS INT) as Cur_SiprASA,
+    SUM(CASE WHEN CMS_Equivalent = 68 AND CAST(edate AS date) >= @TodayStart THEN callsoffered ELSE 0 END) as Cur_SiprOffered,
+    SUM(CASE WHEN CMS_Equivalent = 68 AND CAST(edate AS date) >= @TodayStart THEN acdcalls + voicemails + callbacks ELSE 0 END) as Cur_SiprAnswered,
+
+    -- NNPI
+    CAST(CASE WHEN SUM(CASE WHEN CMS_Equivalent = 27 AND CAST(edate AS date) >= @TodayStart THEN ACDcalls + voicemails ELSE 0 END) > 0 
+         THEN ROUND(SUM(CASE WHEN CMS_Equivalent = 27 AND CAST(edate AS date) >= @TodayStart THEN CAST(anstime AS FLOAT) ELSE 0 END) / SUM(CASE WHEN CMS_Equivalent = 27 AND CAST(edate AS date) >= @TodayStart THEN CAST(ACDcalls + voicemails AS FLOAT) ELSE 0 END), 0)
+         ELSE 0 END AS INT) as Cur_NnpiASA,
+    SUM(CASE WHEN CMS_Equivalent = 27 AND CAST(edate AS date) >= @TodayStart THEN callsoffered ELSE 0 END) as Cur_NnpiOffered,
+    SUM(CASE WHEN CMS_Equivalent = 27 AND CAST(edate AS date) >= @TodayStart THEN acdcalls + voicemails + callbacks ELSE 0 END) as Cur_NnpiAnswered,
+
+    -- === MTD (Filtered by outer WHERE, no extra date filter needed) ===
+    -- USN
+    CAST(CASE WHEN SUM(CASE WHEN isreportingweb = 1 THEN ACDcalls + voicemails ELSE 0 END) > 0 
+         THEN ROUND(SUM(CASE WHEN isreportingweb = 1 THEN CAST(anstime AS FLOAT) ELSE 0 END) / SUM(CASE WHEN isreportingweb = 1 THEN CAST(ACDcalls + voicemails AS FLOAT) ELSE 0 END), 0)
+         ELSE 0 END AS INT) as Mtd_UsnASA,
+    SUM(CASE WHEN isreportingweb = 1 THEN callsoffered ELSE 0 END) as Mtd_UsnOffered,
+    SUM(CASE WHEN isreportingweb = 1 THEN acdcalls + voicemails + callbacks ELSE 0 END) as Mtd_UsnAnswered,
+
+    -- VIP
+    CAST(CASE WHEN SUM(CASE WHEN CMS_Equivalent = 46 THEN ACDcalls + voicemails ELSE 0 END) > 0 
+         THEN ROUND(SUM(CASE WHEN CMS_Equivalent = 46 THEN CAST(anstime AS FLOAT) ELSE 0 END) / SUM(CASE WHEN CMS_Equivalent = 46 THEN CAST(ACDcalls + voicemails AS FLOAT) ELSE 0 END), 0)
+         ELSE 0 END AS INT) as Mtd_VipASA,
+    SUM(CASE WHEN CMS_Equivalent = 46 THEN callsoffered ELSE 0 END) as Mtd_VipOffered,
+    SUM(CASE WHEN CMS_Equivalent = 46 THEN acdcalls + voicemails + callbacks ELSE 0 END) as Mtd_VipAnswered,
+
+    -- SIPR
+    CAST(CASE WHEN SUM(CASE WHEN CMS_Equivalent = 68 THEN ACDcalls + voicemails ELSE 0 END) > 0 
+         THEN ROUND(SUM(CASE WHEN CMS_Equivalent = 68 THEN CAST(anstime AS FLOAT) ELSE 0 END) / SUM(CASE WHEN CMS_Equivalent = 68 THEN CAST(ACDcalls + voicemails AS FLOAT) ELSE 0 END), 0)
+         ELSE 0 END AS INT) as Mtd_SiprASA,
+    SUM(CASE WHEN CMS_Equivalent = 68 THEN callsoffered ELSE 0 END) as Mtd_SiprOffered,
+    SUM(CASE WHEN CMS_Equivalent = 68 THEN acdcalls + voicemails + callbacks ELSE 0 END) as Mtd_SiprAnswered,
+
+    -- NNPI
+    CAST(CASE WHEN SUM(CASE WHEN CMS_Equivalent = 27 THEN ACDcalls + voicemails ELSE 0 END) > 0 
+         THEN ROUND(SUM(CASE WHEN CMS_Equivalent = 27 THEN CAST(anstime AS FLOAT) ELSE 0 END) / SUM(CASE WHEN CMS_Equivalent = 27 THEN CAST(ACDcalls + voicemails AS FLOAT) ELSE 0 END), 0)
+         ELSE 0 END AS INT) as Mtd_NnpiASA,
+    SUM(CASE WHEN CMS_Equivalent = 27 THEN callsoffered ELSE 0 END) as Mtd_NnpiOffered,
+    SUM(CASE WHEN CMS_Equivalent = 27 THEN acdcalls + voicemails + callbacks ELSE 0 END) as Mtd_NnpiAnswered
+
+FROM todnmciaws.dbo.hsplitdata WITH (NOLOCK)
+WHERE CAST(edate AS date) >= @MonthStart
+  AND CAST(edate AS date) <  @MonthEnd
+  AND initiationmethod = 'INBOUND'
+  AND (isreportingweb = 1 OR CMS_Equivalent IN (46, 68, 27))
+OPTION (MAXDOP 1);
+
+-- 2. Intervals (Current Day Only)
+SELECT
+    CONVERT(varchar(5), [interval], 108) + ' - ' +
+    CONVERT(varchar(5), DATEADD(minute, 29, [interval]), 108) AS IntervalLabel,
+    SUM(callsoffered)                                   AS CallsOffered,
+    SUM(acdcalls + voicemails + callbacks)              AS Answered,
+    CASE WHEN SUM(acdcalls + voicemails) > 0
+         THEN CAST(SUM(CAST(anstime AS float)) / SUM(CAST(acdcalls + voicemails AS float)) AS decimal(10,2))
+         ELSE 0
+    END                                                 AS ASA
+FROM todnmciaws.dbo.hsplitdata WITH (NOLOCK)
+WHERE initiationmethod = 'INBOUND'
+  AND isreportingweb = 1
+  AND CAST(edate AS date) >= @TodayStart
+  AND CAST(edate AS date) <  @TodayEnd
+GROUP BY [interval]
+ORDER BY [interval]
+OPTION (MAXDOP 1);";
+
+            var p = new
+            {
+                TodayStart = todayStart.Date,
+                TodayEnd = todayEnd.Date,
+                MonthStart = monthStart.Date,
+                MonthEnd = monthEnd.Date
+            };
+
+            var cmd = new CommandDefinition(sql, p, cancellationToken: ct, commandTimeout: 180);
+
+            using var c = new SqlConnection(_connAws);
+            await c.OpenAsync(ct);
+
+            // Execute multiple queries in one round trip
+            using var multi = await c.QueryMultipleAsync(cmd);
+
+            var stats = await multi.ReadSingleOrDefaultAsync<CombinedStatsRow>() ?? new CombinedStatsRow();
+            var intervals = (await multi.ReadAsync<IntervalGridRow>()).ToList();
+
+            return (stats, intervals);
+        }
+
+        // ========================= Utilities =========================
+        private static (DateTime start, DateTime end) GetMtdBounds(DateTime anchorEtLocal)
+        {
+            var first = new DateTime(anchorEtLocal.Year, anchorEtLocal.Month, 1);
+            var start = first.Date;
+            var end = start.AddMonths(1);
+            return (start, end);
+        }
+
+        private async Task SafeStateHasChangedAsync()
+        {
+            if (_disposed) return;
+            try { await InvokeAsync(StateHasChanged); }
+            catch (Exception) { }
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            try { _cts.Cancel(); } catch { }
+            _cts.Dispose();
+        }
+
+        // Helpers for Copy/Email
         private string Triplet(string label, string asa, string offered, string answered)
             => $"{label}: ASA {asa}s | Offered {offered} | Handled {answered}";
 
@@ -259,11 +357,6 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 await JS.InvokeVoidAsync("copyToClipboard", sb.ToString());
                 Snackbar.Add("Stats copied to clipboard.", Severity.Success);
             }
-            catch (JSDisconnectedException) { }
-            catch (JSException)
-            {
-                Snackbar.Add("Clipboard blocked by browser (requires a user gesture/HTTPS).", Severity.Warning);
-            }
             catch (Exception ex)
             {
                 Snackbar.Add($"Copy failed: {ex.Message}", Severity.Error);
@@ -274,46 +367,22 @@ namespace MyApplication.Components.Pages.Tools.Interval
         {
             try
             {
-                // Prepared By
                 var auth = await AuthStateTask;
                 var preparedBy = IdentityHelpers.GetSamAccount(auth.User);
-
-                // Build the same context you were already using
                 var ctx = BuildIntervalContextFromState();
-
-                // Compose and log (your existing service)
                 var (subject, html, to, cc, from) = await EmailSvc.ComposeAndLogAsync(ctx, _cts.Token);
 
-                // ---- helpers: robust HH:mm / HHmm no matter the type (DateTime, TimeSpan, string) ----
                 static string ToHHmm(object? t)
                 {
-                    switch (t)
-                    {
-                        case DateTime dt: return dt.ToString("HHmm", CultureInfo.InvariantCulture);
-                        case DateTimeOffset dto: return dto.ToString("HHmm", CultureInfo.InvariantCulture);
-                        case TimeSpan ts: return ts.ToString(@"hhmm", CultureInfo.InvariantCulture);
-                        case string s:
-                            if (string.IsNullOrWhiteSpace(s)) return "0000";
-                            var digits = new string(s.Where(char.IsDigit).ToArray());
-                            return digits.Length >= 4 ? digits[..4] : digits.PadRight(4, '0');
-                        default: return "0000";
-                    }
+                    if (t is DateTime dt) return dt.ToString("HHmm", CultureInfo.InvariantCulture);
+                    if (t is TimeSpan ts) return ts.ToString(@"hhmm", CultureInfo.InvariantCulture);
+                    return "0000";
                 }
-
                 static string ToHH_colon_mm(object? t)
                 {
-                    switch (t)
-                    {
-                        case DateTime dt: return dt.ToString("HH':'mm", CultureInfo.InvariantCulture);
-                        case DateTimeOffset dto: return dto.ToString("HH':'mm", CultureInfo.InvariantCulture);
-                        case TimeSpan ts: return ts.ToString(@"hh\:mm", CultureInfo.InvariantCulture);
-                        case string s:
-                            if (string.IsNullOrWhiteSpace(s)) return "00:00";
-                            var digits = new string(s.Where(char.IsDigit).ToArray());
-                            digits = digits.Length >= 4 ? digits[..4] : digits.PadRight(4, '0');
-                            return $"{digits[..2]}:{digits[2..4]}";
-                        default: return "00:00";
-                    }
+                    if (t is DateTime dt) return dt.ToString("HH':'mm", CultureInfo.InvariantCulture);
+                    if (t is TimeSpan ts) return ts.ToString(@"hh\:mm", CultureInfo.InvariantCulture);
+                    return "00:00";
                 }
 
                 var startHHmm = ToHHmm(ctx.IntervalStart);
@@ -321,57 +390,38 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 var startHH_colon = ToHH_colon_mm(ctx.IntervalStart);
                 var endHH_colon = ToHH_colon_mm(ctx.IntervalEnd);
 
-                // Subject with interval (24-hour, avoids invalid format on strings)
                 var subjectWithInterval = $"{subject} — {ctx.DateLocal:yyyy-MM-dd} {startHH_colon}-{endHH_colon} ET";
 
-                // ---- Build draft ----
                 var draft = new EmailDraft
                 {
                     Subject = subjectWithInterval,
                     HtmlBody = html,
-                    From = from?.Trim(),           // shared mailbox SMTP
+                    From = from?.Trim(),
                     To = to ?? string.Empty,
                     Cc = cc ?? string.Empty,
                     OpenAsDraft = true,
                     IncludeCui = true
-                }
-                // ET-aware banner (CUI for Interval)
-                .WithCuiBanner("Interval Summary", preparedBy, generatedEt: Et.Now);
+                }.WithCuiBanner("Interval Summary", preparedBy, generatedEt: Et.Now);
 
-                // Build message payload and download as .oft so Outlook opens a compose window
                 var bytes = EmailDraftBuilder.BuildMsgBytes(draft);
                 var base64 = Convert.ToBase64String(bytes);
                 var fileName = $"IntervalSummary_{ctx.DateLocal:yyyyMMdd}_{startHHmm}-{endHHmm}.oft";
 
-                await JS.InvokeVoidAsync(
-                    "downloadFileFromBase64",
-                    fileName,
-                    "application/vnd.ms-outlook",
-                    base64
-                );
-
+                await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, "application/vnd.ms-outlook", base64);
                 Snackbar.Add("Draft generated — check your downloads.", Severity.Success);
             }
-            catch (JSDisconnectedException) { /* ignore navigation race */ }
             catch (Exception ex)
             {
                 Snackbar.Add($"Could not generate email: {ex.Message}", Severity.Error);
             }
         }
 
-        // Build Interval email context from current UI state
         private IntervalEmailContext BuildIntervalContextFromState()
         {
-            static int I(string? s) =>
-                int.TryParse(s, NumberStyles.Integer | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var v) ? v : 0;
+            static int I(string? s) => int.TryParse(s, NumberStyles.Integer | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var v) ? v : 0;
+            static double F(string? s) => double.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var v) ? v : 0d;
+            static TimeSpan TS(string? s) => TimeSpan.TryParseExact(s?.Trim(), new[] { "h\\:mm", "hh\\:mm" }, CultureInfo.InvariantCulture, out var t) ? t : TimeSpan.Zero;
 
-            static double F(string? s) =>
-                double.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var v) ? v : 0d;
-
-            static TimeSpan TS(string? s) =>
-                TimeSpan.TryParseExact(s?.Trim(), new[] { "h\\:mm", "hh\\:mm" }, CultureInfo.InvariantCulture, out var t) ? t : TimeSpan.Zero;
-
-            // ET date, not server local
             var dateLocal = (State.Header.IntervalDate ?? Et.Now).Date;
 
             return new IntervalEmailContext
@@ -379,51 +429,36 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 DateLocal = dateLocal,
                 IntervalStart = TS(State.Header.IntervalStart),
                 IntervalEnd = TS(State.Header.IntervalEnd),
-
-                // Current Day — SvD/USN
                 UsnAsa = F(State.Current.UsnAsa),
                 UsnCallsOffered = I(State.Current.UsnCallsOffered),
                 UsnCallsAnswered = I(State.Current.UsnCallsAnswered),
-
-                // Current Day — VIP
                 VipAsa = F(State.Current.VipAsa),
                 VipCallsOffered = I(State.Current.VipCallsOffered),
                 VipCallsAnswered = I(State.Current.VipCallsAnswered),
-
-                // Current Day — SIPR
                 SiprAsa = F(State.Current.SiprAsa),
                 SiprCallsOffered = I(State.Current.SiprCallsOffered),
                 SiprCallsAnswered = I(State.Current.SiprCallsAnswered),
-
-                // Current Day — NNPI
                 NnpiAsa = F(State.Current.NnpiAsa),
                 NnpiCallsOffered = I(State.Current.NnpiCallsOffered),
                 NnpiCallsAnswered = I(State.Current.NnpiCallsAnswered),
 
-                // Month To Date
                 MtdUsnAsa = F(State.Mtd.UsnAsa),
                 MtdUsnCallsOffered = I(State.Mtd.UsnCallsOffered),
                 MtdUsnCallsAnswered = I(State.Mtd.UsnCallsAnswered),
-
                 MtdVipAsa = F(State.Mtd.VipAsa),
                 MtdVipCallsOffered = I(State.Mtd.VipCallsOffered),
                 MtdVipCallsAnswered = I(State.Mtd.VipCallsAnswered),
-
                 MtdSiprAsa = F(State.Mtd.SiprAsa),
                 MtdSiprCallsOffered = I(State.Mtd.SiprCallsOffered),
                 MtdSiprCallsAnswered = I(State.Mtd.SiprCallsAnswered),
-
                 MtdNnpiAsa = F(State.Mtd.NnpiAsa),
                 MtdNnpiCallsOffered = I(State.Mtd.NnpiCallsOffered),
                 MtdNnpiCallsAnswered = I(State.Mtd.NnpiCallsAnswered),
 
-                // SLR33 (MTD %)
                 Slr33EmLos1 = F(State.Mtd.Slr33EmLos1),
                 Slr33EmLos2 = F(State.Mtd.Slr33EmLos2),
                 Slr33VmLos1 = F(State.Mtd.Slr33VmLos1),
                 Slr33VmLos2 = F(State.Mtd.Slr33VmLos2),
-
-                // Email / Cust Care / SIPR Email / GDA / UAIF
                 EmailCount = I(State.Current.EmailCount),
                 EmailOldestHours = F(State.Current.EmailOldestHours),
                 CustCareCount = I(State.Current.CustCareCount),
@@ -434,58 +469,44 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 SiprGdaOldestHours = F(State.Current.SiprGdaOldestHours),
                 SiprUaifCount = I(State.Current.SiprUaifCount),
                 SiprUaifOldestDays = F(State.Current.SiprUaifOldestDays),
-
-                // VM / ESS
                 VmCount = I(State.Current.VmCount),
                 VmOldestHours = F(State.Current.VmOldestHours),
                 EssCount = I(State.Current.EssCount),
                 EssOldestHours = F(State.Current.EssOldestHours),
 
-                // Backlog — SRM User Admin
                 SrmAutoCount = I(State.Backlog.SrmAutoCount),
                 SrmAutoAgeHours = F(State.Backlog.SrmAutoAgeHours),
                 SrmUsnManCount = I(State.Backlog.SrmUsnManCount),
                 SrmUsnManAgeHours = F(State.Backlog.SrmUsnManAgeHours),
                 SrmSocManCount = I(State.Backlog.SrmSocManCount),
                 SrmSocManAgeHours = F(State.Backlog.SrmSocManAgeHours),
-
-                // Backlog — SRM Validation
                 SrmValLineCount = I(State.Backlog.SrmValLineCount),
                 SrmValLineAgeDays = F(State.Backlog.SrmValLineAgeDays),
                 SrmValLineFailCount = I(State.Backlog.SrmValLineFailCount),
                 SrmValLineFailAgeDays = F(State.Backlog.SrmValLineFailAgeDays),
                 SrmValEmailCount = I(State.Backlog.SrmValEmailCount),
                 SrmValEmailAgeDays = F(State.Backlog.SrmValEmailAgeDays),
-
-                // Backlog — AFU / Incidents
                 AfuCount = I(State.Backlog.AfuCount),
                 AfuAgeHours = F(State.Backlog.AfuAgeHours),
                 CsCount = I(State.Backlog.CsCount),
                 CsAgeHours = F(State.Backlog.CsAgeHours),
-
-                // Backlog — OCM
                 OcmNiprReadyCount = I(State.Backlog.OcmNiprReadyCount),
                 OcmNiprReadyAgeHours = F(State.Backlog.OcmNiprReadyAgeHours),
                 OcmSiprReadyCount = I(State.Backlog.OcmSiprReadyCount),
                 OcmSiprReadyAgeHours = F(State.Backlog.OcmSiprReadyAgeHours),
-
                 OcmNiprHoldCount = I(State.Backlog.OcmNiprHoldCount),
                 OcmNiprHoldAgeHours = F(State.Backlog.OcmNiprHoldAgeHours),
                 OcmSiprHoldCount = I(State.Backlog.OcmSiprHoldCount),
                 OcmSiprHoldAgeHours = F(State.Backlog.OcmSiprHoldAgeHours),
-
                 OcmNiprFatalCount = I(State.Backlog.OcmNiprFatalCount),
                 OcmNiprFatalAgeHours = F(State.Backlog.OcmNiprFatalAgeHours),
                 OcmSiprFatalCount = I(State.Backlog.OcmSiprFatalCount),
                 OcmSiprFatalAgeHours = F(State.Backlog.OcmSiprFatalAgeHours),
-
-                // RDM
                 RdmUsnCount = I(State.Backlog.RdmUsnCount),
                 RdmUsnAgeDays = F(State.Backlog.RdmUsnAgeDays),
                 RdmEsdUsnCount = I(State.Backlog.RdmEsdUsnCount),
                 RdmEsdUsnAgeDays = F(State.Backlog.RdmEsdUsnAgeDays),
 
-                // Notes
                 FocusArea = State.Notes.FocusArea,
                 CirImpactAsa = State.Notes.CirImpactAsa,
                 ImpactEvents = State.Notes.ImpactEvents,
@@ -500,178 +521,6 @@ namespace MyApplication.Components.Pages.Tools.Interval
             State = new IntervalSummaryState { Header = keepHeader };
             _intervalRows.Clear();
             await SafeStateHasChangedAsync();
-        }
-
-        // ========================= Data helpers (Dapper) =========================
-
-        // Month-to-date bounds in ET; anchorEtLocal is already ET
-        private static (DateTime start, DateTime end) GetMtdBounds(DateTime anchorEtLocal)
-        {
-            var first = new DateTime(anchorEtLocal.Year, anchorEtLocal.Month, 1);
-            var start = first.Date;
-            var end = start.AddMonths(1);
-            return (start, end);
-        }
-
-        private sealed class AggregateRow
-        {
-            public int? ASA { get; set; }
-            public int? CallsOffered { get; set; }
-            public int? Answered { get; set; }
-        }
-
-        private async Task<(int ASA, int CallsOffered, int Answered)> QueryCurrentAsync(
-            SqlConnection conn, string where, DateTime dayStart, DateTime dayEnd, CancellationToken ct)
-        {
-            var sql = $@"
-SELECT 
-    CAST(
-        CASE WHEN SUM(ACDcalls + voicemails) > 0 
-             THEN ROUND(SUM(CAST(anstime AS FLOAT)) / SUM(CAST(ACDcalls + voicemails AS FLOAT)), 0)
-             ELSE 0 
-        END AS INT
-    ) AS ASA,
-    SUM(callsoffered) AS CallsOffered,
-    SUM(acdcalls + voicemails + callbacks) AS Answered
-FROM todnmciaws.dbo.hsplitdata WITH (NOLOCK)
-WHERE {where}
-  AND CAST(edate AS date) >= @DayStart
-  AND CAST(edate AS date) <  @DayEnd
-  AND initiationmethod = 'INBOUND';";
-
-            var cmd = new CommandDefinition(
-                sql,
-                new { DayStart = dayStart.Date, DayEnd = dayEnd.Date },
-                cancellationToken: ct,
-                commandTimeout: 60);
-
-            var row = await conn.QuerySingleOrDefaultAsync<AggregateRow>(cmd);
-            if (row is null) return (0, 0, 0);
-            return (row.ASA ?? 0, row.CallsOffered ?? 0, row.Answered ?? 0);
-        }
-
-        private async Task<(int ASA, int CallsOffered, int Answered)> QueryMtdAsync(
-            SqlConnection conn, string where, DateTime monthStart, DateTime monthEnd, CancellationToken ct)
-        {
-            var sql = $@"
-SELECT 
-    CAST(
-        CASE WHEN SUM(ACDcalls + voicemails) > 0 
-             THEN ROUND(SUM(CAST(anstime AS FLOAT)) / SUM(CAST(ACDcalls + voicemails AS FLOAT)), 0)
-             ELSE 0 
-        END AS INT
-    ) AS ASA,
-    SUM(callsoffered) AS CallsOffered,
-    SUM(acdcalls + voicemails + callbacks) AS Answered
-FROM todnmciaws.dbo.hsplitdata WITH (NOLOCK)
-WHERE {where}
-  AND CAST(edate AS date) >= @MonthStart
-  AND CAST(edate AS date) <  @MonthEnd
-  AND initiationmethod = 'INBOUND';";
-
-            var cmd = new CommandDefinition(
-                sql,
-                new { MonthStart = monthStart.Date, MonthEnd = monthEnd.Date },
-                cancellationToken: ct,
-                commandTimeout: 60);
-
-            var row = await conn.QuerySingleOrDefaultAsync<AggregateRow>(cmd);
-            if (row is null) return (0, 0, 0);
-            return (row.ASA ?? 0, row.CallsOffered ?? 0, row.Answered ?? 0);
-        }
-
-        private async Task<List<IntervalGridRow>> QueryCurrentDayIntervalsAsync(
-            SqlConnection conn, DateTime dayStart, DateTime dayEnd, CancellationToken ct)
-        {
-            var sql = @"
-SELECT
-    CONVERT(varchar(5), [interval], 108) + ' - ' +
-    CONVERT(varchar(5), DATEADD(minute, 29, [interval]), 108) AS IntervalLabel,
-    SUM(callsoffered)                               AS CallsOffered,
-    SUM(acdcalls + voicemails + callbacks)          AS Answered,
-    CASE WHEN SUM(acdcalls + voicemails) > 0
-         THEN CAST(SUM(CAST(anstime AS float)) / SUM(CAST(acdcalls + voicemails AS float)) AS decimal(10,2))
-         ELSE 0
-    END                                             AS ASA
-FROM todnmciaws.dbo.hsplitdata WITH (NOLOCK)
-WHERE initiationmethod = 'INBOUND'
-  AND isreportingweb = 1
-  AND CAST(edate AS date) >= @DayStart
-  AND CAST(edate AS date) <  @DayEnd
-GROUP BY [interval]
-ORDER BY [interval];";
-
-            var cmd = new CommandDefinition(
-                sql,
-                new { DayStart = dayStart.Date, DayEnd = dayEnd.Date },
-                cancellationToken: ct,
-                commandTimeout: 60);
-
-            var rows = await conn.QueryAsync<IntervalGridRow>(cmd);
-            return rows.AsList();
-        }
-
-        // ====== Latest Notes from AOM ======
-        private sealed class LatestNotesRow
-        {
-            public string? NaTodaysFocusArea { get; set; }
-            public string? NaMajorCirImpact { get; set; }
-            public string? NaImpactingEvents { get; set; }
-            public string? NaHpsmStatus { get; set; }
-            public string? NaManagementNotes { get; set; }
-        }
-
-        private async Task<LatestNotesRow?> QueryLatestNotesAsync(SqlConnection conn, CancellationToken ct)
-        {
-            const string sql = @"
-SELECT TOP (1)
-       [NaTodaysFocusArea],
-       [NaMajorCirImpact],
-       [NaImpactingEvents],
-       [NaHpsmStatus],
-       [NaManagementNotes]
-FROM [Aom].[Tools].[IntervalSummary] WITH (NOLOCK)
-ORDER BY [Id] DESC;";
-
-            var cmd = new CommandDefinition(sql, cancellationToken: ct, commandTimeout: 60);
-            return await conn.QuerySingleOrDefaultAsync<LatestNotesRow>(cmd);
-        }
-
-        private async Task<T> WithConn<T>(Func<SqlConnection, Task<T>> work, CancellationToken ct)
-        {
-            if (string.IsNullOrWhiteSpace(_connAws) && string.IsNullOrWhiteSpace(_connString))
-                throw new InvalidOperationException("AWS connection string is empty.");
-
-            using var c = new SqlConnection(string.IsNullOrWhiteSpace(_connAws) ? _connString : _connAws);
-            await c.OpenAsync(ct);
-            return await work(c);
-        }
-
-        private async Task<T> WithConnAom<T>(Func<SqlConnection, Task<T>> work, CancellationToken ct)
-        {
-            if (string.IsNullOrWhiteSpace(_connAom))
-                throw new InvalidOperationException("AOM connection string is empty. Add ConnectionStrings:AOM.");
-            using var c = new SqlConnection(_connAom);
-            await c.OpenAsync(ct);
-            return await work(c);
-        }
-
-        // ========================= Utilities =========================
-        private async Task SafeStateHasChangedAsync()
-        {
-            if (_disposed) return;
-            try { await InvokeAsync(StateHasChanged); }
-            catch (JSDisconnectedException) { }
-            catch (ObjectDisposedException) { }
-            catch (TaskCanceledException) { }
-        }
-
-        public void Dispose()
-        {
-            if (_disposed) return;
-            _disposed = true;
-            try { _cts.Cancel(); } catch { }
-            _cts.Dispose();
         }
     }
 }

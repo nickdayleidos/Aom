@@ -11,9 +11,9 @@
 
 <MudStack Spacing="2">
     <MudPaper Class="pa-4" Outlined="true">
+
         <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
             <MudText Typo="Typo.h5">Skills Lookup</MudText>
-
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Outlined.Add"
@@ -22,168 +22,238 @@
             </MudButton>
         </MudStack>
 
-        <MudStack Class="mt-3" Spacing="2">
-            <MudStack Row Spacing="2" AlignItems="AlignItems.Center">
+        <MudDivider Class="my-3" />
+
+        <MudGrid Spacing="2" AlignItems="Center">
+
+            <MudItem xs="12" md="3">
                 <MudTextField @bind-Value="_employeeSearch"
-                              Label="Employee (name)"
-                              Dense
+                              Placeholder="Search employee (Name)..."
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
                               Immediate="true"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Outlined.Search"
-                              Class="mr-2"
-                              OnBlur="@(_ => RefreshAsync())" />
+                              OnBlur="@(_ => RefreshAsync())"
+                              Clearable="true" />
+            </MudItem>
 
-                <MudSelect T="int?"
-                           Label="Skill Type"
-                           Dense
-                           @bind-Value="_selectedSkillTypeId"
-                           Class="mr-2"
-                           Clearable="true"
-                           ResetValueOnEmptyText="true"
-                           Style="min-width: 220px;">
-                    @foreach (var st in _skillTypes)
-                    {
-                        <MudSelectItem Value="@((int?)st.Id)">@st.Name</MudSelectItem>
-                    }
-                </MudSelect>
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="SkillType"
+                                 Label="Skill Type"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Value="_selectedSkillTypeObj"
+                                 ValueChanged="OnSkillTypeChanged"
+                                 SearchFunc="SearchSkillTypes"
+                                 ToStringFunc="@(s => s?.Name)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+            </MudItem>
 
-                <MudSpacer />
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="KeyValuePair<int, string> ?"
+                                 Label="Manager"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Value="_selectedManagerKv"
+                                 ValueChanged="OnManagerKvChanged"
+                                 SearchFunc="SearchManagers"
+                                 ToStringFunc="@(kv => kv?.Value)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+            </MudItem>
 
-                <MudButton Variant="Variant.Outlined"
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="KeyValuePair<int, string> ?"
+                                 Label="Supervisor"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Value="_selectedSupervisorKv"
+                                 ValueChanged="OnSupervisorKvChanged"
+                                 SearchFunc="SearchSupervisors"
+                                 ToStringFunc="@(kv => kv?.Value)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+            </MudItem>
+
+            <MudItem xs="12" md="3" Class="d-flex justify-end gap-2">
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Secondary"
+                           OnClick="ClearFilters"
+                           StartIcon="@Icons.Material.Outlined.FilterAltOff">
+                    Reset
+                </MudButton>
+                <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
-                           OnClick="RefreshAsync">
+                           OnClick="RefreshAsync"
+                           StartIcon="@Icons.Material.Outlined.Search">
                     Search
                 </MudButton>
-            </MudStack>
+            </MudItem>
 
-            <MudTabs @bind-ActivePanelIndex="_tabIndex"
-                     Rounded="true"
-                     Elevation="0"
-                     Class="mt-2">
+        </MudGrid>
 
-                <MudTabPanel Text="Line Items" Icon="@Icons.Material.Outlined.ViewList">
-                    <MudTable Items="_rows"
-                              Dense="true"
-                              Hover="true"
-                              Bordered="true"
-                              Striped="true">
-                        <HeaderContent>
-                            <MudTh>
-                                <MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.EmployeeName)">
-                                    Employee
-                                </MudTableSortLabel>
-                            </MudTh>
+        <MudTabs @bind-ActivePanelIndex="_tabIndex" Rounded="true" Elevation="0" Color="Color.Transparent" Class="mt-4">
 
-                            <MudTh>
-                                <MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.SkillTypeName ?? string.Empty)">
-                                    Skill
-                                </MudTableSortLabel>
-                            </MudTh>
+            <MudTabPanel Text="Line Items" Icon="@Icons.Material.Outlined.ViewList">
+                <MudTable Items="_rows" Dense="true" Hover="true" Bordered="false" Striped="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh><MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.EmployeeName)">Employee</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.SkillTypeName ?? string.Empty)">Skill</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.SkillDate)">Date</MudTableSortLabel></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.EmployeeName</MudTd>
+                        <MudTd>@context.SkillTypeName</MudTd>
+                        <MudTd>@context.SkillDate.ToString("MM/dd/yyyy")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Class="pa-4 text-center">No skills found with the selected filters.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudTabPanel>
 
-                            <MudTh>
-                                <MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.SkillDate)">
-                                    Date
-                                </MudTableSortLabel>
-                            </MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd>@context.EmployeeName</MudTd>
-                            <MudTd>@context.SkillTypeName</MudTd>
-                            <MudTd>@context.SkillDate.ToString("yyyy-MM-dd")</MudTd>
-                        </RowTemplate>
-                        <NoRecordsContent>
-                            <MudText Class="pa-4">No skills found with the selected filters.</MudText>
-                        </NoRecordsContent>
-                    </MudTable>
-                </MudTabPanel>
-
-                <MudTabPanel Text="By Employee" Icon="@Icons.Material.Outlined.Groups">
-                    <MudTable Items="_summaryRows"
-                              Dense="true"
-                              Hover="true"
-                              Bordered="true"
-                              Striped="true">
-                        <HeaderContent>
-                            <MudTh>
-                                <MudTableSortLabel SortBy="new Func<SkillEmployeeSummaryRow, object>(x => x.EmployeeName)">
-                                    Employee
-                                </MudTableSortLabel>
-                            </MudTh>
-
-                            <MudTh>Skills</MudTh>
-
-                            <MudTh>
-                                <MudTableSortLabel SortBy="new Func<SkillEmployeeSummaryRow, object>(x => x.EffectiveDate)">
-                                    Effective Date
-                                </MudTableSortLabel>
-                            </MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd>@context.EmployeeName</MudTd>
-                            <MudTd>
-                                @{
-                                    // Alphabetical list of skills for this employee
-                                    var orderedSkills = context.Skills
-                                    .OrderBy(s => s.SkillName)
-                                    .ToList();
+            <MudTabPanel Text="By Employee" Icon="@Icons.Material.Outlined.Groups">
+                <MudTable Items="_summaryRows" Dense="true" Hover="true" Bordered="false" Striped="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh><MudTableSortLabel SortBy="new Func<SkillEmployeeSummaryRow, object>(x => x.EmployeeName)">Employee</MudTableSortLabel></MudTh>
+                        <MudTh>Skills</MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<SkillEmployeeSummaryRow, object>(x => x.EffectiveDate)">Effective Date</MudTableSortLabel></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.EmployeeName</MudTd>
+                        <MudTd>
+                            @{
+                                var orderedSkills = context.Skills.OrderBy(s => s.SkillName).ToList();
+                            }
+                            <MudChipSet T="string" ReadOnly="true">
+                                @for (int i = 0; i < orderedSkills.Count; i++)
+                                {
+                                    var s = orderedSkills[i];
+                                    <MudChip Color="@GetSkillColorByIndex(i)" Size="Size.Small" Variant="Variant.Filled" Class="mr-1 mb-1">
+                                        @s.SkillName
+                                    </MudChip>
                                 }
-                                <MudChipSet T="string" ReadOnly="true">
-                                    @for (int i = 0; i < orderedSkills.Count; i++)
-                                    {
-                                        var s = orderedSkills[i];
-                                        <MudChip Color="@GetSkillColorByIndex(i)"
-                                                 Variant="Variant.Filled"
-                                                 Class="mr-2 mb-1">
-                                            @s.SkillName
-                                        </MudChip>
-                                    }
-                                </MudChipSet>
-                            </MudTd>
-                            <MudTd>@context.EffectiveDate.ToString("yyyy-MM-dd")</MudTd>
-                        </RowTemplate>
-                        <NoRecordsContent>
-                            <MudText Class="pa-4">No employee skills found with the selected filters.</MudText>
-                        </NoRecordsContent>
-                    </MudTable>
-                </MudTabPanel>
+                            </MudChipSet>
+                        </MudTd>
+                        <MudTd>@context.EffectiveDate.ToString("MM/dd/yyyy")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Class="pa-4 text-center">No employee skills found with the selected filters.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudTabPanel>
 
-            </MudTabs>
-        </MudStack>
+        </MudTabs>
     </MudPaper>
 </MudStack>
 
 @code {
     private string? _employeeSearch;
-    private int? _selectedSkillTypeId;
     private int _tabIndex;
 
+    // Data Sources
+    private IReadOnlyList<SkillType> _skillTypes = Array.Empty<SkillType>();
+    private List<KeyValuePair<int, string>> _managers = new();
+    private List<KeyValuePair<int, string>> _supervisors = new();
+
+    // Results
     private IReadOnlyList<SkillLookupRow> _rows = Array.Empty<SkillLookupRow>();
     private IReadOnlyList<SkillEmployeeSummaryRow> _summaryRows = Array.Empty<SkillEmployeeSummaryRow>();
-    private IReadOnlyList<SkillType> _skillTypes = Array.Empty<SkillType>();
 
+    // Bound Objects
+    private SkillType? _selectedSkillTypeObj;
+    private KeyValuePair<int, string>? _selectedManagerKv;
+    private KeyValuePair<int, string>? _selectedSupervisorKv;
+
+    // Derived IDs
+    private int? _selectedSkillTypeId => _selectedSkillTypeObj?.Id;
+    private int? _managerId => _selectedManagerKv?.Key;
+    private int? _supervisorId => _selectedSupervisorKv?.Key;
+
+    // Colors
     private static readonly Color[] SkillColorPalette = new[]
     {
         Color.Primary,Color.Secondary,Color.Tertiary,Color.Info,Color.Success,
-        Color.Warning,Color.Error,Color.Dark,Color.Default,
-
-        Color.Primary,Color.Secondary,Color.Tertiary,Color.Info,Color.Success,
-        Color.Warning,Color.Error,Color.Dark,Color.Default,
-
-        Color.Primary,Color.Secondary,Color.Tertiary,Color.Info,Color.Success,
-        Color.Warning,Color.Error,Color.Dark, Color.Default
+        Color.Warning,Color.Error,Color.Dark,Color.Default
     };
 
-    private Color GetSkillColorByIndex(int index)
-    {
-        if (index < 0)
-            return Color.Default;
-        return SkillColorPalette[index % SkillColorPalette.Length];
-    }
+    private Color GetSkillColorByIndex(int index) =>
+        index < 0 ? Color.Default : SkillColorPalette[index % SkillColorPalette.Length];
 
     protected override async Task OnInitializedAsync()
     {
-        _skillTypes = await SkillsService.GetSkillTypesAsync(true);
+        try
+        {
+            var tTypes = SkillsService.GetSkillTypesAsync(true);
+            var tManagers = SkillsService.GetManagersAsync();
+            var tSupervisors = SkillsService.GetSupervisorsAsync();
+
+            await Task.WhenAll(tTypes, tManagers, tSupervisors);
+
+            _skillTypes = await tTypes;
+            _managers = await tManagers;
+            _supervisors = await tSupervisors;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading lookups: {ex.Message}", Severity.Error);
+        }
+
         await RefreshAsync();
+    }
+
+    // --- Search Helpers ---
+
+    private Task<IEnumerable<SkillType>> SearchSkillTypes(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value)) return Task.FromResult<IEnumerable<SkillType>>(_skillTypes);
+        return Task.FromResult(_skillTypes.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchManagers(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_managers.Select(x => (KeyValuePair<int, string>?)x));
+
+        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
+            _managers.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
+                     .Select(x => (KeyValuePair<int, string>?)x));
+    }
+
+    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchSupervisors(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_supervisors.Select(x => (KeyValuePair<int, string>?)x));
+
+        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
+            _supervisors.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
+                        .Select(x => (KeyValuePair<int, string>?)x));
+    }
+
+    // --- Handlers ---
+
+    private void OnSkillTypeChanged(SkillType? val) { _selectedSkillTypeObj = val; }
+    private void OnManagerKvChanged(KeyValuePair<int, string>? val) { _selectedManagerKv = val; }
+    private void OnSupervisorKvChanged(KeyValuePair<int, string>? val) { _selectedSupervisorKv = val; }
+
+    private void ClearFilters()
+    {
+        _employeeSearch = null;
+        _selectedSkillTypeObj = null;
+        _selectedManagerKv = null;
+        _selectedSupervisorKv = null;
+        _ = RefreshAsync();
     }
 
     private async Task RefreshAsync()
@@ -192,10 +262,19 @@
         {
             var search = new SkillSearchVm(
                 EmployeeSearch: _employeeSearch,
-                SkillTypeId: _selectedSkillTypeId
+                SkillTypeId: _selectedSkillTypeId,
+                ManagerId: _managerId,
+                SupervisorId: _supervisorId
             );
-            _rows = await SkillsService.SearchSkillsAsync(search);
-            _summaryRows = await SkillsService.GetEmployeeSkillSummariesAsync(search);
+
+            // Parallel load
+            var t1 = SkillsService.SearchSkillsAsync(search);
+            var t2 = SkillsService.GetEmployeeSkillSummariesAsync(search);
+
+            await Task.WhenAll(t1, t2);
+
+            _rows = await t1;
+            _summaryRows = await t2;
         }
         catch (Exception ex)
         {

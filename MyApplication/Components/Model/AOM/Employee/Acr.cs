@@ -47,7 +47,19 @@ namespace MyApplication.Components.Model.AOM.Employee
         public DateTime? LastUpdateTime { get; set; }
         public DateTime? ProcessedTime { get; set; }
         public DateTime? RevertedTime { get; set; }
+
+        // ... inside AcrRequest class
+
+        // 1-to-1: One request has one Organization change
+        public virtual AcrOrganization? AcrOrganization { get; set; }
+
+        // 1-to-1: One request has one Overtime schedule
+        public virtual AcrOvertimeSchedules? AcrOvertimeSchedule { get; set; }
+
+        // 1-to-Many: One request can have 2 shifts (Split Schedule)
+        public virtual ICollection<AcrSchedule> AcrSchedules { get; set; } = new List<AcrSchedule>();
     }
+
 
     [Table("AcrOrganization", Schema = "Employee")]
     public class AcrOrganization

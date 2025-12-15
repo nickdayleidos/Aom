@@ -106,36 +106,34 @@
 
                             <MudGrid Spacing="2">
                                 <MudItem xs="12" md="3">
-                                    <MudSelect T="int?"
-                                               @bind-Value="_typeId"
-                                               Label="Type"
-                                               Variant="Variant.Outlined"
-                                               Dense="true"
-                                               Required="true">
-                                        @foreach (var t in _types)
-                                        {
-                                            <MudSelectItem T="int?" Value="@((int?)t.Id)">
-                                                @t.Name
-                                            </MudSelectItem>
-                                        }
-                                    </MudSelect>
+                                    <MudAutocomplete T="ActivityType"
+                                                     Label="Type"
+                                                     Value="_selectedTypeObj"
+                                                     ValueChanged="OnTypeChanged"
+                                                     SearchFunc="SearchTypes"
+                                                     ToStringFunc="@(t => t?.Name)"
+                                                     Variant="Variant.Outlined"
+                                                     Dense="true"
+                                                     ResetValueOnEmptyText="true"
+                                                     CoerceText="true"
+                                                     Required="true"
+                                                     AdornmentIcon="@Icons.Material.Outlined.Search" />
                                 </MudItem>
 
                                 <MudItem xs="12" md="3">
-                                    <MudSelect T="int?"
-                                               @bind-Value="_subTypeId"
-                                               Label="SubType"
-                                               Variant="Variant.Outlined"
-                                               Dense="true"
-                                               Disabled="@(_typeId is null)"
-                                               Required="true">
-                                        @foreach (var st in _subTypes.Where(s => s.ActivityTypeId == (_typeId ?? -1)))
-                                        {
-                                            <MudSelectItem T="int?" Value="@((int?)st.Id)">
-                                                @st.Name
-                                            </MudSelectItem>
-                                        }
-                                    </MudSelect>
+                                    <MudAutocomplete T="ActivitySubType"
+                                                     Label="SubType"
+                                                     Value="_selectedSubTypeObj"
+                                                     ValueChanged="OnSubTypeChanged"
+                                                     SearchFunc="SearchSubTypes"
+                                                     ToStringFunc="@(s => s?.Name)"
+                                                     Variant="Variant.Outlined"
+                                                     Dense="true"
+                                                     ResetValueOnEmptyText="true"
+                                                     CoerceText="true"
+                                                     Disabled="@(_typeId is null)"
+                                                     Required="true"
+                                                     AdornmentIcon="@Icons.Material.Outlined.Search" />
                                 </MudItem>
 
                                 <MudItem xs="12" md="3">
@@ -255,12 +253,19 @@
     private readonly Dictionary<int, string> _labelCache = new();
     private CancellationTokenSource? _empCts;
     private string? _lastError;
+
     // ---------- Lookups ----------
     private List<ActivityType> _types = new();
     private List<ActivitySubType> _subTypes = new();
-    // No defaults – user must choose
+
+    // Bound objects for Autocomplete
+    private ActivityType? _selectedTypeObj;
+    private ActivitySubType? _selectedSubTypeObj;
+
+    // Derived IDs
     private int? _typeId;
     private int? _subTypeId;
+
     private OperaTimeframeMode? _timeframeMode;
     private SiteZone? _zone;
 
@@ -309,6 +314,47 @@
         await LoadEmployeeOptionsAsync("");
     }
 
+    // ---------- Autocomplete Search Handlers ----------
+
+    private Task<IEnumerable<ActivityType>> SearchTypes(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult<IEnumerable<ActivityType>>(_types);
+
+        return Task.FromResult<IEnumerable<ActivityType>>(
+            _types.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
+        );
+    }
+
+    private Task<IEnumerable<ActivitySubType>> SearchSubTypes(string value, CancellationToken ct)
+    {
+        // Filter by selected Type first
+        var filtered = _subTypes.Where(x => x.ActivityTypeId == _typeId);
+
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult(filtered);
+
+        return Task.FromResult(
+            filtered.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
+        );
+    }
+
+    private void OnTypeChanged(ActivityType? type)
+    {
+        _selectedTypeObj = type;
+        _typeId = type?.Id;
+
+        // Reset subtype if type changes
+        _selectedSubTypeObj = null;
+        _subTypeId = null;
+    }
+
+    private void OnSubTypeChanged(ActivitySubType? subType)
+    {
+        _selectedSubTypeObj = subType;
+        _subTypeId = subType?.Id;
+    }
+
     // ---------- employee search ----------
 
     private Task OnAvailableFilterChanged() => LoadEmployeeOptionsAsync(_availableFilter);
@@ -325,7 +371,7 @@
                        Array.Empty<Employees>();
 
             foreach (var e in list)
-                _labelCache[e.Id] = $"{e.LastName}, {e.FirstName} (#{e.Id})";
+                _labelCache[e.Id] = $"{e.LastName}, {e.FirstName}{(!string.IsNullOrEmpty(e.MiddleInitial) ? " " + e.MiddleInitial : "")} (#{e.Id})";
             _employeeOptions = list
                 .Select(e => new EmployeeOption(e.Id, _labelCache[e.Id]))
                 .ToList();

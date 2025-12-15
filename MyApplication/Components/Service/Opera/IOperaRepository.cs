@@ -8,6 +8,8 @@ namespace MyApplication.Components.Service
     {
         public string? NameOrId { get; set; }
         public int? StatusId { get; set; }
+        public int? ManagerId { get; set; }    // <--- Added
+        public int? SupervisorId { get; set; } // <--- Added
         public DateTime? FromUtc { get; set; }
         public DateTime? ToUtc { get; set; }
         public int Take { get; set; } = 1000;
@@ -27,6 +29,8 @@ namespace MyApplication.Components.Service
         Task<Dictionary<int, string>> GetActivityTypesAsync(CancellationToken ct = default);
         Task<Dictionary<int, string>> GetActivitySubTypesAsync(CancellationToken ct = default);
         Task<Dictionary<int, string?>> GetEmployeeSiteTimeZonesAsync(IEnumerable<int> employeeIds, CancellationToken ct = default);
+        Task<List<KeyValuePair<int, string>>> GetManagersAsync(CancellationToken ct = default);
+        Task<List<KeyValuePair<int, string>>> GetSupervisorsAsync(CancellationToken ct = default);
 
         // --- EOS Calculation ---
         Task<DateTime?> GetEndOfShiftAsync(int employeeId, DateTime startEt, CancellationToken ct = default);

@@ -1,4 +1,6 @@
-﻿
+﻿@using MyApplication.Components.Service.Acr
+@using MyApplication.Components.Service.Employee.Dtos
+@using MyApplication.Components.Model.AOM.Employee
 
 <MudStack Spacing="2">
     <MudText Typo="Typo.subtitle2">Schedule</MudText>
@@ -102,7 +104,6 @@
     [Parameter] public EventCallback<ScheduleChangeDto?> ValueChanged { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
 
-    // NEW: for the little caption—host passes what zone user is seeing
     [Parameter] public string? DisplayTzLabel { get; set; }
     private string _displayTzLabel => string.IsNullOrWhiteSpace(DisplayTzLabel) ? "Local (employee site)" : DisplayTzLabel;
 
@@ -111,44 +112,51 @@
     [Parameter] public OvertimeAdjustmentDto? OvertimeAdjustment { get; set; }
     [Parameter] public EventCallback<OvertimeAdjustmentDto?> OvertimeAdjustmentChanged { get; set; }
 
+    // Helper property to access Value safely without null checks everywhere
+    // (We ensure it is initialized in OnParametersSet)
+    private ScheduleChangeDto V => Value!;
 
     private bool? _isSplit
     {
-        get => Value?.IsSplitSchedule;
-        set { Value = Ensure(Value) with { IsSplitSchedule = value, ShiftNumber = 1 }; _ = ValueChanged.InvokeAsync(Value); }
-    }
-    private bool _staticBreakFlag
-    {
-        get => Value?.IsStaticBreakSchedule ?? false;
+        get => V.IsSplitSchedule;
         set
         {
-            Value = Ensure(Value) with { IsStaticBreakSchedule = value };
-            _ = ValueChanged.InvokeAsync(Value);
-            StateHasChanged();
+            V.IsSplitSchedule = value;
+            V.ShiftNumber = 1;
+            FireChange();
+        }
+    }
+
+    private bool _staticBreakFlag
+    {
+        get => V.IsStaticBreakSchedule ?? false;
+        set
+        {
+            V.IsStaticBreakSchedule = value;
+            FireChange();
         }
     }
 
     private bool _otFlag
     {
-        get => Value?.IsOtAdjustment ?? false;
+        get => V.IsOtAdjustment ?? false;
         set
         {
-            Value = Ensure(Value) with { IsOtAdjustment = value };
-            _ = ValueChanged.InvokeAsync(Value);
+            V.IsOtAdjustment = value;
+            FireChange();
 
+            // Handle Overtime Child Object Logic
             if (value && OvertimeAdjustment is null)
                 _ = OvertimeAdjustmentChanged.InvokeAsync(new OvertimeAdjustmentDto(null, null, null, null, null, null, null));
             if (!value && OvertimeAdjustment is not null)
                 _ = OvertimeAdjustmentChanged.InvokeAsync(null);
-
-            StateHasChanged();
         }
     }
-
 
     private static TimeSpan? ToSpan(TimeOnly? t) => t is null ? null : t.Value.ToTimeSpan();
     private static TimeOnly? ToTime(TimeSpan? s) => s is null ? null : TimeOnly.FromTimeSpan(s.Value);
 
+    // Helper Record for binding the TimePickers
     private record SchRow(string Label,
         Func<TimeSpan?> StartGetter, Action<TimeSpan?> StartSetter,
         Func<TimeSpan?> EndGetter, Action<TimeSpan?> EndSetter)
@@ -160,31 +168,66 @@
     private List<SchRow> _rows1 = new();
     private List<SchRow> _rows2 = new();
 
-    protected override void OnInitialized() => BuildRows();
-    protected override void OnParametersSet() => BuildRows();
+    protected override void OnInitialized()
+    {
+        EnsureValue();
+        BuildRows();
+    }
+
+    protected override void OnParametersSet()
+    {
+        EnsureValue();
+        BuildRows();
+    }
+
+    private void EnsureValue()
+    {
+        if (Value is null)
+        {
+            Value = new ScheduleChangeDto();
+            ValueChanged.InvokeAsync(Value);
+        }
+    }
+
+    private void FireChange()
+    {
+        // Notify parent that the object has mutated
+        _ = ValueChanged.InvokeAsync(Value);
+        StateHasChanged();
+    }
 
     private void BuildRows()
     {
-        Value = Ensure(Value);
+        // FIX: Removed 'with' syntax. We now mutate 'V' (Value) directly and call FireChange().
 
         _rows1 = new()
         {
-            Row("Mon", () => ToSpan(Value!.MondayStart),     s => Set(v => v with { MondayStart    = ToTime(s) }),
-                       () => ToSpan(Value!.MondayEnd),       s => Set(v => v with { MondayEnd      = ToTime(s) })),
-            Row("Tue", () => ToSpan(Value!.TuesdayStart),    s => Set(v => v with { TuesdayStart   = ToTime(s) }),
-                       () => ToSpan(Value!.TuesdayEnd),      s => Set(v => v with { TuesdayEnd     = ToTime(s) })),
-            Row("Wed", () => ToSpan(Value!.WednesdayStart),  s => Set(v => v with { WednesdayStart = ToTime(s) }),
-                       () => ToSpan(Value!.WednesdayEnd),    s => Set(v => v with { WednesdayEnd   = ToTime(s) })),
-            Row("Thu", () => ToSpan(Value!.ThursdayStart),   s => Set(v => v with { ThursdayStart  = ToTime(s) }),
-                       () => ToSpan(Value!.ThursdayEnd),     s => Set(v => v with { ThursdayEnd    = ToTime(s) })),
-            Row("Fri", () => ToSpan(Value!.FridayStart),     s => Set(v => v with { FridayStart    = ToTime(s) }),
-                       () => ToSpan(Value!.FridayEnd),       s => Set(v => v with { FridayEnd      = ToTime(s) })),
-            Row("Sat", () => ToSpan(Value!.SaturdayStart),   s => Set(v => v with { SaturdayStart  = ToTime(s) }),
-                       () => ToSpan(Value!.SaturdayEnd),     s => Set(v => v with { SaturdayEnd    = ToTime(s) })),
-            Row("Sun", () => ToSpan(Value!.SundayStart),     s => Set(v => v with { SundayStart    = ToTime(s) }),
-                       () => ToSpan(Value!.SundayEnd),       s => Set(v => v with { SundayEnd      = ToTime(s) }))
+            Row("Mon", () => ToSpan(V.MondayStart),    s => { V.MondayStart    = ToTime(s); FireChange(); },
+                       () => ToSpan(V.MondayEnd),      s => { V.MondayEnd      = ToTime(s); FireChange(); }),
+
+            Row("Tue", () => ToSpan(V.TuesdayStart),   s => { V.TuesdayStart   = ToTime(s); FireChange(); },
+                       () => ToSpan(V.TuesdayEnd),     s => { V.TuesdayEnd     = ToTime(s); FireChange(); }),
+
+            Row("Wed", () => ToSpan(V.WednesdayStart), s => { V.WednesdayStart = ToTime(s); FireChange(); },
+                       () => ToSpan(V.WednesdayEnd),   s => { V.WednesdayEnd   = ToTime(s); FireChange(); }),
+
+            Row("Thu", () => ToSpan(V.ThursdayStart),  s => { V.ThursdayStart  = ToTime(s); FireChange(); },
+                       () => ToSpan(V.ThursdayEnd),    s => { V.ThursdayEnd    = ToTime(s); FireChange(); }),
+
+            Row("Fri", () => ToSpan(V.FridayStart),    s => { V.FridayStart    = ToTime(s); FireChange(); },
+                       () => ToSpan(V.FridayEnd),      s => { V.FridayEnd      = ToTime(s); FireChange(); }),
+
+            Row("Sat", () => ToSpan(V.SaturdayStart),  s => { V.SaturdayStart  = ToTime(s); FireChange(); },
+                       () => ToSpan(V.SaturdayEnd),    s => { V.SaturdayEnd    = ToTime(s); FireChange(); }),
+
+            Row("Sun", () => ToSpan(V.SundayStart),    s => { V.SundayStart    = ToTime(s); FireChange(); },
+                       () => ToSpan(V.SundayEnd),      s => { V.SundayEnd      = ToTime(s); FireChange(); })
         };
 
+        // Note: For Shift 2 (Rows2), we are just storing them in local fields for now
+        // because ScheduleChangeDto only holds Shift 1.
+        // If you need Shift 2 saved, your DTO needs properties for it, or you handle it elsewhere.
+        // Keeping logic as provided in your snippet:
         _rows2 = new()
         {
             Row("Mon", () => _s2MonS, s => _s2MonS = s, () => _s2MonE, s => _s2MonE = s),
@@ -199,20 +242,6 @@
 
     private static SchRow Row(string d, Func<TimeSpan?> sg, Action<TimeSpan?> ss, Func<TimeSpan?> eg, Action<TimeSpan?> es)
         => new(d, sg, ss, eg, es);
-
-    private void Set(Func<ScheduleChangeDto, ScheduleChangeDto> upd)
-    {
-        Value = upd(Value!);
-        _ = ValueChanged.InvokeAsync(Value);
-        StateHasChanged();
-    }
-
-    private static ScheduleChangeDto Ensure(ScheduleChangeDto? v)
-        => v ?? new ScheduleChangeDto(
-            false, 1,
-            null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-            false, false
-        );
 
     private TimeSpan? _s2MonS, _s2MonE, _s2TueS, _s2TueE, _s2WedS, _s2WedE,
                       _s2ThuS, _s2ThuE, _s2FriS, _s2FriE, _s2SatS, _s2SatE, _s2SunS, _s2SunE;

@@ -5,6 +5,7 @@
         public int EmployeeId { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
+        public string? MiddleInitial { get; set; }
         public bool IsActive { get; set; }
 
         public DateOnly? EffectiveDate { get; set; }

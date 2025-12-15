@@ -2,6 +2,8 @@
 using MyApplication.Common.Time;
 using MyApplication.Components.Data;
 using MyApplication.Components.Model.AOM.Employee;
+using MyApplication.Components.Service.Acr;
+using MyApplication.Components.Service.Employee.Dtos;
 using MyApplication.Migrations;
 using System;
 
@@ -9,19 +11,26 @@ namespace MyApplication.Components.Service.Acr;
 
 public sealed class AcrQueryService : IAcrQueryService
 {
-    private readonly IDbContextFactory<AomDbContext> _dbFactory;
 
-    public AcrQueryService(IDbContextFactory<AomDbContext> dbFactory)
-        => _dbFactory = dbFactory;
+    private readonly IDbContextFactory<AomDbContext> _dbFactory;
+    private readonly ITimeDisplayService _timeService;
+
+    public AcrQueryService(
+        IDbContextFactory<AomDbContext> dbFactory,
+        ITimeDisplayService timeService)
+    {
+        _dbFactory = dbFactory;
+        _timeService = timeService;
+    }
 
     // ========= Lookups used by forms/details =========
     public async Task<PagedResult<AcrRequestListItem>> SearchAsync(
-             AcrIndexFilter filter,
-             int pageIndex,
-             int pageSize,
-             string? sortLabel,
-             bool sortDescending,
-             CancellationToken ct = default)
+          AcrIndexFilter filter,
+          int pageIndex,
+          int pageSize,
+          string? sortLabel,
+          bool sortDescending,
+          CancellationToken ct = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
@@ -29,17 +38,30 @@ public sealed class AcrQueryService : IAcrQueryService
         var q =
             from r in db.Set<AcrRequest>().AsNoTracking()
             join e in db.Set<Employees>().AsNoTracking() on r.EmployeeId equals e.Id
+            join d in db.Set<EmployeeCurrentDetails>().AsNoTracking() on r.EmployeeId equals d.EmployeeId into dd
+            from d in dd.DefaultIfEmpty()
             join t in db.Set<AcrType>().AsNoTracking() on r.AcrTypeId equals t.Id into tt
             from t in tt.DefaultIfEmpty()
             join s in db.Set<AcrStatus>().AsNoTracking() on r.AcrStatusId equals s.Id into ss
             from s in ss.DefaultIfEmpty()
-                // FILTER: Apply Active Only logic here
+                // FILTER: Apply Active Only logic
             where !filter.ActiveOnly || e.IsActive == true
             select new
             {
                 r.Id,
                 r.EmployeeId,
-                EmployeeName = (e.LastName ?? "") + ", " + (e.FirstName ?? ""),
+
+                // Projection for Display (Last, First MI)
+                EmployeeName = (e.LastName ?? "") + ", " + (e.FirstName ?? "") + (e.MiddleInitial == null ? "" : " " + e.MiddleInitial),
+
+                // Helper columns for Searching (Required to support "First Last" logic in the Where clause)
+                e.FirstName,
+                e.LastName,
+                e.MiddleInitial,
+
+                d.ManagerId,
+                d.SupervisorId,
+
                 TypeId = r.AcrTypeId,
                 TypeName = t != null ? t.Name : null,
                 StatusId = r.AcrStatusId,
@@ -49,6 +71,12 @@ public sealed class AcrQueryService : IAcrQueryService
             };
 
         // 2. Apply Filters
+        if (filter.ManagerId.HasValue)
+            q = q.Where(x => x.ManagerId == filter.ManagerId);
+
+        if (filter.SupervisorId.HasValue)
+            q = q.Where(x => x.SupervisorId == filter.SupervisorId);
+
         if (filter.AcrTypeId is int typeId)
             q = q.Where(x => x.TypeId == typeId);
 
@@ -70,18 +98,19 @@ public sealed class AcrQueryService : IAcrQueryService
             }
             else
             {
-                var tokens = search.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                if (tokens.Length == 1)
-                {
-                    var p = tokens[0];
-                    q = q.Where(x => x.EmployeeName.Contains(p));
-                }
-                else
-                {
-                    var p1 = tokens[0];
-                    var p2 = tokens[1];
-                    q = q.Where(x => x.EmployeeName.Contains(p1) && x.EmployeeName.Contains(p2));
-                }
+                // Updated Logic: Check both formats
+                q = q.Where(x =>
+                    // "Last, First MI" (matches the display format)
+                    (x.LastName + ", " + x.FirstName + (x.MiddleInitial == null ? "" : " " + x.MiddleInitial)).Contains(search)
+                    ||
+                    // "First Last"
+                    (x.FirstName + " " + x.LastName).Contains(search)
+                    ||
+                    // Simple partial matches
+                    x.FirstName.Contains(search)
+                    ||
+                    x.LastName.Contains(search)
+                );
             }
         }
 
@@ -126,221 +155,7 @@ public sealed class AcrQueryService : IAcrQueryService
         return new PagedResult<AcrRequestListItem>(items, totalCount);
     }
 
-    // ... (rest of the file unchanged) ...
-    public async Task<List<KeyValuePair<int, string>>> GetOrganizationsAsync(CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-        return await db.Organizations.AsNoTracking()
-            .Where(o => o.IsActive == true)
-            .OrderBy(o => o.Name)
-            .Select(o => new KeyValuePair<int, string>(o.Id, o.Name))
-            .ToListAsync(ct);
-    }
-
-    public async Task<List<KeyValuePair<int, string>>> GetSubOrganizationsAsync(int? orgId, CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-
-        var q = db.SubOrganizations.AsNoTracking();
-
-        if (orgId is int id)
-        {
-            // When an org is selected, include rows for that org AND unscoped rows (OrganizationId == null)
-            q = q.Where(s => s.OrganizationId == id || s.OrganizationId == null);
-        }
-        else
-        {
-            // No org selected yet → show only unscoped choices
-            q = q.Where(s => s.OrganizationId == null);
-        }
-
-        return await q.OrderBy(s => s.Name)
-                      .Where(s => s.IsActive == true)
-                      .Select(s => new KeyValuePair<int, string>(s.Id, s.Name))
-                      .ToListAsync(ct);
-    }
-
-    public async Task<List<KeyValuePair<int, string>>> GetSitesAsync(CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-        return await db.Sites.AsNoTracking()
-            .Where(s => s.IsActive == true)
-            .OrderBy(s => s.SiteCode)
-            .Select(s => new KeyValuePair<int, string>(s.Id, s.SiteCode))
-            .ToListAsync(ct);
-    }
-
-    public async Task<List<KeyValuePair<int, string>>> GetEmployersAsync(CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-        return await db.Employers.AsNoTracking()
-            .Where(e => e.IsActive == true)
-            .OrderBy(e => e.Name)
-            .Select(e => new KeyValuePair<int, string>(e.Id, e.Name))
-            .ToListAsync(ct);
-    }
-
-    public async Task<List<KeyValuePair<int, string>>> GetManagersAsync(CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-
-        var data = await db.Managers.AsNoTracking()
-            .Where(m => m.IsActive == true)
-            .Select(m => new
-            {
-                m.Id,
-                m.EmployeeId,
-                Emp = db.Employees.Where(e => e.Id == m.EmployeeId)
-                                  .Select(e => new { e.FirstName, e.LastName })
-                                  .FirstOrDefault()
-            })
-            .ToListAsync(ct);
-
-        return data
-            .Select(x => new KeyValuePair<int, string>(
-                x.Id,
-                x.Emp is null ? $"Manager #{x.Id}" : $"{x.Emp.LastName}, {x.Emp.FirstName} ({x.EmployeeId})"))
-
-            .OrderBy(kv => kv.Value)
-            .ToList();
-    }
-
-    public async Task<List<KeyValuePair<int, string>>> GetSupervisorsAsync(CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-
-        var data = await db.Supervisors.AsNoTracking()
-            .Where(s => s.IsActive == true)
-            .Select(s => new
-            {
-                s.Id,
-                s.EmployeeId,
-                Emp = db.Employees.Where(e => e.Id == s.EmployeeId)
-                                  .Select(e => new { e.FirstName, e.LastName })
-                                  .FirstOrDefault()
-            })
-            .ToListAsync(ct);
-
-        return data
-            .Select(x => new KeyValuePair<int, string>(
-                x.Id,
-                x.Emp is null ? $"Supervisor #{x.Id}" : $"{x.Emp.LastName}, {x.Emp.FirstName} ({x.EmployeeId})"))
-            .OrderBy(kv => kv.Value)
-            .ToList();
-    }
-
-    public async Task<Dictionary<int, string>> GetTypesAsync(CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-        return await db.Set<AcrType>().AsNoTracking()
-            .Where(x => x.IsActive == true)
-            .OrderBy(x => x.Name)
-            .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
-    }
-
-    public async Task<Dictionary<int, string>> GetStatusesAsync(CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-        return await db.Set<AcrStatus>().AsNoTracking()
-            .OrderBy(x => x.Name)
-            .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
-    }
-
-    public async Task<List<Employees>> GetEmployeesLookupAsync(bool? isActive, CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-
-        var q = db.Employees.AsQueryable();
-
-        if (isActive is true) q = q.Where(e => e.IsActive);
-        if (isActive is false) q = q.Where(e => !e.IsActive);
-
-        return await q
-            .OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
-            .ToListAsync(ct);
-    }
-
-    public async Task<List<KeyValuePair<int, string>>> GetOvertimeTypesAsync(CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-        return await db.Set<AcrOvertimeTypes>().AsNoTracking()
-             .Where(x => x.IsActive == true)
-            .OrderBy(x => x.Name)
-            .Select(x => new KeyValuePair<int, string>(x.Id, x.Name))
-            .ToListAsync(ct);
-    }
-
-    // ===== Details (read-only) =====
-    public async Task<AcrDetailsVm> LoadDetailsAsync(int id, CancellationToken ct = default)
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-
-        var req = await db.Set<AcrRequest>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == id, ct)
-            ?? throw new InvalidOperationException($"ACR {id} not found.");
-
-        var empName = await db.Set<Employees>()
-            .AsNoTracking()
-            .Where(e => e.Id == req.EmployeeId)
-            .Select(e => ((e.LastName ?? string.Empty) + ", " + (e.FirstName ?? string.Empty)))
-            .FirstOrDefaultAsync(ct) ?? string.Empty;
-
-        var org = await db.Set<AcrOrganization>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.AcrRequestId == id, ct);
-
-        OrganizationChangeDto? orgDto = org is null
-            ? null
-            : new OrganizationChangeDto(
-                org.OrganizationId, org.SubOrganizationId, org.SiteId, org.EmployerId,
-                org.ManagerId, org.SupervisorId, org.IsLoa, org.IsIntLoa, org.IsRemote);
-
-        var sch = await db.Set<AcrSchedule>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.AcrRequestId == id && x.ShiftNumber == 1, ct);
-
-        ScheduleChangeDto? schDto = sch is null
-            ? null
-            : new ScheduleChangeDto(
-                sch.IsSplitSchedule, sch.ShiftNumber,
-                sch.MondayStart, sch.MondayEnd,
-                sch.TuesdayStart, sch.TuesdayEnd,
-                sch.WednesdayStart, sch.WednesdayEnd,
-                sch.ThursdayStart, sch.ThursdayEnd,
-                sch.FridayStart, sch.FridayEnd,
-                sch.SaturdayStart, sch.SaturdayEnd,
-                sch.SundayStart, sch.SundayEnd,
-                sch.IsStaticBreakSchedule,
-                sch.IsOtAdjustment);
-
-        var ot = await db.Set<AcrOvertimeSchedules>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.AcrRequestId == id, ct);
-
-        OvertimeAdjustmentDto? otDto = ot is null
-            ? null
-            : new OvertimeAdjustmentDto(
-                ot.MondayTypeId, ot.TuesdayTypeId, ot.WednesdayTypeId,
-                ot.ThursdayTypeId, ot.FridayTypeId, ot.SaturdayTypeId, ot.SundayTypeId);
-
-        var typeId = req.AcrTypeId
-            ?? throw new InvalidOperationException($"ACR {id} has null AcrTypeId.");
-
-        return new AcrDetailsVm(
-            req.Id,
-            (AcrTypeKey)typeId,
-            req.EmployeeId,
-            empName,
-            req.EffectiveDate,
-            req.SubmitterComment ?? string.Empty,
-            orgDto,
-            schDto,
-            otDto
-        );
-    }
-
-    // ===== Index query =====
+    // ===== Index query (No Paging - for Exports) =====
     public async Task<List<AcrRequestListItem>> QueryAsync(
         AcrIndexFilter filter,
         int take = 1000,
@@ -355,11 +170,13 @@ public sealed class AcrQueryService : IAcrQueryService
             from t in tt.DefaultIfEmpty()
             join s in db.Set<AcrStatus>().AsNoTracking() on r.AcrStatusId equals s.Id into ss
             from s in ss.DefaultIfEmpty()
+                // FILTER: Apply Active Only logic (Was missing here)
+            where !filter.ActiveOnly || e.IsActive == true
             select new
             {
                 r.Id,
                 r.EmployeeId,
-                EmployeeName = (e.LastName ?? "") + ", " + (e.FirstName ?? ""),
+                EmployeeName = (e.LastName ?? "") + ", " + (e.FirstName ?? "") + (e.MiddleInitial == null ? "" : " " + e.MiddleInitial),
                 TypeId = r.AcrTypeId,
                 TypeName = t != null ? t.Name : null,
                 StatusId = r.AcrStatusId,
@@ -423,6 +240,233 @@ public sealed class AcrQueryService : IAcrQueryService
         ).ToList();
     }
 
+
+
+    public async Task<List<KeyValuePair<int, string>>> GetOrganizationsAsync(CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.Organizations.AsNoTracking()
+            .Where(o => o.IsActive == true)
+            .OrderBy(o => o.Name)
+            .Select(o => new KeyValuePair<int, string>(o.Id, o.Name))
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<KeyValuePair<int, string>>> GetSubOrganizationsAsync(int? orgId, CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        var q = db.SubOrganizations.AsNoTracking();
+
+        if (orgId is int id)
+        {
+            q = q.Where(s => s.OrganizationId == id || s.OrganizationId == null);
+        }
+        else
+        {
+            q = q.Where(s => s.OrganizationId == null);
+        }
+
+        return await q.OrderBy(s => s.Name)
+                      .Where(s => s.IsActive == true)
+                      .Select(s => new KeyValuePair<int, string>(s.Id, s.Name))
+                      .ToListAsync(ct);
+    }
+
+    public async Task<List<KeyValuePair<int, string>>> GetSitesAsync(CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.Sites.AsNoTracking()
+            .Where(s => s.IsActive == true)
+            .OrderBy(s => s.SiteCode)
+            .Select(s => new KeyValuePair<int, string>(s.Id, s.SiteCode))
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<KeyValuePair<int, string>>> GetEmployersAsync(CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.Employers.AsNoTracking()
+            .Where(e => e.IsActive == true)
+            .OrderBy(e => e.Name)
+            .Select(e => new KeyValuePair<int, string>(e.Id, e.Name))
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<KeyValuePair<int, string>>> GetManagersAsync(CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        var data = await (
+            from m in db.Managers.AsNoTracking()
+            join e in db.Employees.AsNoTracking() on m.EmployeeId equals e.Id
+            where m.IsActive == true && e.IsActive == true  // <--- Ensure Employee is Active
+            orderby e.LastName, e.FirstName
+            select new
+            {
+                m.Id,
+                e.LastName,
+                e.FirstName,
+                e.MiddleInitial
+            }
+        ).ToListAsync(ct);
+
+        return data
+            .Select(x => new KeyValuePair<int, string>(
+                x.Id,
+                $"{x.LastName}, {x.FirstName}{(!string.IsNullOrEmpty(x.MiddleInitial) ? " " + x.MiddleInitial : "")}"
+            ))
+            .ToList();
+    }
+    public async Task<List<KeyValuePair<int, string>>> GetSupervisorsAsync(CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        var data = await (
+            from s in db.Supervisors.AsNoTracking()
+            join e in db.Employees.AsNoTracking() on s.EmployeeId equals e.Id
+            where s.IsActive == true && e.IsActive == true  // <--- Ensure Employee is Active
+            orderby e.LastName, e.FirstName
+            select new
+            {
+                s.Id,
+                e.LastName,
+                e.FirstName,
+                e.MiddleInitial
+            }
+        ).ToListAsync(ct);
+
+        return data
+            .Select(x => new KeyValuePair<int, string>(
+                x.Id,
+                $"{x.LastName}, {x.FirstName}{(!string.IsNullOrEmpty(x.MiddleInitial) ? " " + x.MiddleInitial : "")}"
+            ))
+            .ToList();
+    }
+
+    public async Task<Dictionary<int, string>> GetTypesAsync(CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.Set<AcrType>().AsNoTracking()
+            .Where(x => x.IsActive == true)
+            .OrderBy(x => x.Name)
+            .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+    }
+
+    public async Task<Dictionary<int, string>> GetStatusesAsync(CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.Set<AcrStatus>().AsNoTracking()
+            .OrderBy(x => x.Name)
+            .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+    }
+
+    public async Task<List<Employees>> GetEmployeesLookupAsync(bool? isActive, CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        var q = db.Employees.AsQueryable();
+
+        if (isActive is true) q = q.Where(e => e.IsActive);
+        if (isActive is false) q = q.Where(e => !e.IsActive);
+
+        return await q
+            .OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<KeyValuePair<int, string>>> GetOvertimeTypesAsync(CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        return await db.Set<AcrOvertimeTypes>().AsNoTracking()
+             .Where(x => x.IsActive == true)
+            .OrderBy(x => x.Name)
+            .Select(x => new KeyValuePair<int, string>(x.Id, x.Name))
+            .ToListAsync(ct);
+    }
+
+    // ===== Details (read-only) =====
+    public async Task<AcrDetailsVm> LoadDetailsAsync(int id, CancellationToken ct = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+        var req = await db.Set<AcrRequest>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == id, ct)
+            ?? throw new InvalidOperationException($"ACR {id} not found.");
+
+        var empName = await db.Set<Employees>()
+            .AsNoTracking()
+            .Where(e => e.Id == req.EmployeeId)
+            .Select(e => ((e.LastName ?? string.Empty) + ", " + (e.FirstName ?? string.Empty) + (e.MiddleInitial == null ? "" : " " + e.MiddleInitial)))
+            .FirstOrDefaultAsync(ct) ?? string.Empty;
+
+        var org = await db.Set<AcrOrganization>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.AcrRequestId == id, ct);
+
+        OrganizationChangeDto? orgDto = org is null
+            ? null
+            : new OrganizationChangeDto(
+                org.OrganizationId, org.SubOrganizationId, org.SiteId, org.EmployerId,
+                org.ManagerId, org.SupervisorId, org.IsLoa, org.IsIntLoa, org.IsRemote);
+
+        var sch = await db.Set<AcrSchedule>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.AcrRequestId == id && x.ShiftNumber == 1, ct);
+
+        ScheduleChangeDto? schDto = sch is null
+            ? null
+            : new ScheduleChangeDto
+            {
+                IsSplitSchedule = sch.IsSplitSchedule,
+                ShiftNumber = sch.ShiftNumber ?? 1,
+
+                MondayStart = sch.MondayStart,
+                MondayEnd = sch.MondayEnd,
+                TuesdayStart = sch.TuesdayStart,
+                TuesdayEnd = sch.TuesdayEnd,
+                WednesdayStart = sch.WednesdayStart,
+                WednesdayEnd = sch.WednesdayEnd,
+                ThursdayStart = sch.ThursdayStart,
+                ThursdayEnd = sch.ThursdayEnd,
+                FridayStart = sch.FridayStart,
+                FridayEnd = sch.FridayEnd,
+                SaturdayStart = sch.SaturdayStart,
+                SaturdayEnd = sch.SaturdayEnd,
+                SundayStart = sch.SundayStart,
+                SundayEnd = sch.SundayEnd,
+
+                IsStaticBreakSchedule = sch.IsStaticBreakSchedule,
+                IsOtAdjustment = sch.IsOtAdjustment
+            };
+
+        var ot = await db.Set<AcrOvertimeSchedules>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.AcrRequestId == id, ct);
+
+        OvertimeAdjustmentDto? otDto = ot is null
+            ? null
+            : new OvertimeAdjustmentDto(
+                ot.MondayTypeId, ot.TuesdayTypeId, ot.WednesdayTypeId,
+                ot.ThursdayTypeId, ot.FridayTypeId, ot.SaturdayTypeId, ot.SundayTypeId);
+
+        var typeId = req.AcrTypeId
+            ?? throw new InvalidOperationException($"ACR {id} has null AcrTypeId.");
+
+        return new AcrDetailsVm(
+            req.Id,
+            (AcrTypeKey)typeId,
+            req.EmployeeId,
+            empName,
+            req.EffectiveDate,
+            req.SubmitterComment ?? string.Empty,
+            orgDto,
+            schDto,
+            otDto
+        );
+    }
+
     public Task<EmployeeHistorySnapshot?> GetLatestEmployeeHistoryAsync(
         int employeeId,
         CancellationToken ct = default)
@@ -469,19 +513,65 @@ public sealed class AcrQueryService : IAcrQueryService
                 org.OrganizationId, org.SubOrganizationId, org.SiteId, org.EmployerId,
                 org.ManagerId, org.SupervisorId, org.IsLoa, org.IsIntLoa, org.IsRemote);
 
-        ScheduleChangeDto? schDto = sch is null
-            ? null
-            : new ScheduleChangeDto(
-                sch.IsSplitSchedule, sch.ShiftNumber,
-                sch.MondayStart, sch.MondayEnd,
-                sch.TuesdayStart, sch.TuesdayEnd,
-                sch.WednesdayStart, sch.WednesdayEnd,
-                sch.ThursdayStart, sch.ThursdayEnd,
-                sch.FridayStart, sch.FridayEnd,
-                sch.SaturdayStart, sch.SaturdayEnd,
-                sch.SundayStart, sch.SundayEnd,
-                sch.IsStaticBreakSchedule,
-                sch.IsOtAdjustment);
+        ScheduleChangeDto? schDto = null;
+
+        if (sch != null)
+        {
+            string? tzId = null;
+
+            if (org?.SiteId != null)
+            {
+                tzId = await db.Sites.AsNoTracking()
+                    .Where(s => s.Id == org.SiteId)
+                    .Select(s => s.TimeZoneWindows)
+                    .FirstOrDefaultAsync(ct);
+            }
+            else
+            {
+                // FIX: Get SiteId from EmployeeHistory instead of Employees table
+                var currentSiteId = await db.EmployeeHistory
+                    .AsNoTracking()
+                    .Where(h => h.EmployeeId == req.EmployeeId)
+                    .OrderByDescending(h => h.EffectiveDate)
+                    .ThenByDescending(h => h.Id)
+                    .Select(h => h.SiteId)
+                    .FirstOrDefaultAsync(ct);
+
+                if (currentSiteId != null)
+                {
+                    tzId = await db.Sites.AsNoTracking()
+                        .Where(s => s.Id == currentSiteId)
+                        .Select(s => s.TimeZoneWindows)
+                        .FirstOrDefaultAsync(ct);
+                }
+            }
+
+            TimeOnly? ToLoc(TimeOnly? et) => et.HasValue ? _timeService.ToLocal(et.Value, tzId) : null;
+
+            schDto = new ScheduleChangeDto
+            {
+                IsSplitSchedule = sch.IsSplitSchedule,
+                ShiftNumber = sch.ShiftNumber ?? 1,
+
+                MondayStart = ToLoc(sch.MondayStart),
+                MondayEnd = ToLoc(sch.MondayEnd),
+                TuesdayStart = ToLoc(sch.TuesdayStart),
+                TuesdayEnd = ToLoc(sch.TuesdayEnd),
+                WednesdayStart = ToLoc(sch.WednesdayStart),
+                WednesdayEnd = ToLoc(sch.WednesdayEnd),
+                ThursdayStart = ToLoc(sch.ThursdayStart),
+                ThursdayEnd = ToLoc(sch.ThursdayEnd),
+                FridayStart = ToLoc(sch.FridayStart),
+                FridayEnd = ToLoc(sch.FridayEnd),
+                SaturdayStart = ToLoc(sch.SaturdayStart),
+                SaturdayEnd = ToLoc(sch.SaturdayEnd),
+                SundayStart = ToLoc(sch.SundayStart),
+                SundayEnd = ToLoc(sch.SundayEnd),
+
+                IsStaticBreakSchedule = sch.IsStaticBreakSchedule,
+                IsOtAdjustment = sch.IsOtAdjustment
+            };
+        }
 
         OvertimeAdjustmentDto? otDto = ot is null
             ? null
@@ -506,52 +596,7 @@ public sealed class AcrQueryService : IAcrQueryService
         };
     }
 
-    // ===== Prev details (for left-hand panel) =====
-    public sealed class PrevDetailsVm
-    {
-        public int? EmployeeId { get; set; }
-        public DateOnly? EffectiveDate { get; set; }
-        public string? SubmitterComment { get; set; }
-
-        public int? EmployerId { get; set; }
-        public int? SiteId { get; set; }
-        public int? OrganizationId { get; set; }
-        public int? SubOrganizationId { get; set; }
-        public int? ManagerId { get; set; }
-        public int? SupervisorId { get; set; }
-        public bool? IsActive { get; set; }
-        public bool? IsLoa { get; set; }
-        public bool? IsIntLoa { get; set; }
-        public bool? IsRemote { get; set; }
-
-        public string? EmployerName { get; set; }
-        public string? SiteCode { get; set; }
-        public string? OrganizationName { get; set; }
-        public string? SubOrganizationName { get; set; }
-        public string? ManagerName { get; set; }
-        public string? SupervisorName { get; set; }
-
-        public string? SchMon { get; set; }
-        public string? SchTue { get; set; }
-        public string? SchWed { get; set; }
-        public string? SchThu { get; set; }
-        public string? SchFri { get; set; }
-        public string? SchSat { get; set; }
-        public string? SchSun { get; set; }
-
-        public int? ShiftNumber { get; set; }
-        public bool? IsStaticBreakSchedule { get; set; }
-        public string? OTMon { get; set; }
-        public string? OTTue { get; set; }
-        public string? OTWed { get; set; }
-        public string? OTThu { get; set; }
-        public string? OTFri { get; set; }
-        public string? OTSat { get; set; }
-        public string? OTSun { get; set; }
-
-        public PrevDetailsVm() { }
-    }
-
+    // Note: PrevDetailsVm is assumed to be in AcrDtos.cs now, removed from here
     public async Task<PrevDetailsVm?> GetPrevDetailsAsync(
         int employeeId,
         TimeDisplayMode mode,
@@ -559,7 +604,6 @@ public sealed class AcrQueryService : IAcrQueryService
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-        // Employee history snapshot
         var eh = await db.EmployeeHistory
             .AsNoTracking()
             .Where(x => x.EmployeeId == employeeId)
@@ -666,7 +710,6 @@ public sealed class AcrQueryService : IAcrQueryService
             SupervisorName = supName
         };
 
-        // ----- Schedule (AcrSchedules, stored in Eastern) -----
         if (eh.ScheduleRequestId is int schReqId)
         {
             var sch = await db.AcrSchedules.AsNoTracking()
@@ -695,8 +738,6 @@ public sealed class AcrQueryService : IAcrQueryService
             if (sch is not null)
             {
                 prev.ShiftNumber = sch.ShiftNumber;
-
-                // convert from Eastern → display mode
                 prev.SchMon = SpanEt(sch.MondayStart, sch.MondayEnd, mode, siteWindowsTz);
                 prev.SchTue = SpanEt(sch.TuesdayStart, sch.TuesdayEnd, mode, siteWindowsTz);
                 prev.SchWed = SpanEt(sch.WednesdayStart, sch.WednesdayEnd, mode, siteWindowsTz);
@@ -704,13 +745,10 @@ public sealed class AcrQueryService : IAcrQueryService
                 prev.SchFri = SpanEt(sch.FridayStart, sch.FridayEnd, mode, siteWindowsTz);
                 prev.SchSat = SpanEt(sch.SaturdayStart, sch.SaturdayEnd, mode, siteWindowsTz);
                 prev.SchSun = SpanEt(sch.SundayStart, sch.SundayEnd, mode, siteWindowsTz);
-
-                // BreakTime / LunchTime are minutes; no TZ adjustment needed
                 prev.IsStaticBreakSchedule = sch.IsStaticBreakSchedule;
             }
         }
 
-        // ----- Overtime (unchanged) -----
         if (eh.OvertimeRequestId is int otReqId)
         {
             var ot = await db.AcrOvertimeSchedules.AsNoTracking()
@@ -747,13 +785,11 @@ public sealed class AcrQueryService : IAcrQueryService
         return prev;
     }
 
-    // existing Span helper kept, used after conversion
     private static string Span(TimeOnly? start, TimeOnly? end)
         => (start is null && end is null)
             ? "-"
             : $"{(start?.ToString("HH:mm") ?? "--:--")} – {(end?.ToString("HH:mm") ?? "--:--")}";
 
-    // NEW: convert Eastern → display mode then format
     private static string SpanEt(
         TimeOnly? startEt,
         TimeOnly? endEt,
@@ -787,13 +823,19 @@ public sealed class AcrQueryService : IAcrQueryService
             _ => "Eastern Standard Time"
         };
 
-        var targetTz = TimeZoneInfo.FindSystemTimeZoneById(targetTzId);
+        try
+        {
+            var targetTz = TimeZoneInfo.FindSystemTimeZoneById(targetTzId);
+            var dtEt = new DateTime(2000, 1, 1, et.Value.Hour, et.Value.Minute, 0, DateTimeKind.Unspecified);
+            var dtUtc = TimeZoneInfo.ConvertTimeToUtc(dtEt, easternTz);
+            var dtLocal = TimeZoneInfo.ConvertTimeFromUtc(dtUtc, targetTz);
 
-        var dtEt = new DateTime(2000, 1, 1, et.Value.Hour, et.Value.Minute, 0, DateTimeKind.Unspecified);
-        var dtUtc = TimeZoneInfo.ConvertTimeToUtc(dtEt, easternTz);
-        var dtLocal = TimeZoneInfo.ConvertTimeFromUtc(dtUtc, targetTz);
-
-        return new TimeOnly(dtLocal.Hour, dtLocal.Minute);
+            return new TimeOnly(dtLocal.Hour, dtLocal.Minute);
+        }
+        catch
+        {
+            return et;
+        }
     }
 
     private static async Task<Dictionary<int, string>> GetOvertimeTypeMapAsync(AomDbContext db, CancellationToken ct)
@@ -803,7 +845,6 @@ public sealed class AcrQueryService : IAcrQueryService
             .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
     }
 
-    // Site Windows time zone (used elsewhere too)
     public async Task<string?> GetSiteTimeZoneAsync(int siteId, CancellationToken ct = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct);

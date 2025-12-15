@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251203211535_askdlj")]
+    partial class askdlj
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -196,6 +199,9 @@ namespace MyApplication.Migrations
                     b.Property<int>("AcrRequestId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("AcrRequestId1")
+                        .HasColumnType("int");
+
                     b.Property<int?>("EmployerId")
                         .HasColumnType("int");
 
@@ -225,8 +231,11 @@ namespace MyApplication.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AcrRequestId")
-                        .IsUnique();
+                    b.HasIndex("AcrRequestId");
+
+                    b.HasIndex("AcrRequestId1")
+                        .IsUnique()
+                        .HasFilter("[AcrRequestId1] IS NOT NULL");
 
                     b.HasIndex("EmployerId");
 
@@ -405,6 +414,9 @@ namespace MyApplication.Migrations
                     b.Property<int>("AcrRequestId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("AcrRequestId1")
+                        .HasColumnType("int");
+
                     b.Property<TimeOnly?>("FridayEnd")
                         .HasColumnType("time");
 
@@ -462,6 +474,8 @@ namespace MyApplication.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AcrRequestId");
+
+                    b.HasIndex("AcrRequestId1");
 
                     b.ToTable("AcrSchedule", "Employee");
                 });
@@ -1859,10 +1873,14 @@ namespace MyApplication.Migrations
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrOrganization", b =>
                 {
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", "AcrRequest")
-                        .WithOne("AcrOrganization")
-                        .HasForeignKey("MyApplication.Components.Model.AOM.Employee.AcrOrganization", "AcrRequestId")
+                        .WithMany()
+                        .HasForeignKey("AcrRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", null)
+                        .WithOne("AcrOrganization")
+                        .HasForeignKey("MyApplication.Components.Model.AOM.Employee.AcrOrganization", "AcrRequestId1");
 
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.Employer", "Employer")
                         .WithMany()
@@ -2005,10 +2023,14 @@ namespace MyApplication.Migrations
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.AcrSchedule", b =>
                 {
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", "AcrRequest")
-                        .WithMany("AcrSchedules")
+                        .WithMany()
                         .HasForeignKey("AcrRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.AcrRequest", null)
+                        .WithMany("AcrSchedules")
+                        .HasForeignKey("AcrRequestId1");
 
                     b.Navigation("AcrRequest");
                 });
@@ -2162,13 +2184,11 @@ namespace MyApplication.Migrations
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Manager", b =>
                 {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employee")
+                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", null)
                         .WithMany()
                         .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.OperaRequest", b =>

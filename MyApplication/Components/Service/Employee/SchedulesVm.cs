@@ -25,45 +25,53 @@ namespace MyApplication.Components.Service.Employee
         public string SubOrganizationName { get; set; }
         public string SupervisorName { get; set; }
         public string ShiftString { get; set; }
-        public List<ScheduleSegmentVm> Segments { get; set; } = new();
+        public List<ScheduleSegmentVm> Segments { get; set; } = new();     // Lane 1: Plan
+        public List<ScheduleSegmentVm> AwsSegments { get; set; } = new();  // Lane 2: Actual
     }
+}
 
-    public class ScheduleSegmentVm
+public class ScheduleSegmentVm
+{
+    public int ActivityTypeId { get; set; }
+    public int? ActivitySubTypeId { get; set; }
+    public string ActivityName { get; set; }
+    public string SubActivityName { get; set; }
+
+    public int? AwsStatusId { get; set; }
+    public string AwsStatusName { get; set; }
+
+    public DateTime Start { get; set; }
+    public DateTime End { get; set; }
+    public bool IsImpacting { get; set; }
+
+    public int ZIndex => ActivityName == "Offline" ? 0 : 10;
+
+    // FIXED: Robust matching logic for colors
+    public string ColorClass
     {
-        public int ActivityTypeId { get; set; }
-        public int ActivitySubTypeId { get; set; } // Needed for priority logic
-        public string ActivityName { get; set; }
-        public string SubActivityName { get; set; }
-        public int? AwsStatusId { get; set; }      // Needed for coloring
-        public string AwsStatusName { get; set; }
-        public TimeOnly Start { get; set; }
-        public TimeOnly End { get; set; }
-        public bool IsImpacting { get; set; }
-
-        // --- Presentation Logic ---
-
-        public string ColorClass => AwsStatusId switch
+        get
         {
-            1 => "mud-theme-dark",       // Offline
-            2 => "mud-theme-success",    // Available
-            3 => "mud-theme-info",       // OL Customer Work
-            4 => "mud-theme-secondary",  // Admin Tasks
-            5 => "mud-theme-warning",    // Break
-            6 => "mud-theme-primary",    // Coaching
-            7 => "mud-theme-info",       // Lunch
-            8 => "mud-theme-primary",    // Meeting
-            9 => "mud-theme-primary",    // Peer Mentoring
-            10 => "mud-theme-dark",      // System
-            11 => "mud-theme-primary",   // Training
-            12 => "mud-theme-secondary", // Corporate Engagement
-            _ => "mud-theme-dark"        // Default
-        };
+            var name = SubActivityName != "-" ? SubActivityName : ActivityName;
+            if (!string.IsNullOrEmpty(AwsStatusName) && AwsStatusName != "-") name = AwsStatusName;
 
-        // Layering Priority: Breaks (Status 5), Lunches (Status 7) & specific Activity Subtypes on top.
-        public int ZIndex =>
-            (AwsStatusId == 5 || AwsStatusId == 7 ||
-             ActivitySubTypeId == 47 || ActivitySubTypeId == 49 ||
-             ActivitySubTypeId == 53 || ActivitySubTypeId == 54)
-            ? 10 : 1;
+            if (string.IsNullOrEmpty(name)) return "mud-theme-secondary";
+
+            // Normalize string (Trim and Lowercase for matching)
+            var cleanName = name.Trim();
+
+            if (cleanName.Equals("Available", StringComparison.OrdinalIgnoreCase)) return "mud-theme-success";
+            if (cleanName.Equals("Offline", StringComparison.OrdinalIgnoreCase)) return "mud-theme-dark";
+            if (cleanName.Equals("Lunch", StringComparison.OrdinalIgnoreCase)) return "mud-theme-info";
+            if (cleanName.Equals("Break", StringComparison.OrdinalIgnoreCase)) return "mud-theme-warning";
+            if (cleanName.Equals("Training", StringComparison.OrdinalIgnoreCase)) return "mud-theme-primary";
+            if (cleanName.Equals("Meeting", StringComparison.OrdinalIgnoreCase)) return "mud-theme-primary";
+            if (cleanName.Equals("Coaching", StringComparison.OrdinalIgnoreCase)) return "mud-theme-primary";
+            if (cleanName.Equals("Peer Mentoring", StringComparison.OrdinalIgnoreCase)) return "mud-theme-primary";
+            if (cleanName.Equals("Admin Tasks", StringComparison.OrdinalIgnoreCase)) return "mud-theme-secondary";
+            if (cleanName.Equals("OL Customer Work", StringComparison.OrdinalIgnoreCase)) return "mud-theme-info";
+            if (cleanName.Equals("System", StringComparison.OrdinalIgnoreCase)) return "mud-theme-dark";
+
+            return "mud-theme-secondary"; // Default Pink if unknown
+        }
     }
 }

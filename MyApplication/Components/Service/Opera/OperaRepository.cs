@@ -17,36 +17,82 @@ namespace MyApplication.Components.Service
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
 
+            // 1. Join OperaRequests with EmployeeCurrentDetails to enable Hierarchy Filtering
             var qry = db.OperaRequests
                 .AsNoTracking()
                 .Include(x => x.Employees)
                 .Include(x => x.ActivityType)
                 .Include(x => x.ActivitySubType)
-                .OrderByDescending(x => x.StartTime)
+                .Join(db.EmployeeCurrentDetails,
+                      r => r.EmployeeId,
+                      d => d.EmployeeId,
+                      (r, d) => new { Request = r, Details = d })
                 .AsQueryable();
 
+            // 2. Apply Hierarchy Filters
+            if (q.ManagerId.HasValue)
+            {
+                qry = qry.Where(x => x.Details.ManagerId == q.ManagerId);
+            }
+
+            if (q.SupervisorId.HasValue)
+            {
+                qry = qry.Where(x => x.Details.SupervisorId == q.SupervisorId);
+            }
+
+            // 3. Apply Name/ID Search
             if (!string.IsNullOrWhiteSpace(q.NameOrId))
             {
                 var t = q.NameOrId.Trim();
                 if (int.TryParse(t, out var asInt))
                 {
-                    qry = qry.Where(x => x.EmployeeId == asInt || x.RequestId == asInt);
+                    // Match ID (EmployeeId or RequestId)
+                    qry = qry.Where(x => x.Request.EmployeeId == asInt || x.Request.RequestId == asInt);
                 }
                 else
                 {
                     t = Regex.Replace(t, @"\s+", " ");
+
+                    // Match Name (Last, First MI OR First Last)
                     qry = qry.Where(x =>
-                        (x.Employees.FirstName != null && EF.Functions.Like(x.Employees.FirstName, $"%{t}%")) ||
-                        (x.Employees.LastName != null && EF.Functions.Like(x.Employees.LastName, $"%{t}%")));
+                        // "Doe, John M"
+                        (x.Request.Employees.LastName + ", " + x.Request.Employees.FirstName + (x.Request.Employees.MiddleInitial == null ? "" : " " + x.Request.Employees.MiddleInitial)).Contains(t)
+                        ||
+                        // "John Doe"
+                        (x.Request.Employees.FirstName + " " + x.Request.Employees.LastName).Contains(t)
+                        ||
+                        // Partial matches
+                        EF.Functions.Like(x.Request.Employees.FirstName, $"%{t}%")
+                        ||
+                        EF.Functions.Like(x.Request.Employees.LastName, $"%{t}%")
+                    );
                 }
             }
 
-            if (q.StatusId.HasValue) qry = qry.Where(x => x.OperaStatusId == q.StatusId.Value);
-            if (q.FromUtc.HasValue) qry = qry.Where(x => x.StartTime >= q.FromUtc.Value);
-            if (q.ToUtc.HasValue) qry = qry.Where(x => x.StartTime < q.ToUtc.Value);
+            // 4. Apply Status and Date Filters
+            if (q.StatusId.HasValue)
+            {
+                qry = qry.Where(x => x.Request.OperaStatusId == q.StatusId.Value);
+            }
 
+            if (q.FromUtc.HasValue)
+            {
+                qry = qry.Where(x => x.Request.StartTime >= q.FromUtc.Value);
+            }
+
+            if (q.ToUtc.HasValue)
+            {
+                qry = qry.Where(x => x.Request.StartTime < q.ToUtc.Value);
+            }
+
+            // 5. Execute Queries (Count & Fetch)
             var total = await qry.CountAsync(ct);
-            var items = await qry.Take(q.Take).ToListAsync(ct);
+
+            var items = await qry
+                .OrderByDescending(x => x.Request.StartTime) // Sort applied here
+                .Take(q.Take)
+                .Select(x => x.Request) // Project back to the entity
+                .ToListAsync(ct);
 
             return (items, total);
         }
@@ -136,9 +182,17 @@ namespace MyApplication.Components.Service
                 }
                 else
                 {
+                    term = term.Trim();
+                    // Robust Name Search
                     q = q.Where(e =>
-                        (e.FirstName != null && EF.Functions.Like(e.FirstName, $"%{term}%")) ||
-                        (e.LastName != null && EF.Functions.Like(e.LastName, $"%{term}%")));
+                        (e.LastName + ", " + e.FirstName + (e.MiddleInitial == null ? "" : " " + e.MiddleInitial)).Contains(term)
+                        ||
+                        (e.FirstName + " " + e.LastName).Contains(term)
+                        ||
+                        EF.Functions.Like(e.FirstName, $"%{term}%")
+                        ||
+                        EF.Functions.Like(e.LastName, $"%{term}%")
+                    );
                 }
             }
 
@@ -182,26 +236,86 @@ namespace MyApplication.Components.Service
                 });
         }
 
+        // =========================================================================================
+        // UPDATED: Get End Of Shift (Calculated from ACR Schedule, NOT DetailedSchedule)
+        // =========================================================================================
         public async Task<DateTime?> GetEndOfShiftAsync(int employeeId, DateTime startEt, CancellationToken ct = default)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
-            var scheduleRow = await db.DetailedSchedule
-                .Where(x => x.EmployeeId == employeeId && x.StartTime <= startEt && x.EndTime > startEt)
-                .Select(x => new { x.ScheduleDate })
+
+            // 1. Find the history row effective for the given date (and Active)
+            var history = await db.EmployeeHistory
+                .AsNoTracking()
+                .Where(h => h.EmployeeId == employeeId && h.EffectiveDate <= startEt.Date && h.IsActive == true)
+                .OrderByDescending(h => h.EffectiveDate)
+                .ThenByDescending(h => h.Id)
+                .Select(h => new { h.ScheduleRequestId })
                 .FirstOrDefaultAsync(ct);
 
-            if (scheduleRow == null) return null;
+            if (history?.ScheduleRequestId == null) return null;
 
-            var eos = await db.DetailedSchedule
-                .Where(x => x.EmployeeId == employeeId && x.ScheduleDate == scheduleRow.ScheduleDate)
-                .MaxAsync(x => (DateTime?)x.EndTime, ct);
+            // 2. Fetch the schedule definition(s) associated with that ACR
+            var schedules = await db.AcrSchedules
+                .AsNoTracking()
+                .Where(s => s.AcrRequestId == history.ScheduleRequestId)
+                .ToListAsync(ct);
 
-            return eos;
+            if (!schedules.Any()) return null;
+
+            // 3. Determine the shift logic
+            // FIX: Convert DateTime to DateOnly explicitly so .ToDateTime() extension works
+            var checkDates = new[]
+            {
+                DateOnly.FromDateTime(startEt.Date.AddDays(-1)),
+                DateOnly.FromDateTime(startEt.Date)
+            };
+
+            foreach (var date in checkDates)
+            {
+                var dow = date.DayOfWeek;
+
+                foreach (var sched in schedules)
+                {
+                    // Extract times for this DOW
+                    TimeOnly? s = null, e = null;
+                    switch (dow)
+                    {
+                        case DayOfWeek.Monday: s = sched.MondayStart; e = sched.MondayEnd; break;
+                        case DayOfWeek.Tuesday: s = sched.TuesdayStart; e = sched.TuesdayEnd; break;
+                        case DayOfWeek.Wednesday: s = sched.WednesdayStart; e = sched.WednesdayEnd; break;
+                        case DayOfWeek.Thursday: s = sched.ThursdayStart; e = sched.ThursdayEnd; break;
+                        case DayOfWeek.Friday: s = sched.FridayStart; e = sched.FridayEnd; break;
+                        case DayOfWeek.Saturday: s = sched.SaturdayStart; e = sched.SaturdayEnd; break;
+                        case DayOfWeek.Sunday: s = sched.SundayStart; e = sched.SundayEnd; break;
+                    }
+
+                    if (s.HasValue && e.HasValue)
+                    {
+                        // FIX: Now calling ToDateTime on a DateOnly object
+                        var shiftStart = date.ToDateTime(s.Value);
+                        var shiftEnd = date.ToDateTime(e.Value);
+
+                        // Handle overnight wrap (e.g. 22:00 -> 06:00)
+                        if (shiftEnd < shiftStart)
+                        {
+                            shiftEnd = shiftEnd.AddDays(1);
+                        }
+
+                        // Check if startEt is inside this shift window
+                        // (Start <= Time < End)
+                        if (shiftStart <= startEt && startEt < shiftEnd)
+                        {
+                            return shiftEnd;
+                        }
+                    }
+                }
+            }
+
+            return null;
         }
 
         // =========================================================================================
         // UPDATED: Get Employee Weekly Schedule 
-        // Logic: 1. Get MOST RECENT History row. 2. Use its ScheduleRequestId. 3. Build days.
         // =========================================================================================
         public async Task<List<DetailedSchedule>> GetEmployeeWeeklyScheduleAsync(int employeeId, DateOnly weekStart, CancellationToken ct = default)
         {
@@ -212,7 +326,7 @@ namespace MyApplication.Components.Service
                 .AsNoTracking()
                 .Where(h => h.EmployeeId == employeeId)
                 .OrderByDescending(h => h.EffectiveDate)
-                .ThenByDescending(h => h.Id) // Tie-breaker for same effective date
+                .ThenByDescending(h => h.Id)
                 .Select(h => h.ScheduleRequestId)
                 .FirstOrDefaultAsync(ct);
 
@@ -221,7 +335,7 @@ namespace MyApplication.Components.Service
             // 2. Fetch the ACR Schedule Definition
             var acrSched = await db.AcrSchedules
                 .AsNoTracking()
-                .Where(s => s.AcrRequestId == latestHistory && s.ShiftNumber == 1) // Assuming Shift 1
+                .Where(s => s.AcrRequestId == latestHistory && s.ShiftNumber == 1) // Assuming Shift 1 for summary
                 .FirstOrDefaultAsync(ct);
 
             if (acrSched == null) return new List<DetailedSchedule>();
@@ -270,6 +384,61 @@ namespace MyApplication.Components.Service
             }
 
             return result;
+        }
+
+        // =========================================================================================
+        // UPDATED: Hierarchy Lookups (Safe for Translation)
+        // =========================================================================================
+        public async Task<List<KeyValuePair<int, string>>> GetManagersAsync(CancellationToken ct = default)
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+
+            var data = await (
+                from m in db.Managers.AsNoTracking()
+                join e in db.Employees.AsNoTracking() on m.EmployeeId equals e.Id
+                where m.IsActive == true && e.IsActive == true
+                orderby e.LastName, e.FirstName
+                select new
+                {
+                    m.Id,
+                    e.LastName,
+                    e.FirstName,
+                    e.MiddleInitial
+                }
+            ).ToListAsync(ct);
+
+            return data
+                .Select(x => new KeyValuePair<int, string>(
+                    x.Id,
+                    $"{x.LastName}, {x.FirstName}{(!string.IsNullOrEmpty(x.MiddleInitial) ? " " + x.MiddleInitial : "")}"
+                ))
+                .ToList();
+        }
+
+        public async Task<List<KeyValuePair<int, string>>> GetSupervisorsAsync(CancellationToken ct = default)
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+
+            var data = await (
+                from s in db.Supervisors.AsNoTracking()
+                join e in db.Employees.AsNoTracking() on s.EmployeeId equals e.Id
+                where s.IsActive == true && e.IsActive == true
+                orderby e.LastName, e.FirstName
+                select new
+                {
+                    s.Id,
+                    e.LastName,
+                    e.FirstName,
+                    e.MiddleInitial
+                }
+            ).ToListAsync(ct);
+
+            return data
+                .Select(x => new KeyValuePair<int, string>(
+                    x.Id,
+                    $"{x.LastName}, {x.FirstName}{(!string.IsNullOrEmpty(x.MiddleInitial) ? " " + x.MiddleInitial : "")}"
+                ))
+                .ToList();
         }
     }
 }

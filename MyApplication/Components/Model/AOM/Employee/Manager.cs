@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Org.BouncyCastle.Bcpg.OpenPgp;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MyApplication.Components.Model.AOM.Employee
@@ -10,6 +11,8 @@ namespace MyApplication.Components.Model.AOM.Employee
         public int Id { get; set; }
 
         public int EmployeeId { get; set; }   // FK -> Employees.Id
+        [ForeignKey(nameof(EmployeeId))]
+        public Employees? Employee { get; set; }
         public bool? IsActive { get; set; } = true;
 
         // 🚫 Removed self-collection

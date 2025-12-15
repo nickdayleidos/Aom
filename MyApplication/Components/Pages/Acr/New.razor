@@ -113,15 +113,13 @@
 
     private bool _showOrg, _showSchedule, _showOvertime, _showNewHire, _showSeparation, _showRehire;
 
-    private string? _siteWindowsTz;
-    private const int OvertimeOnlyTypeId = 7; // matches your DB/type list
+    private const int OvertimeOnlyTypeId = 7;
 
     // 🔒 Guard: type and employee (where applicable) must be selected.
     private bool IsSubmitDisabled =>
         _vm.TypeId == 0 || (!IsNewHire && _vm.EmployeeId == 0);
 
-    private void Cancel()
-        => Nav.NavigateTo("/acr");
+    private void Cancel() => Nav.NavigateTo("/acr");
 
     protected override async Task OnInitializedAsync()
     {
@@ -158,7 +156,7 @@
             var emps = await Query.GetEmployeesLookupAsync(isActive, ct);
 
             _empOptions = emps
-                .Select(e => new KeyValuePair<int, string>(e.Id, $"{e.LastName}, {e.FirstName} ({e.Id})"))
+                .Select(e => new KeyValuePair<int, string>(e.Id, $"{e.LastName}, {e.FirstName}{(!string.IsNullOrEmpty(e.MiddleInitial) ? " " + e.MiddleInitial : "")} ({e.Id})"))
                 .OrderBy(kv => kv.Value)
                 .ToList();
         }
@@ -184,7 +182,6 @@
         {
             case AcrTypeKey.NewHire:
                 _showNewHire = true;
-                // New Hire also fills Org + Schedule
                 _showOrg = true;
                 _showSchedule = true;
                 break;
@@ -240,16 +237,12 @@
     {
         if (v is AcrCreateVm c)
         {
-            if (_vm?.Organization?.SiteId != c.Organization?.SiteId)
-                _siteWindowsTz = null;
-
             _vm = c;
         }
         return Task.CompletedTask;
     }
 
-    // --- Save & TZ conversion (EffectiveDate must be set) ---
-
+    // --- Save Logic (SIMPLIFIED) ---
     private async Task SaveAsync()
     {
         if (_vm is null) return;
@@ -260,82 +253,11 @@
             return;
         }
 
-        _siteWindowsTz ??= await ResolveSiteWindowsTzAsync();
-        var vmToSave = ConvertScheduleToEastern(_vm, _siteWindowsTz);
+        // FIX: Just pass _vm directly.
+        // The AcrService will handle the conversion from Local -> Eastern.
+        await Acr.CreateAsync(_vm);
 
-        await Acr.CreateAsync(vmToSave);
         Snackbar.Add("ACR created.", Severity.Success);
         Nav.NavigateTo("/acr");
-    }
-
-
-    private async Task<string> ResolveSiteWindowsTzAsync()
-    {
-        if (_vm?.Organization?.SiteId is int siteId1)
-        {
-            var tz = await Query.GetSiteTimeZoneAsync(siteId1);
-            if (!string.IsNullOrWhiteSpace(tz)) return tz!;
-        }
-
-        if (_vm?.EmployeeId is int empId)
-        {
-            var hist = await Query.GetLatestEmployeeHistoryAsync(empId);
-            if (hist?.SiteId is int siteId2)
-            {
-                var tz = await Query.GetSiteTimeZoneAsync(siteId2);
-                if (!string.IsNullOrWhiteSpace(tz)) return tz!;
-            }
-        }
-
-        return "Eastern Standard Time";
-    }
-
-    private static TimeOnly? LocalToEastern(DateOnly date, TimeOnly? local, string siteWindowsTz)
-    {
-        if (local is null) return null;
-
-        var tzLocal = TimeZoneInfo.FindSystemTimeZoneById(siteWindowsTz);
-        var tzEast = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
-
-        var localDt = new DateTime(date.Year, date.Month, date.Day,
-                                   local.Value.Hour, local.Value.Minute, 0,
-                                   DateTimeKind.Unspecified);
-
-        var utc = TimeZoneInfo.ConvertTimeToUtc(localDt, tzLocal);
-        var et = TimeZoneInfo.ConvertTimeFromUtc(utc, tzEast);
-
-        return new TimeOnly(et.Hour, et.Minute);
-    }
-
-    private AcrCreateVm ConvertScheduleToEastern(AcrCreateVm src, string siteWindowsTz)
-    {
-        if (src.Schedule is null) return src;
-
-        // 🔴 Require EffectiveDate for conversion – no fallback to Today
-        if (src.EffectiveDate is null)
-            throw new InvalidOperationException("Effective Date must be set before converting schedule times.");
-
-        var ed = src.EffectiveDate.Value;
-        TimeOnly? ToEt(TimeOnly? local) => LocalToEastern(ed, local, siteWindowsTz);
-
-        var sch = src.Schedule with
-        {
-            MondayStart = ToEt(src.Schedule.MondayStart),
-            MondayEnd = ToEt(src.Schedule.MondayEnd),
-            TuesdayStart = ToEt(src.Schedule.TuesdayStart),
-            TuesdayEnd = ToEt(src.Schedule.TuesdayEnd),
-            WednesdayStart = ToEt(src.Schedule.WednesdayStart),
-            WednesdayEnd = ToEt(src.Schedule.WednesdayEnd),
-            ThursdayStart = ToEt(src.Schedule.ThursdayStart),
-            ThursdayEnd = ToEt(src.Schedule.ThursdayEnd),
-            FridayStart = ToEt(src.Schedule.FridayStart),
-            FridayEnd = ToEt(src.Schedule.FridayEnd),
-            SaturdayStart = ToEt(src.Schedule.SaturdayStart),
-            SaturdayEnd = ToEt(src.Schedule.SaturdayEnd),
-            SundayStart = ToEt(src.Schedule.SundayStart),
-            SundayEnd = ToEt(src.Schedule.SundayEnd)
-        };
-
-        return src with { Schedule = sch };
     }
 }

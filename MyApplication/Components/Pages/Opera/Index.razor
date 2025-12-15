@@ -14,57 +14,141 @@
 @inject AuthenticationStateProvider AuthStateProvider
 
 <MudStack Spacing="2">
-    <MudPaper Class="pa-3" Outlined="true">
-        <MudGrid Spacing="2">
+    <MudPaper Class="pa-4" Outlined="true">
+        
+        <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudText Typo="Typo.h5">Opera Requests</MudText>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Outlined.Add"
+                       OnClick="GoSubmit">
+                New Request
+            </MudButton>
+        </MudStack>
+
+        <MudDivider Class="my-3" />
+
+        <MudGrid Spacing="2" Class="mt-2" AlignItems="Center">
+            
             <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="_filterText" Label="Search (name, EmployeeId, OperaId)" />
+                <MudTextField @bind-Value="_filterText" 
+                              Placeholder="Search (Name, ID)..." 
+                              Variant="Variant.Outlined" 
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.Start" 
+                              AdornmentIcon="@Icons.Material.Outlined.Search"
+                              Clearable="true"/>
             </MudItem>
-            <MudItem xs="12" md="2">
-                <MudSelect @bind-Value="_statusId" Label="Status" Clearable="true">
-                    <MudSelectItem Value="@((int?)null)">All</MudSelectItem>
-                    @foreach (var s in _statuses)
-                    {
-                        <MudSelectItem Value="@((int?)s.Id)">@s.Name</MudSelectItem>
-                    }
-                </MudSelect>
+
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="OperaStatus"
+                                 Label="Status"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Value="_selectedStatusObj"
+                                 ValueChanged="OnStatusObjChanged"
+                                 SearchFunc="SearchStatuses"
+                                 ToStringFunc="@(s => s?.Name)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
             </MudItem>
+
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="KeyValuePair<int, string>?"
+                                 Label="Manager"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Value="_selectedManagerKv"
+                                 ValueChanged="OnManagerKvChanged"
+                                 SearchFunc="SearchManagers"
+                                 ToStringFunc="@(kv => kv?.Value)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+            </MudItem>
+
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="KeyValuePair<int, string>?"
+                                 Label="Supervisor"
+                                 Dense="true"
+                                 Clearable="true"
+                                 Value="_selectedSupervisorKv"
+                                 ValueChanged="OnSupervisorKvChanged"
+                                 SearchFunc="SearchSupervisors"
+                                 ToStringFunc="@(kv => kv?.Value)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+            </MudItem>
+
             <MudItem xs="12" md="3">
-                <MudDateRangePicker @bind-DateRange="_range" Label="Date filter (ET)" />
+                <MudDateRangePicker @bind-DateRange="_range" Label="Date Range (ET)" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
+
             <MudItem xs="12" md="3">
-                <MudSelect T="TimeDisplayMode" @bind-Value="_displayMode" Label="Times shown in">
-                    <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (employee site)</MudSelectItem>
+                <MudSelect T="TimeDisplayMode" @bind-Value="_displayMode" Label="Time Zone Display" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (Employee Site)</MudSelectItem>
                     <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern (ET)</MudSelectItem>
                     <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain (MT)</MudSelectItem>
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" md="1" Class="d-flex align-center">
-                <MudButton Variant="Variant.Filled" OnClick="Reload">Search</MudButton>
+
+            <MudItem xs="12" md="9" Class="d-flex align-center justify-end gap-2">
+                <MudButton Variant="Variant.Text" 
+                           Color="Color.Secondary" 
+                           OnClick="ClearFilters"
+                           StartIcon="@Icons.Material.Outlined.FilterAltOff">
+                    Reset
+                </MudButton>
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           OnClick="Reload" 
+                           StartIcon="@Icons.Material.Outlined.Search">
+                    Search
+                </MudButton>
             </MudItem>
-            <MudItem xs="12" md="12" Class="d-flex align-center justify-end mt-2">
-                <MudButton Variant="Variant.Outlined" OnClick="GoSubmit">New Requests</MudButton>
-            </MudItem>
+
         </MudGrid>
     </MudPaper>
 
-    <MudTabs @bind-ActivePanelIndex="_activeTab" Rounded="true">
-        <MudTabPanel Text="All Requests">@TableBlock(AllItems)</MudTabPanel>
-        <MudTabPanel Text="Pending Approval - Past">@TableBlock(PendingPastItems)</MudTabPanel>
-        <MudTabPanel Text="Pending Approval - Today">@TableBlock(PendingTodayItems)</MudTabPanel>
-        <MudTabPanel Text="Pending Approval - Future">@TableBlock(PendingFutureItems)</MudTabPanel>
-        <MudTabPanel Text="Today's Approved Requests">@TableBlock(TodaysApprovedItems)</MudTabPanel>
+    <MudTabs @bind-ActivePanelIndex="_activeTab" Rounded="true" Elevation="0" Color="Color.Transparent" Class="mt-2">
+        <MudTabPanel Text="All Requests" Icon="@Icons.Material.Outlined.List">@TableBlock(AllItems)</MudTabPanel>
+        <MudTabPanel Text="Pending (Past)" Icon="@Icons.Material.Outlined.History">@TableBlock(PendingPastItems)</MudTabPanel>
+        <MudTabPanel Text="Pending (Today)" Icon="@Icons.Material.Outlined.Today">@TableBlock(PendingTodayItems)</MudTabPanel>
+        <MudTabPanel Text="Pending (Future)" Icon="@Icons.Material.Outlined.Event">@TableBlock(PendingFutureItems)</MudTabPanel>
+        <MudTabPanel Text="Approved (Today)" Icon="@Icons.Material.Outlined.CheckCircle">@TableBlock(TodaysApprovedItems)</MudTabPanel>
     </MudTabs>
 </MudStack>
 
 @code {
     private List<OperaRequest> _items = new();
-    private List<OperaStatus> _statuses = new();
     private Dictionary<int, string> _types = new();
     private Dictionary<int, string> _subTypes = new();
     private Dictionary<int, string?> _employeeSiteTz = new();
 
+    // Lookup Data
+    private List<OperaStatus> _statuses = new();
+    private List<KeyValuePair<int, string>> _managers = new();
+    private List<KeyValuePair<int, string>> _supervisors = new();
+
+    // Bound Objects
+    private OperaStatus? _selectedStatusObj;
+    private KeyValuePair<int, string>? _selectedManagerKv;
+    private KeyValuePair<int, string>? _selectedSupervisorKv;
+
+    // Derived IDs
+    private int? _statusId => _selectedStatusObj?.Id;
+    private int? _managerId => _selectedManagerKv?.Key;
+    private int? _supervisorId => _selectedSupervisorKv?.Key;
+
     private string? _filterText;
-    private int? _statusId;
     private DateRange? _range;
     private int _activeTab;
 
@@ -97,7 +181,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Get Current User Roles
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         _isAdmin = user.IsInRole("Admin");
@@ -106,10 +189,26 @@
         _isManager = user.IsInRole("Manager");
         _isSupervisor = user.IsInRole("Supervisor");
 
-        // Use Repo methods (safe for Factory usage)
-        _statuses = (await Repo.GetStatusesAsync()).ToList();
-        _types = await Repo.GetActivityTypesAsync();
-        _subTypes = await Repo.GetActivitySubTypesAsync();
+        try 
+        {
+            var tStatus = Repo.GetStatusesAsync();
+            var tTypes = Repo.GetActivityTypesAsync();
+            var tSubTypes = Repo.GetActivitySubTypesAsync();
+            var tManagers = Repo.GetManagersAsync();       
+            var tSupervisors = Repo.GetSupervisorsAsync(); 
+
+            await Task.WhenAll(tStatus, tTypes, tSubTypes, tManagers, tSupervisors);
+
+            _statuses = (await tStatus).ToList();
+            _types = await tTypes;
+            _subTypes = await tSubTypes;
+            _managers = await tManagers;
+            _supervisors = await tSupervisors;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading lookups: {ex.Message}", Severity.Error);
+        }
 
         await LoadAsync();
     }
@@ -124,19 +223,28 @@
         {
             NameOrId = _filterText,
             StatusId = _statusId,
+            ManagerId = _managerId,       
+            SupervisorId = _supervisorId, 
             FromUtc = fromEt,
             ToUtc = toEt,
             Take = 1000
         };
 
-        var (items, _) = await Repo.SearchAsync(q);
-        _items = items.ToList();
+        try 
+        {
+            var (items, _) = await Repo.SearchAsync(q);
+            _items = items.ToList();
 
-        var nowUtc = DateTime.UtcNow;
-        _todayEt = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Et.Zone).Date;
-        _todayMt = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Mt.Zone).Date;
+            var nowUtc = DateTime.UtcNow;
+            _todayEt = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Et.Zone).Date;
+            _todayMt = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Mt.Zone).Date;
 
-        await LoadEmployeeSiteTimezonesAsync();
+            await LoadEmployeeSiteTimezonesAsync();
+        }
+        catch(Exception ex)
+        {
+            Snackbar.Add($"Error searching: {ex.Message}", Severity.Error);
+        }
     }
 
     private async Task LoadEmployeeSiteTimezonesAsync()
@@ -149,14 +257,58 @@
     }
 
     private Task Reload() => LoadAsync();
+    
+    private void ClearFilters()
+    {
+        _filterText = null;
+        _selectedStatusObj = null;
+        _selectedManagerKv = null;
+        _selectedSupervisorKv = null;
+        _range = null;
+        Reload();
+    }
+
     private void GoSubmit() => Nav.NavigateTo("/opera/new");
+
+    // --- Search Helpers ---
+
+    private Task<IEnumerable<OperaStatus>> SearchStatuses(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value)) return Task.FromResult<IEnumerable<OperaStatus>>(_statuses);
+        return Task.FromResult(_statuses.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchManagers(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value)) 
+            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_managers.Select(x => (KeyValuePair<int, string>?)x));
+
+        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
+            _managers.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
+                     .Select(x => (KeyValuePair<int, string>?)x));
+    }
+
+    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchSupervisors(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value)) 
+            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_supervisors.Select(x => (KeyValuePair<int, string>?)x));
+
+        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
+            _supervisors.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
+                        .Select(x => (KeyValuePair<int, string>?)x));
+    }
+
+    // --- Binding Handlers ---
+    private void OnStatusObjChanged(OperaStatus? val) { _selectedStatusObj = val; } // Note: Change doesn't trigger reload here, user clicks "Search" button
+    private void OnManagerKvChanged(KeyValuePair<int, string>? val) { _selectedManagerKv = val; }
+    private void OnSupervisorKvChanged(KeyValuePair<int, string>? val) { _selectedSupervisorKv = val; }
 
     // ---------- Helpers for Sorting ----------
 
     private object SortByEmployee(OperaRequest x)
     {
         if (x.Employees != null)
-            return $"{x.Employees.LastName}, {x.Employees.FirstName}";
+            return $"{x.Employees.LastName}, {x.Employees.FirstName}{(!string.IsNullOrEmpty(x.Employees.MiddleInitial) ? " " + x.Employees.MiddleInitial : "")}";
         return string.Empty;
     }
 
@@ -199,25 +351,15 @@
 
     private bool CanOpen(OperaRequest r)
     {
-        if (IsPendingPastOrFuture(r))
-        {
-            return _isAdmin || _isWfm;
-        }
+        if (IsPendingPastOrFuture(r)) return _isAdmin || _isWfm;
         return true;
     }
 
     private bool CanApprove(OperaRequest r)
     {
         if (GetStatusId(r) != SubmittedStatusId) return false;
-
-        if (IsPendingPastOrFuture(r))
-        {
-            return _isAdmin || _isWfm;
-        }
-        else
-        {
-            return _isOst || _isWfm || _isAdmin;
-        }
+        if (IsPendingPastOrFuture(r)) return _isAdmin || _isWfm;
+        return _isOst || _isWfm || _isAdmin;
     }
 
     private bool CanReject(OperaRequest r) => CanApprove(r);
@@ -226,15 +368,8 @@
     {
         var s = GetStatusId(r);
         if (s != SubmittedStatusId && s != ApprovedStatusId && s != ProcessedStatusId) return false;
-
-        if (IsPendingPastOrFuture(r))
-        {
-            return _isAdmin || _isWfm;
-        }
-        else
-        {
-            return true;
-        }
+        if (IsPendingPastOrFuture(r)) return _isAdmin || _isWfm;
+        return true;
     }
 
     // ---------- tab-specific views ----------
@@ -250,8 +385,7 @@
     private IEnumerable<OperaRequest> PendingPastItems =>
         _items.Where(r =>
         {
-            var s = GetStatusId(r);
-            if (s != SubmittedStatusId) return false;
+            if (GetStatusId(r) != SubmittedStatusId) return false;
             var etDate = r.StartTime.Date;
             var mtDate = Et.ToMt(r.StartTime).Date;
             return etDate < _todayEt && mtDate < _todayMt;
@@ -263,8 +397,7 @@
     private IEnumerable<OperaRequest> PendingFutureItems =>
         _items.Where(r =>
         {
-            var s = GetStatusId(r);
-            if (s != SubmittedStatusId) return false;
+            if (GetStatusId(r) != SubmittedStatusId) return false;
             var etDate = r.StartTime.Date;
             var mtDate = Et.ToMt(r.StartTime).Date;
             return etDate > _todayEt && mtDate > _todayMt;
@@ -313,9 +446,9 @@
         <MudStack Spacing="1" Class="pa-2 pb-0">
             <MudText Typo="Typo.caption" Class="opacity-75">Times shown in: <b>@DisplayTzLabel</b></MudText>
         </MudStack>
-        <MudTable T="OperaRequest" Items="items" Hover="true" Dense="true">
+        <MudTable T="OperaRequest" Items="items" Hover="true" Dense="true" Striped="true" Elevation="0">
             <HeaderContent>
-                <MudTh><MudTableSortLabel T="OperaRequest" SortBy="new Func<OperaRequest, object>(x => x.RequestId)">OperaId</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel T="OperaRequest" SortBy="new Func<OperaRequest, object>(x => x.RequestId)">ID</MudTableSortLabel></MudTh>
                 <MudTh><MudTableSortLabel T="OperaRequest" SortBy="SortByEmployee">Employee</MudTableSortLabel></MudTh>
                 <MudTh><MudTableSortLabel T="OperaRequest" SortBy="new Func<OperaRequest, object>(x => ToDisplayTime(x.StartTime, x.EmployeeId))">Start</MudTableSortLabel></MudTh>
                 <MudTh><MudTableSortLabel T="OperaRequest" SortBy="new Func<OperaRequest, object>(x => ToDisplayTime(x.EndTime, x.EmployeeId))">End</MudTableSortLabel></MudTh>
@@ -326,13 +459,17 @@
             <RowTemplate>
                 <MudTd DataLabel="OperaId">@context.RequestId</MudTd>
                 <MudTd DataLabel="Employee">@($"{context.Employees?.LastName}, {context.Employees?.FirstName} (#{context.EmployeeId})")</MudTd>
-                <MudTd DataLabel="Start">@ToDisplayTime(context.StartTime, context.EmployeeId).ToString("yyyy-MM-dd HH:mm")</MudTd>
-                <MudTd DataLabel="End">@ToDisplayTime(context.EndTime, context.EmployeeId).ToString("yyyy-MM-dd HH:mm")</MudTd>
+                <MudTd DataLabel="Start">@ToDisplayTime(context.StartTime, context.EmployeeId).ToString("MM/dd HH:mm")</MudTd>
+                <MudTd DataLabel="End">@ToDisplayTime(context.EndTime, context.EmployeeId).ToString("MM/dd HH:mm")</MudTd>
                 <MudTd DataLabel="Type/SubType">
                     @(_types.TryGetValue(context.ActivityTypeId, out var tName) ? tName : "") /
                     @(_subTypes.TryGetValue(context.ActivitySubTypeId, out var stName) ? stName : "")
                 </MudTd>
-                <MudTd DataLabel="Status">@_statuses.FirstOrDefault(s => s.Id == GetStatusId(context))?.Name</MudTd>
+                <MudTd DataLabel="Status">
+                    <MudChip T="int" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">
+                        @_statuses.FirstOrDefault(s => s.Id == GetStatusId(context))?.Name
+                    </MudChip>
+                </MudTd>
                 <MudTd DataLabel="Actions">
                     <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true">
                         <MudMenuItem OnClick="@(() => Nav.NavigateTo($"/opera/{context.RequestId}"))" Disabled="@(!CanOpen(context))">Open</MudMenuItem>
@@ -342,6 +479,12 @@
                     </MudMenu>
                 </MudTd>
             </RowTemplate>
+            <NoRecordsContent>
+                <MudText Class="pa-4 text-center">No requests found matching these filters.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 25, 50, 100, 200 }" />
+            </PagerContent>
         </MudTable>
     </MudPaper>;
 }

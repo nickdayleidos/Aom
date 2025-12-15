@@ -77,6 +77,7 @@
 </MudStack>
 
 @code {
+    [Parameter] public AcrRequest Model { get; set; } = new();
     [Parameter] public OrganizationChangeDto? Value { get; set; }
     [Parameter] public EventCallback<OrganizationChangeDto?> ValueChanged { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
@@ -167,6 +168,16 @@
     {
         get => Value?.IsRemote;
         set { Value = (Value ?? NewEmpty()) with { IsRemote = value }; ValueChanged.InvokeAsync(Value); }
+    }
+
+    protected override void OnInitialized()
+    {
+        // CRITICAL FIX: Initialize the child object if it's missing.
+        // If this is null, the form inputs won't save anywhere.
+        if (Model.AcrOrganization == null)
+        {
+            Model.AcrOrganization = new AcrOrganization();
+        }
     }
 
     protected override async Task OnInitializedAsync()

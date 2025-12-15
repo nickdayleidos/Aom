@@ -7,24 +7,26 @@ namespace MyApplication.Components.Service.Training
 {
     // Simple row for lookup table
     public sealed record SkillLookupRow(
-     int SkillId,
-     int EmployeeId,
-     string EmployeeName,
-     string? SkillTypeName,
-     DateOnly SkillDate
- );
+      int SkillId,
+      int EmployeeId,
+      string EmployeeName,
+      string? SkillTypeName,
+      DateOnly SkillDate
+    );
 
     public sealed record SkillSearchVm(
         string? EmployeeSearch,
-        int? SkillTypeId
+        int? SkillTypeId,
+        int? ManagerId,    // <--- Added
+        int? SupervisorId  // <--- Added
     );
 
     public sealed record SkillEmployeeSummaryRow(
-    int EmployeeId,
-    string EmployeeName,
-    IReadOnlyList<SkillSummaryItem> Skills,
-    DateOnly EffectiveDate
-);
+        int EmployeeId,
+        string EmployeeName,
+        IReadOnlyList<SkillSummaryItem> Skills,
+        DateOnly EffectiveDate
+    );
 
     public sealed record SkillSummaryItem(
         int SkillTypeId,
@@ -37,10 +39,10 @@ namespace MyApplication.Components.Service.Training
     );
 
     public sealed record SkillCreateDto(
-    int EmployeeId,
-    int SkillTypeId,
-    DateOnly SkillDate
-);
+        int EmployeeId,
+        int SkillTypeId,
+        DateOnly SkillDate
+    );
 
 
     public interface ISkillsService
@@ -52,6 +54,9 @@ namespace MyApplication.Components.Service.Training
         Task AddSkillAsync(SkillCreateDto dto, CancellationToken ct = default);
         Task<IReadOnlyList<SkillEmployeeSummaryRow>> GetEmployeeSkillSummariesAsync(SkillSearchVm search, CancellationToken ct = default);
 
+        // Lookup Methods
+        Task<List<KeyValuePair<int, string>>> GetManagersAsync(CancellationToken ct = default);
+        Task<List<KeyValuePair<int, string>>> GetSupervisorsAsync(CancellationToken ct = default);
     }
 
     public sealed class SkillsService : ISkillsService
@@ -62,6 +67,7 @@ namespace MyApplication.Components.Service.Training
         {
             _dbFactory = dbFactory;
         }
+
         public async Task AddSkillsBulkAsync(IEnumerable<SkillCreateDto> dtos, CancellationToken ct = default)
         {
             using var db = await _dbFactory.CreateDbContextAsync(ct);
@@ -110,43 +116,52 @@ namespace MyApplication.Components.Service.Training
                 .AsNoTracking()
                 .Include(s => s.Employee)
                 .Include(s => s.SkillType)
+                // Join for Hierarchy Filtering
+                .Join(db.EmployeeCurrentDetails,
+                      s => s.EmployeeId,
+                      d => d.EmployeeId,
+                      (s, d) => new { Skill = s, Details = d })
                 .AsQueryable();
 
-            // only active employees
-            query = query.Where(s => s.Employee.IsActive == true);
+            // Active checks
+            query = query.Where(x => x.Skill.Employee.IsActive == true && x.Skill.IsActive == true);
 
-            // only active skills (defensive)
-            query = query.Where(s => s.IsActive == true);
+            // Hierarchy Filters
+            if (search.ManagerId.HasValue)
+                query = query.Where(x => x.Details.ManagerId == search.ManagerId);
 
+            if (search.SupervisorId.HasValue)
+                query = query.Where(x => x.Details.SupervisorId == search.SupervisorId);
+
+            // Skill Type Filter
             if (search.SkillTypeId is int skillTypeId)
             {
-                query = query.Where(s => s.SkillTypeId == skillTypeId);
+                query = query.Where(x => x.Skill.SkillTypeId == skillTypeId);
             }
 
+            // Name Search
             if (!string.IsNullOrWhiteSpace(search.EmployeeSearch))
             {
                 var term = search.EmployeeSearch.Trim();
-
-                query = query.Where(s =>
-                    EF.Functions.Like(s.Employee.LastName, $"%{term}%") ||
-                    EF.Functions.Like(s.Employee.FirstName, $"%{term}%") ||
-                    EF.Functions.Like((s.Employee.LastName + ", " + s.Employee.FirstName), $"%{term}%")
+                query = query.Where(x =>
+                    EF.Functions.Like(x.Skill.Employee.LastName, $"%{term}%") ||
+                    EF.Functions.Like(x.Skill.Employee.FirstName, $"%{term}%") ||
+                    EF.Functions.Like((x.Skill.Employee.LastName + ", " + x.Skill.Employee.FirstName), $"%{term}%")
                 );
             }
 
             var rows = await query
-                .OrderBy(s => s.Employee.LastName)
-                .ThenBy(s => s.Employee.FirstName)
-                .ThenByDescending(s => s.SkillDate)
+                .OrderBy(x => x.Skill.Employee.LastName)
+                .ThenBy(x => x.Skill.Employee.FirstName)
+                .ThenByDescending(x => x.Skill.SkillDate)
                 .Take(500)
-                .Select(s => new SkillLookupRow(
-                s.Id,
-                s.EmployeeId,
-                s.Employee.LastName + ", " + s.Employee.FirstName,
-                s.SkillType.Name,
-                s.SkillDate
-))
-
+                .Select(x => new SkillLookupRow(
+                    x.Skill.Id,
+                    x.Skill.EmployeeId,
+                    x.Skill.Employee.LastName + ", " + x.Skill.Employee.FirstName + (x.Skill.Employee.MiddleInitial == null ? "" : " " + x.Skill.Employee.MiddleInitial),
+                    x.Skill.SkillType.Name,
+                    x.Skill.SkillDate
+                ))
                 .ToListAsync(ct);
 
             return rows;
@@ -168,13 +183,62 @@ namespace MyApplication.Components.Service.Training
                 .ToListAsync(ct);
         }
 
+        // --- NEW: Safe Lookup Methods ---
+        public async Task<List<KeyValuePair<int, string>>> GetManagersAsync(CancellationToken ct = default)
+        {
+            using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+            // 1. Fetch raw data
+            var data = await (
+                from m in db.Managers.AsNoTracking()
+                join e in db.Employees.AsNoTracking() on m.EmployeeId equals e.Id
+                where m.IsActive == true && e.IsActive == true
+                orderby e.LastName, e.FirstName
+                select new
+                {
+                    m.Id,
+                    e.LastName,
+                    e.FirstName,
+                    e.MiddleInitial
+                }
+            ).ToListAsync(ct);
+
+            // 2. Format in memory
+            return data.Select(x => new KeyValuePair<int, string>(
+                x.Id,
+                $"{x.LastName}, {x.FirstName}{(!string.IsNullOrEmpty(x.MiddleInitial) ? " " + x.MiddleInitial : "")}"
+            )).ToList();
+        }
+
+        public async Task<List<KeyValuePair<int, string>>> GetSupervisorsAsync(CancellationToken ct = default)
+        {
+            using var db = await _dbFactory.CreateDbContextAsync(ct);
+
+            var data = await (
+                from s in db.Supervisors.AsNoTracking()
+                join e in db.Employees.AsNoTracking() on s.EmployeeId equals e.Id
+                where s.IsActive == true && e.IsActive == true
+                orderby e.LastName, e.FirstName
+                select new
+                {
+                    s.Id,
+                    e.LastName,
+                    e.FirstName,
+                    e.MiddleInitial
+                }
+            ).ToListAsync(ct);
+
+            return data.Select(x => new KeyValuePair<int, string>(
+                x.Id,
+                $"{x.LastName}, {x.FirstName}{(!string.IsNullOrEmpty(x.MiddleInitial) ? " " + x.MiddleInitial : "")}"
+            )).ToList();
+        }
+
         public async Task<IReadOnlyList<EmployeeOption>> SearchEmployeesAsync(string term, CancellationToken ct = default)
         {
             using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-            // UPDATED: Filter for Active employees only
-            var q = db.Employees.AsNoTracking()
-                      .Where(e => e.IsActive == true);
+            var q = db.Employees.AsNoTracking().Where(e => e.IsActive == true);
 
             if (!string.IsNullOrWhiteSpace(term))
             {
@@ -191,7 +255,7 @@ namespace MyApplication.Components.Service.Training
                 .Take(25)
                 .Select(e => new EmployeeOption(
                     e.Id,
-                    e.LastName + ", " + e.FirstName
+                    e.LastName + ", " + e.FirstName + (e.MiddleInitial == null ? "" : " " + e.MiddleInitial)
                 ))
                 .ToListAsync(ct);
         }
@@ -225,8 +289,8 @@ namespace MyApplication.Components.Service.Training
         }
 
         public async Task<IReadOnlyList<SkillEmployeeSummaryRow>> GetEmployeeSkillSummariesAsync(
-       SkillSearchVm search,
-       CancellationToken ct = default)
+            SkillSearchVm search,
+            CancellationToken ct = default)
         {
             using var db = await _dbFactory.CreateDbContextAsync(ct);
 
@@ -234,49 +298,55 @@ namespace MyApplication.Components.Service.Training
                 .AsNoTracking()
                 .Include(s => s.Employee)
                 .Include(s => s.SkillType)
+                .Join(db.EmployeeCurrentDetails,
+                      s => s.EmployeeId,
+                      d => d.EmployeeId,
+                      (s, d) => new { Skill = s, Details = d })
                 .AsQueryable();
 
-            // active employees only
-            query = query.Where(s => s.Employee.IsActive == true);
+            query = query.Where(x => x.Skill.Employee.IsActive == true && x.Skill.IsActive == true);
 
-            // active skills only
-            query = query.Where(s => s.IsActive == true);
+            // Hierarchy Filters
+            if (search.ManagerId.HasValue)
+                query = query.Where(x => x.Details.ManagerId == search.ManagerId);
+
+            if (search.SupervisorId.HasValue)
+                query = query.Where(x => x.Details.SupervisorId == search.SupervisorId);
 
             if (search.SkillTypeId is int skillTypeId)
             {
-                query = query.Where(s => s.SkillTypeId == skillTypeId);
+                query = query.Where(x => x.Skill.SkillTypeId == skillTypeId);
             }
 
             if (!string.IsNullOrWhiteSpace(search.EmployeeSearch))
             {
                 var term = search.EmployeeSearch.Trim();
-
-                query = query.Where(s =>
-                    EF.Functions.Like(s.Employee.LastName, $"%{term}%") ||
-                    EF.Functions.Like(s.Employee.FirstName, $"%{term}%") ||
-                    EF.Functions.Like(s.Employee.LastName + ", " + s.Employee.FirstName, $"%{term}%")
+                query = query.Where(x =>
+                    EF.Functions.Like(x.Skill.Employee.LastName, $"%{term}%") ||
+                    EF.Functions.Like(x.Skill.Employee.FirstName, $"%{term}%") ||
+                    EF.Functions.Like(x.Skill.Employee.LastName + ", " + x.Skill.Employee.FirstName, $"%{term}%")
                 );
             }
 
-            // 1) Flatten to a shape EF can translate
+            // 1) Flatten
             var raw = await query
-                .Select(s => new
+                .Select(x => new
                 {
-                    s.EmployeeId,
-                    s.Employee.LastName,
-                    s.Employee.FirstName,
-                    s.SkillTypeId,
-                    SkillName = s.SkillType.Name,
-                    s.SkillDate
+                    x.Skill.EmployeeId,
+                    x.Skill.Employee.LastName,
+                    x.Skill.Employee.FirstName,
+                    x.Skill.Employee.MiddleInitial,
+                    x.Skill.SkillTypeId,
+                    SkillName = x.Skill.SkillType.Name,
+                    x.Skill.SkillDate
                 })
-                .ToListAsync(ct);   // everything below is LINQ-to-Objects
+                .ToListAsync(ct);
 
             // 2) Group & aggregate in memory
             var grouped = raw
-                .GroupBy(x => new { x.EmployeeId, x.LastName, x.FirstName })
+                .GroupBy(x => new { x.EmployeeId, x.LastName, x.FirstName, x.MiddleInitial })
                 .Select(g =>
                 {
-                    // build distinct skill list per employee
                     var skillItems = g
                         .GroupBy(x => x.SkillTypeId)
                         .Select(grp => new SkillSummaryItem(
@@ -290,7 +360,7 @@ namespace MyApplication.Components.Service.Training
 
                     return new SkillEmployeeSummaryRow(
                         g.Key.EmployeeId,
-                        $"{g.Key.LastName}, {g.Key.FirstName}",
+                        $"{g.Key.LastName}, {g.Key.FirstName}{(!string.IsNullOrEmpty(g.Key.MiddleInitial) ? " " + g.Key.MiddleInitial : "")}",
                         skillItems,
                         effectiveDate
                     );
@@ -300,8 +370,5 @@ namespace MyApplication.Components.Service.Training
 
             return grouped;
         }
-
-
-
     }
 }
