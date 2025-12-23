@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MyApplication.Components.Data;
 using MyApplication.Components.Model.AOM.Employee;
-using MyApplication.Common.Time; // Contains ITimeDisplayService
-using MyApplication.Components.Service.Acr; // Contains AcrCreateVm, ScheduleChangeDto
+using MyApplication.Common.Time;
+using MyApplication.Components.Service.Acr;
 
 namespace MyApplication.Components.Service.Acr
 {
@@ -10,12 +10,12 @@ namespace MyApplication.Components.Service.Acr
     {
         private readonly IDbContextFactory<AomDbContext> _dbFactory;
         private readonly IHttpContextAccessor _http;
-        private readonly ITimeDisplayService _timeService; // ✅ FIX: Use Interface
+        private readonly ITimeDisplayService _timeService;
 
         public AcrService(
             IDbContextFactory<AomDbContext> dbFactory,
             IHttpContextAccessor http,
-            ITimeDisplayService timeService) // ✅ FIX: Inject Interface
+            ITimeDisplayService timeService)
         {
             _dbFactory = dbFactory;
             _http = http;
@@ -213,7 +213,11 @@ namespace MyApplication.Components.Service.Acr
             req.SubmitterComment = vm.SubmitterComment;
 
             // --- Organization Update ---
-            if (typeKey is AcrTypeKey.OrganizationChange or AcrTypeKey.OrgSchedule)
+            // FIX: Added NewHire and Rehire to allowable types
+            if (typeKey is AcrTypeKey.OrganizationChange
+                or AcrTypeKey.OrgSchedule
+                or AcrTypeKey.NewHire
+                or AcrTypeKey.Rehire)
             {
                 var o = await db.Set<AcrOrganization>().FirstOrDefaultAsync(x => x.AcrRequestId == vm.Id, ct);
                 if (vm.Organization is null)
@@ -236,7 +240,11 @@ namespace MyApplication.Components.Service.Acr
             }
 
             // --- Schedule Update (With Conversion) ---
-            if (typeKey is AcrTypeKey.ScheduleChange or AcrTypeKey.OrgSchedule)
+            // FIX: Added NewHire and Rehire to allowable types
+            if (typeKey is AcrTypeKey.ScheduleChange
+                or AcrTypeKey.OrgSchedule
+                or AcrTypeKey.NewHire
+                or AcrTypeKey.Rehire)
             {
                 var s = await db.Set<AcrSchedule>().FirstOrDefaultAsync(x => x.AcrRequestId == vm.Id && x.ShiftNumber == 1, ct);
 
@@ -272,7 +280,10 @@ namespace MyApplication.Components.Service.Acr
             // --- Overtime Update ---
             bool wantAnyOt =
                 typeKey is AcrTypeKey.OvertimeAdjustment
-                || ((typeKey is AcrTypeKey.ScheduleChange or AcrTypeKey.OrgSchedule)
+                || ((typeKey is AcrTypeKey.ScheduleChange
+                    or AcrTypeKey.OrgSchedule
+                    or AcrTypeKey.NewHire
+                    or AcrTypeKey.Rehire)
                     && (vm.IncludeOvertimeAdjustment || (vm.Schedule?.IsOtAdjustment ?? false)));
 
             var existingOt = await db.Set<AcrOvertimeSchedules>().FirstOrDefaultAsync(x => x.AcrRequestId == vm.Id, ct);
@@ -303,7 +314,7 @@ namespace MyApplication.Components.Service.Acr
         // ====================================================================
         private async Task ConvertScheduleToEastern(
             AomDbContext db,
-            ScheduleChangeDto schedule, // ✅ CORRECT TYPE
+            ScheduleChangeDto schedule,
             int employeeId,
             int? newSiteId,
             CancellationToken ct)
@@ -317,7 +328,7 @@ namespace MyApplication.Components.Service.Acr
                 // CASE A: Organization Change (Use New Site)
                 timeZoneId = await db.Sites
                     .Where(s => s.Id == newSiteId)
-                    .Select(s => s.TimeZoneWindows) // ✅ Correct Column Name
+                    .Select(s => s.TimeZoneWindows)
                     .FirstOrDefaultAsync(ct);
             }
             else if (employeeId > 0)
@@ -334,14 +345,13 @@ namespace MyApplication.Components.Service.Acr
                 {
                     timeZoneId = await db.Sites
                         .Where(s => s.Id == currentSiteId)
-                        .Select(s => s.TimeZoneWindows) // ✅ Correct Column Name
+                        .Select(s => s.TimeZoneWindows)
                         .FirstOrDefaultAsync(ct);
                 }
             }
 
             if (string.IsNullOrEmpty(timeZoneId)) return;
 
-            // Perform Conversion using the Injected Interface
             schedule.MondayStart = ConvertTime(schedule.MondayStart, timeZoneId);
             schedule.MondayEnd = ConvertTime(schedule.MondayEnd, timeZoneId);
             schedule.TuesdayStart = ConvertTime(schedule.TuesdayStart, timeZoneId);
@@ -361,7 +371,6 @@ namespace MyApplication.Components.Service.Acr
         private TimeOnly? ConvertTime(TimeOnly? local, string sourceTzId)
         {
             if (local is null) return null;
-            // ✅ Use the Interface method
             return _timeService.ToEastern(local.Value, sourceTzId);
         }
 

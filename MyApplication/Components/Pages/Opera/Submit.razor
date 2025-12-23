@@ -5,22 +5,22 @@
 @using Microsoft.EntityFrameworkCore
 @using MudBlazor
 @using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service
 @using MyApplication.Common.Time
+@using MyApplication.Components.Common.Time
+
 @inject IOperaRepository Repo
 @inject AomDbContext Db
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 @inject UserProfileService UserProfile
-@using MyApplication.Components.Service
 
 <MudStack Spacing="2">
     <MudPaper Class="pa-4" Outlined="true">
         @if (!string.IsNullOrWhiteSpace(_lastError))
         {
             <MudAlert Severity="Severity.Error" Dense="true" Class="mb-2">
-                <MudText Typo="Typo.caption">
-                    @_lastError
-                </MudText>
+                <MudText Typo="Typo.caption">@_lastError</MudText>
             </MudAlert>
         }
         <MudStack Spacing="1">
@@ -30,6 +30,7 @@
             </MudText>
 
             <MudGrid Spacing="3" Class="mt-2">
+                @* LEFT: Employee Selection *@
                 <MudItem xs="12" md="5">
                     <MudPaper Class="pa-3 h-100">
                         <MudStack Spacing="1">
@@ -45,19 +46,13 @@
                                                   Immediate="true"
                                                   DebounceInterval="250" />
 
-                                    <MudList T="EmployeeOption"
-                                             Dense="true"
-                                             Class="mt-1"
-                                             Style="max-height:380px; overflow-y:auto;">
+                                    <MudList T="EmployeeOption" Dense="true" Class="mt-1" Style="max-height:380px; overflow-y:auto;">
                                         @foreach (var emp in _employeeOptions
                                                                                 .Where(o => !_selectedEmployeeIds.Contains(o.Id) &&
                                                                                 (string.IsNullOrWhiteSpace(_availableFilter) ||
                                                                                 o.Label.Contains(_availableFilter, StringComparison.OrdinalIgnoreCase))))
                                         {
-                                            <MudListItem T="EmployeeOption"
-                                                         Value="emp"
-                                                         Clickable="true"
-                                                         OnClick="@(() => AddEmployee(emp.Id))">
+                                            <MudListItem T="EmployeeOption" Value="emp" Clickable="true" OnClick="@(() => AddEmployee(emp.Id))">
                                                 @emp.Label
                                             </MudListItem>
                                         }
@@ -72,36 +67,26 @@
                                                   Immediate="true"
                                                   DebounceInterval="250" />
 
-                                    <MudList T="EmployeeOption"
-                                             Dense="true"
-                                             Class="mt-1"
-                                             Style="max-height:380px; overflow-y:auto;">
+                                    <MudList T="EmployeeOption" Dense="true" Class="mt-1" Style="max-height:380px; overflow-y:auto;">
                                         @foreach (var emp in GetSelectedEmployeeOptions()
                                                                                 .Where(o => string.IsNullOrWhiteSpace(_selectedFilter) ||
                                                                                 o.Label.Contains(_selectedFilter, StringComparison.OrdinalIgnoreCase)))
                                         {
-                                            <MudListItem T="EmployeeOption"
-                                                         Value="emp"
-                                                         Clickable="true"
-                                                         OnClick="@(() => RemoveEmployee(emp.Id))">
+                                            <MudListItem T="EmployeeOption" Value="emp" Clickable="true" OnClick="@(() => RemoveEmployee(emp.Id))">
                                                 @emp.Label
                                             </MudListItem>
                                         }
                                     </MudList>
                                 </MudItem>
                             </MudGrid>
-
-                            <MudText Class="mt-1" Typo="Typo.caption">
-                                Click a name on the left to add, click on the right to remove.
-                            </MudText>
                         </MudStack>
                     </MudPaper>
                 </MudItem>
 
+                @* RIGHT: Request Details *@
                 <MudItem xs="12" md="7">
                     <MudPaper Class="pa-3 h-100">
                         <MudStack Spacing="2">
-
                             <MudText Typo="Typo.subtitle1">Request details</MudText>
 
                             <MudGrid Spacing="2">
@@ -117,6 +102,7 @@
                                                      ResetValueOnEmptyText="true"
                                                      CoerceText="true"
                                                      Required="true"
+                                                     MaxItems="null"
                                                      AdornmentIcon="@Icons.Material.Outlined.Search" />
                                 </MudItem>
 
@@ -133,41 +119,22 @@
                                                      CoerceText="true"
                                                      Disabled="@(_typeId is null)"
                                                      Required="true"
+                                                     MaxItems="null"
                                                      AdornmentIcon="@Icons.Material.Outlined.Search" />
                                 </MudItem>
 
                                 <MudItem xs="12" md="3">
-                                    <MudSelect T="OperaTimeframeMode ?"
-                                               @bind-Value="_timeframeMode"
-                                               Label="Timeframe"
-                                               Variant="Variant.Outlined"
-                                               Dense="true"
-                                               Required="true">
-                                        <MudSelectItem T="OperaTimeframeMode ?" Value="@OperaTimeframeMode.Eos">
-                                            EOS
-                                        </MudSelectItem>
-                                        <MudSelectItem T="OperaTimeframeMode ?" Value="@OperaTimeframeMode.FullShift">
-                                            Full Shift
-                                        </MudSelectItem>
-                                        <MudSelectItem T="OperaTimeframeMode ?" Value="@OperaTimeframeMode.Custom">
-                                            Timeframe
-                                        </MudSelectItem>
+                                    <MudSelect T="OperaTimeframeMode?" @bind-Value="_timeframeMode" Label="Timeframe" Variant="Variant.Outlined" Dense="true" Required="true">
+                                        <MudSelectItem T="OperaTimeframeMode?" Value="@OperaTimeframeMode.Eos">EOS</MudSelectItem>
+                                        <MudSelectItem T="OperaTimeframeMode?" Value="@OperaTimeframeMode.FullShift">Full Shift</MudSelectItem>
+                                        <MudSelectItem T="OperaTimeframeMode?" Value="@OperaTimeframeMode.Custom">Timeframe</MudSelectItem>
                                     </MudSelect>
                                 </MudItem>
 
                                 <MudItem xs="12" md="3">
-                                    <MudSelect T="SiteZone ?"
-                                               @bind-Value="_zone"
-                                               Label="Time Zone"
-                                               Variant="Variant.Outlined"
-                                               Dense="true"
-                                               Required="true">
-                                        <MudSelectItem T="SiteZone ?" Value="@SiteZone.ET">
-                                            Eastern
-                                        </MudSelectItem>
-                                        <MudSelectItem T="SiteZone ?" Value="@SiteZone.MT">
-                                            Mountain
-                                        </MudSelectItem>
+                                    <MudSelect T="SiteZone?" @bind-Value="_zone" Label="Time Zone" Variant="Variant.Outlined" Dense="true" Required="true">
+                                        <MudSelectItem T="SiteZone?" Value="@SiteZone.ET">Eastern</MudSelectItem>
+                                        <MudSelectItem T="SiteZone?" Value="@SiteZone.MT">Mountain</MudSelectItem>
                                     </MudSelect>
                                 </MudItem>
                             </MudGrid>
@@ -177,63 +144,32 @@
 
                             <MudGrid Spacing="2" Class="mt-1">
                                 <MudItem xs="12" md="4">
-                                    <MudDatePicker @bind-Date="_startDateEt"
-                                                   Label="Start Date"
-                                                   Variant="Variant.Outlined"
-                                                   Dense="true"
-                                                   Disabled="@(_timeframeMode is null)" />
+                                    <MudDatePicker @bind-Date="_startDateEt" Label="Start Date" Variant="Variant.Outlined" Dense="true" Disabled="@(_timeframeMode is null)" />
                                 </MudItem>
 
                                 <MudItem xs="12" md="4">
-                                    <MudTimePicker @bind-Time="_startTimeEt"
-                                                   Label="Start Time"
-                                                   Variant="Variant.Outlined"
-                                                   Editable="true" Clearable="true"
-                                                   Dense="true"
-                                                   Disabled="@(_timeframeMode is null || _timeframeMode == OperaTimeframeMode.FullShift)" />
+                                    <MudTimePicker @bind-Time="_startTimeEt" Label="Start Time" Variant="Variant.Outlined" Editable="true" Clearable="true" Dense="true" Disabled="@(_timeframeMode is null || _timeframeMode == OperaTimeframeMode.FullShift)" />
                                 </MudItem>
                             </MudGrid>
 
                             <MudGrid Spacing="2" Class="mt-1">
                                 <MudItem xs="12" md="4">
-                                    <MudDatePicker @bind-Date="_endDateEt"
-                                                   Label="End Date"
-                                                   Variant="Variant.Outlined"
-                                                   Dense="true"
-                                                   Disabled="@(_timeframeMode is null || _timeframeMode == OperaTimeframeMode.Eos)" />
+                                    <MudDatePicker @bind-Date="_endDateEt" Label="End Date" Variant="Variant.Outlined" Dense="true" Disabled="@(_timeframeMode is null || _timeframeMode == OperaTimeframeMode.Eos)" />
                                 </MudItem>
 
                                 <MudItem xs="12" md="4">
-                                    <MudTimePicker @bind-Time="_endTimeEt"
-                                                   Label="End Time"
-                                                   Variant="Variant.Outlined"
-                                                   Editable="true" Clearable="true"
-                                                   Dense="true"
-                                                   Disabled="@(_timeframeMode != OperaTimeframeMode.Custom)" />
+                                    <MudTimePicker @bind-Time="_endTimeEt" Label="End Time" Variant="Variant.Outlined" Editable="true" Clearable="true" Dense="true" Disabled="@(_timeframeMode != OperaTimeframeMode.Custom)" />
                                 </MudItem>
                             </MudGrid>
 
                             <MudDivider Class="my-1" />
                             <MudText Typo="Typo.body2">Comments</MudText>
 
-                            <MudTextField @bind-Value="_comments"
-                                          Label="Submitter Comments"
-                                          Variant="Variant.Outlined"
-                                          Lines="3"
-                                          FullWidth="true" />
+                            <MudTextField @bind-Value="_comments" Label="Submitter Comments" Variant="Variant.Outlined" Lines="3" FullWidth="true" />
 
                             <MudStack Row="true" Justify="Justify.FlexStart" Spacing="1" Class="mt-2">
-                                <MudButton Variant="Variant.Filled"
-                                           Color="Color.Primary"
-                                           OnClick="SubmitAsync"
-                                           Disabled="@_busy">
-                                    SUBMIT
-                                </MudButton>
-                                <MudButton Variant="Variant.Outlined"
-                                           Color="Color.Default"
-                                           OnClick="@(() => Nav.NavigateTo("/opera"))">
-                                    CANCEL
-                                </MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitAsync" Disabled="@_busy">SUBMIT</MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@(() => Nav.NavigateTo("/opera"))">CANCEL</MudButton>
                             </MudStack>
                         </MudStack>
                     </MudPaper>
@@ -244,7 +180,6 @@
 </MudStack>
 
 @code {
-    // ---------- Employee selection ----------
     private sealed record EmployeeOption(int Id, string Label);
     private HashSet<int> _selectedEmployeeIds = new();
     private string _availableFilter = string.Empty;
@@ -254,97 +189,61 @@
     private CancellationTokenSource? _empCts;
     private string? _lastError;
 
-    // ---------- Lookups ----------
     private List<ActivityType> _types = new();
     private List<ActivitySubType> _subTypes = new();
-
-    // Bound objects for Autocomplete
     private ActivityType? _selectedTypeObj;
     private ActivitySubType? _selectedSubTypeObj;
-
-    // Derived IDs
     private int? _typeId;
     private int? _subTypeId;
 
     private OperaTimeframeMode? _timeframeMode;
     private SiteZone? _zone;
-
-    // date/time inputs (in the *selected* time zone)
     private DateTime? _startDateEt;
     private TimeSpan? _startTimeEt;
     private DateTime? _endDateEt;
     private TimeSpan? _endTimeEt;
-
     private string? _comments;
     private bool _busy;
-    private enum OperaTimeframeMode
-    {
-        Eos,
-        FullShift,
-        Custom
-    }
+
+    private enum OperaTimeframeMode { Eos, FullShift, Custom }
 
     protected override async Task OnInitializedAsync()
     {
-        // seed with "now" just so pickers have something sane when user picks timeframe
         var now = DateTime.Now;
         _startDateEt = now.Date;
         _startTimeEt = now.TimeOfDay;
         _endDateEt = now.Date;
         _endTimeEt = now.TimeOfDay.Add(TimeSpan.FromHours(1));
+
         try
         {
-            _types = await Db.ActivityTypes
-                .AsNoTracking()
-                .Where(x => x.IsActive == true)
-                .OrderBy(x => x.Name)
-                .ToListAsync();
-            _subTypes = await Db.ActivitySubTypes
-                .AsNoTracking()
-                .Where(x => x.IsActive == true)
-                .OrderBy(x => x.Name)
-                .ToListAsync();
+            _types = await Db.ActivityTypes.AsNoTracking().Where(x => x.IsActive == true).OrderBy(x => x.Name).ToListAsync();
+            _subTypes = await Db.ActivitySubTypes.AsNoTracking().Where(x => x.IsActive == true).OrderBy(x => x.Name).ToListAsync();
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to load lookups: {ex.Message}", Severity.Error);
-            _types = new(); _subTypes = new();
         }
-
         await LoadEmployeeOptionsAsync("");
     }
 
-    // ---------- Autocomplete Search Handlers ----------
-
     private Task<IEnumerable<ActivityType>> SearchTypes(string value, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult<IEnumerable<ActivityType>>(_types);
-
-        return Task.FromResult<IEnumerable<ActivityType>>(
-            _types.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
-        );
+        if (string.IsNullOrEmpty(value)) return Task.FromResult<IEnumerable<ActivityType>>(_types);
+        return Task.FromResult<IEnumerable<ActivityType>>(_types.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
     }
 
     private Task<IEnumerable<ActivitySubType>> SearchSubTypes(string value, CancellationToken ct)
     {
-        // Filter by selected Type first
         var filtered = _subTypes.Where(x => x.ActivityTypeId == _typeId);
-
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult(filtered);
-
-        return Task.FromResult(
-            filtered.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
-        );
+        if (string.IsNullOrEmpty(value)) return Task.FromResult(filtered);
+        return Task.FromResult(filtered.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
     }
 
     private void OnTypeChanged(ActivityType? type)
     {
         _selectedTypeObj = type;
         _typeId = type?.Id;
-
-        // Reset subtype if type changes
         _selectedSubTypeObj = null;
         _subTypeId = null;
     }
@@ -355,206 +254,115 @@
         _subTypeId = subType?.Id;
     }
 
-    // ---------- employee search ----------
-
     private Task OnAvailableFilterChanged() => LoadEmployeeOptionsAsync(_availableFilter);
+
     private async Task LoadEmployeeOptionsAsync(string query)
     {
-        _empCts?.Cancel();
-        _empCts?.Dispose();
-        _empCts = new CancellationTokenSource();
-
+        _empCts?.Cancel(); _empCts?.Dispose(); _empCts = new CancellationTokenSource();
         try
         {
-            var list = await Repo.SearchEmployeesAsync(query ?? "", 50, _empCts.Token)
-                       ??
-                       Array.Empty<Employees>();
-
-            foreach (var e in list)
-                _labelCache[e.Id] = $"{e.LastName}, {e.FirstName}{(!string.IsNullOrEmpty(e.MiddleInitial) ? " " + e.MiddleInitial : "")} (#{e.Id})";
-            _employeeOptions = list
-                .Select(e => new EmployeeOption(e.Id, _labelCache[e.Id]))
-                .ToList();
-            foreach (var id in _selectedEmployeeIds)
-                if (!_labelCache.ContainsKey(id))
-                    _labelCache[id] = $"#{id}";
+            var list = await Repo.SearchEmployeesAsync(query ?? "", 50, _empCts.Token) ?? Array.Empty<Employees>();
+            foreach (var e in list) _labelCache[e.Id] = $"{e.LastName}, {e.FirstName} (#{e.Id})";
+            _employeeOptions = list.Select(e => new EmployeeOption(e.Id, _labelCache[e.Id])).ToList();
         }
-        catch (OperationCanceledException) when (_empCts?.IsCancellationRequested == true)
-        {
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to search employees: {ex.Message}", Severity.Error);
-            _employeeOptions = new();
-        }
+        catch (OperationCanceledException) { }
+        catch (Exception) { }
     }
 
     private IEnumerable<EmployeeOption> GetSelectedEmployeeOptions()
     {
-        foreach (var id in _selectedEmployeeIds.OrderBy(i => i))
-            yield return new EmployeeOption(id, EmployeeLabel(id));
+        foreach (var id in _selectedEmployeeIds.OrderBy(i => i)) yield return new EmployeeOption(id, _labelCache.ContainsKey(id) ? _labelCache[id] : $"#{id}");
     }
+    private void AddEmployee(int id) { if (_selectedEmployeeIds.Add(id)) StateHasChanged(); }
+    private void RemoveEmployee(int id) { if (_selectedEmployeeIds.Remove(id)) StateHasChanged(); }
 
-    private void AddEmployee(int id)
-    {
-        if (_selectedEmployeeIds.Add(id))
-            StateHasChanged();
-    }
-
-    private void RemoveEmployee(int id)
-    {
-        if (_selectedEmployeeIds.Remove(id))
-            StateHasChanged();
-    }
-
-    private string EmployeeLabel(int id) =>
-        _labelCache.TryGetValue(id, out var s) ?
-        s : $"#{id}";
-
-    // ---------- time conversion: site → ET (DB) ----------
-
-    /// <summary>
-    /// Compute start/end times in *Eastern local* based on the selected timeframe
-    /// and the submitter's time zone (ET/MT).
-    /// </summary>
     private bool TryGetStartEndEt(out DateTime startEt, out DateTime endEt)
     {
-        startEt = default;
-        endEt = default;
-
-        if (_timeframeMode is null)
-        {
-            Snackbar.Add("Select a timeframe.", Severity.Warning);
-            return false;
-        }
-
-        if (_zone is null)
-        {
-            Snackbar.Add("Select a time zone (Eastern or Mountain).", Severity.Warning);
-            return false;
-        }
+        startEt = default; endEt = default;
+        if (_timeframeMode is null || _zone is null) return false;
 
         var zone = _zone.Value;
-        switch (_timeframeMode)
+        if (_timeframeMode == OperaTimeframeMode.Eos)
         {
-            case OperaTimeframeMode.Eos:
-                // Intent: Start at selected time. END time will be calculated later per employee.
-                // We return a dummy end time here to satisfy the signature.
-                if (!_startDateEt.HasValue || !_startTimeEt.HasValue)
-                {
-                    Snackbar.Add("Provide start date and time for EOS.", Severity.Warning);
-                    return false;
-                }
+            if (!_startDateEt.HasValue || !_startTimeEt.HasValue) return false;
+            // Calculate Start Time in ET.
+            // Even though it's EOS, we start at the time user selected.
+            var eosStartLocal = _startDateEt.Value.Date + _startTimeEt.Value;
+            startEt = SiteTime.FromSiteToEt(eosStartLocal, zone);
 
-                var eosStartLocal = _startDateEt.Value.Date + _startTimeEt.Value;
-                // Dummy end time
-                var eosEndLocal = eosStartLocal.AddHours(1);
-
-                startEt = SiteTime.FromSiteToEt(eosStartLocal, zone);
-                endEt = SiteTime.FromSiteToEt(eosEndLocal, zone);
-                return true;
-
-            case OperaTimeframeMode.FullShift:
-                // Intent: End at 23:59 of the End Date. Start is usually beginning of Start Date.
-                if (!_startDateEt.HasValue || !_endDateEt.HasValue)
-                {
-                    Snackbar.Add("Provide start and end dates for Full Shift.", Severity.Warning);
-                    return false;
-                }
-
-                if (_endDateEt.Value < _startDateEt.Value)
-                {
-                    Snackbar.Add("End date must be on or after start date.", Severity.Warning);
-                    return false;
-                }
-
-                // Defaulting start to 00:00 local, end to 23:59 local
-                var fullStartLocal = _startDateEt.Value.Date;
-                var fullEndLocal = _endDateEt.Value.Date.AddHours(23).AddMinutes(59);
-
-                startEt = SiteTime.FromSiteToEt(fullStartLocal, zone);
-                endEt = SiteTime.FromSiteToEt(fullEndLocal, zone);
-                return true;
-            case OperaTimeframeMode.Custom:
-                // Intent: Utilize selected date and time exactly
-                if (!_startDateEt.HasValue || !_startTimeEt.HasValue ||
-                    !_endDateEt.HasValue || !_endTimeEt.HasValue)
-                {
-                    Snackbar.Add("Provide start and end date/time.", Severity.Warning);
-                    return false;
-                }
-
-                var startLocal = _startDateEt.Value.Date + _startTimeEt.Value;
-                var endLocal = _endDateEt.Value.Date + _endTimeEt.Value;
-
-                startEt = SiteTime.FromSiteToEt(startLocal, zone);
-                endEt = SiteTime.FromSiteToEt(endLocal, zone);
-                if (endEt <= startEt)
-                {
-                    Snackbar.Add("End must be after start.", Severity.Warning);
-                    return false;
-                }
-
-                return true;
-            default:
-                Snackbar.Add("Select a timeframe.", Severity.Warning);
-                return false;
+            // Dummy End Time (will be replaced by DB lookup)
+            endEt = startEt.AddHours(1);
+            return true;
         }
+        if (_timeframeMode == OperaTimeframeMode.FullShift)
+        {
+            if (!_startDateEt.HasValue || !_endDateEt.HasValue) return false;
+            // 23:59 Logic for Full Day
+            var fullStartLocal = _startDateEt.Value.Date;
+            var fullEndLocal = _endDateEt.Value.Date.AddHours(23).AddMinutes(59);
+            startEt = SiteTime.FromSiteToEt(fullStartLocal, zone);
+            endEt = SiteTime.FromSiteToEt(fullEndLocal, zone);
+            return true;
+        }
+        if (_timeframeMode == OperaTimeframeMode.Custom)
+        {
+            if (!_startDateEt.HasValue || !_startTimeEt.HasValue || !_endDateEt.HasValue || !_endTimeEt.HasValue) return false;
+            var startLocal = _startDateEt.Value.Date + _startTimeEt.Value;
+            var endLocal = _endDateEt.Value.Date + _endTimeEt.Value;
+            startEt = SiteTime.FromSiteToEt(startLocal, zone);
+            endEt = SiteTime.FromSiteToEt(endLocal, zone);
+            return endEt > startEt;
+        }
+        return false;
     }
 
     private async Task SubmitAsync()
     {
         _lastError = null;
-        if (_selectedEmployeeIds.Count == 0)
+        if (_selectedEmployeeIds.Count == 0 || _typeId == null || _subTypeId == null || _timeframeMode == null || _zone == null)
         {
-            Snackbar.Add("Select at least one employee.", Severity.Warning);
+            Snackbar.Add("Please complete all required fields.", Severity.Warning);
             return;
         }
 
-        if (_typeId is null || _subTypeId is null || _timeframeMode is null || _zone is null)
+        if (!TryGetStartEndEt(out var startEt, out var endEt))
         {
-            Snackbar.Add("Type, SubType, Timeframe, and Time Zone are required.", Severity.Warning);
+            Snackbar.Add("Invalid dates/times.", Severity.Warning);
             return;
         }
 
+        _busy = true;
         try
         {
-            if (!TryGetStartEndEt(out var startEt, out var endEt))
-                return;
-            _busy = true;
-
-            // 🔹 Who is submitting?
             var profile = await UserProfile.GetAsync();
-            var actor = profile.UserName
-                        ??
-                        profile.DisplayName
-                        ??
-                        profile.Email
-                        ??
-                        "unknown";
-
+            var actor = profile.UserName ?? profile.DisplayName ?? "unknown";
             var nowUtc = DateTime.UtcNow;
             var requests = new List<OperaRequest>();
             var errorMessages = new List<string>();
 
-            // For EOS, we must calculate EndTime per employee
-            // For others, we reuse endEt
             foreach (var empId in _selectedEmployeeIds)
             {
                 DateTime finalEnd = endEt;
 
                 if (_timeframeMode == OperaTimeframeMode.Eos)
                 {
-                    // Lookup schedule to find EOS
-                    var foundEos = await Repo.GetEndOfShiftAsync(empId, startEt);
-                    if (foundEos == null)
+                    // FIX: Database contains ET times. startEt is already ET.
+                    // Pass ET directly to Repo so we compare apples to apples.
+                    var eosEt = await Repo.GetEndOfShiftAsync(empId, startEt);
+
+                    if (eosEt == null)
                     {
-                        var name = EmployeeLabel(empId);
-                        errorMessages.Add($"Could not find a scheduled shift covering the start time for {name}.");
+                        // Convert to Local just for the error message so the user understands
+                        var localStart = SiteTime.FromEtToSite(startEt, _zone.Value);
+                        errorMessages.Add($"No shift found for emp #{empId} at {localStart:HH:mm} ({_zone})");
                         continue;
                     }
-                    finalEnd = foundEos.Value;
+
+                    // Result is already ET, use directly.
+                    finalEnd = eosEt.Value;
                 }
+
+                int initialStatus = (_subTypeId == 11) ? 6 : 1; // 11=Vacation -> Pending, else Submitted
 
                 requests.Add(new OperaRequest
                 {
@@ -563,7 +371,7 @@
                     EndTime = finalEnd,
                     SubmittedBy = actor,
                     SubmitTime = nowUtc,
-                    OperaStatusId = 1,         // Submitted
+                    OperaStatusId = initialStatus,
                     ActivityTypeId = _typeId.Value,
                     ActivitySubTypeId = _subTypeId.Value,
                     SubmitterComments = _comments
@@ -572,39 +380,31 @@
 
             if (errorMessages.Any())
             {
-                // Abort if any failures to prevent partial state confusion?
-                // Or just show errors? Let's show errors and abort to be safe.
                 _lastError = string.Join("\n", errorMessages);
-                Snackbar.Add("Failed to calculate EOS for some employees. See errors.", Severity.Error);
+                Snackbar.Add("Some employees could not be processed (see errors).", Severity.Error);
                 return;
             }
 
             if (requests.Any())
             {
                 await Repo.CreateManyAsync(requests);
-                Snackbar.Add($"Created {requests.Count} request(s).", Severity.Success);
+                Snackbar.Add($"Created {requests.Count} requests.", Severity.Success);
                 Nav.NavigateTo("/opera");
             }
         }
         catch (Exception ex)
         {
-            // 🔥 Capture full details for debugging
-            _lastError = ex.ToString();
-            // 🔥 Shorter message for the user
-            Snackbar.Add($"Error submitting request: {ex.Message}", Severity.Error);
-            Console.Error.WriteLine("OPERA SUBMIT ERROR:");
-            Console.Error.WriteLine(ex);
+            _lastError = ex.Message;
+            Snackbar.Add("Error submitting request.", Severity.Error);
         }
         finally
         {
             _busy = false;
-            StateHasChanged();
         }
     }
 
     public void Dispose()
     {
-        _empCts?.Cancel();
-        _empCts?.Dispose();
+        _empCts?.Cancel(); _empCts?.Dispose();
     }
 }

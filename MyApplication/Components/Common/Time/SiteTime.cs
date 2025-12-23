@@ -26,6 +26,15 @@ namespace MyApplication.Common.Time
             var dtoUtc = new SDateTimeOffset(SDateTime.SpecifyKind(utc, System.DateTimeKind.Utc));
             return STz.ConvertTime(dtoUtc, Resolve(z));
         }
+        public static DateTime FromEtToSite(DateTime etTime, SiteZone zone)
+        {
+            if (zone == SiteZone.ET) return etTime;
+            return Tz.FromEtToSite(etTime, GetTzId(zone));
+        }
+        private static string GetTzId(SiteZone zone)
+        {
+            return zone == SiteZone.MT ? "Mountain Standard Time" : "Eastern Standard Time";
+        }
 
         public static SDateTime ToUtc(SDateTime siteLocal, SiteZone z)
         {

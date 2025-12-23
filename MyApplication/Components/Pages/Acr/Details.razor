@@ -107,7 +107,7 @@
                                          ShowOrg="@(_vm.Organization is not null)"
                                          ShowSchedule="@(_vm.Schedule is not null)"
                                          ShowOvertime="@((_vm.Overtime is not null) ||
-                                                                                                  (_vm.Schedule?.IsOtAdjustment ?? false))"
+                                                                                                                                           (_vm.Schedule?.IsOtAdjustment ?? false))"
                                  Mode="_mode" />
             </MudItem>
 
@@ -338,6 +338,7 @@
             EmployeeId = d.EmployeeId,
             TypeId = (int)d.TypeKey,
             EffectiveDate = d.EffectiveDate,
+            SubmitterComment = d.SubmitterComment,
             IncludeOvertimeAdjustment = (d.Schedule?.IsOtAdjustment ?? false) ||
                                         (d.Overtime is not null),
             Organization = d.Organization,

@@ -1,4 +1,5 @@
-﻿@using MyApplication.Components.Service.Acr
+﻿@using System
+@using MyApplication.Components.Service.Acr
 @using MyApplication.Components.Service.Employee.Dtos
 @using MyApplication.Components.Model.AOM.Employee
 
@@ -34,10 +35,24 @@
             <RowTemplate>
                 <MudTd DataLabel="Day">@context.Label</MudTd>
                 <MudTd DataLabel="Start">
-                    <MudTimePicker @bind-Time="context.Start" Editable="true" MinuteSelectionStep="5" Clearable="true" ReadOnly="@ReadOnly" />
+                    <MudTimePicker @bind-Time="context.Start"
+                                   Editable="true"
+                                   TimeFormat="HH:mm"
+                                   Mask="@(new PatternMask("00:00"))"
+                                   Validation="@(new Func<TimeSpan?, string?>(ValidateTime))"
+                                   MinuteSelectionStep="5"
+                                   Clearable="true"
+                                   ReadOnly="@ReadOnly" />
                 </MudTd>
                 <MudTd DataLabel="End">
-                    <MudTimePicker @bind-Time="context.End" Editable="true" MinuteSelectionStep="5" Clearable="true" ReadOnly="@ReadOnly" />
+                    <MudTimePicker @bind-Time="context.End"
+                                   Editable="true"
+                                   TimeFormat="HH:mm"
+                                   Mask="@(new PatternMask("00:00"))"
+                                   Validation="@(new Func<TimeSpan?, string?>(ValidateTime))"
+                                   MinuteSelectionStep="5"
+                                   Clearable="true"
+                                   ReadOnly="@ReadOnly" />
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -60,10 +75,24 @@
                 <RowTemplate>
                     <MudTd DataLabel="Day">@context.Label</MudTd>
                     <MudTd DataLabel="Start">
-                        <MudTimePicker @bind-Time="context.Start" Editable="true" MinuteSelectionStep="5" Clearable="true" ReadOnly="@ReadOnly" />
+                        <MudTimePicker @bind-Time="context.Start"
+                                       Editable="true"
+                                       TimeFormat="HH:mm"
+                                       Mask="@(new PatternMask("00:00"))"
+                                       Validation="@(new Func<TimeSpan?, string?>(ValidateTime))"
+                                       MinuteSelectionStep="5"
+                                       Clearable="true"
+                                       ReadOnly="@ReadOnly" />
                     </MudTd>
                     <MudTd DataLabel="End">
-                        <MudTimePicker @bind-Time="context.End" Editable="true" MinuteSelectionStep="5" Clearable="true" ReadOnly="@ReadOnly" />
+                        <MudTimePicker @bind-Time="context.End"
+                                       Editable="true"
+                                       TimeFormat="HH:mm"
+                                       Mask="@(new PatternMask("00:00"))"
+                                       Validation="@(new Func<TimeSpan?, string?>(ValidateTime))"
+                                       MinuteSelectionStep="5"
+                                       Clearable="true"
+                                       ReadOnly="@ReadOnly" />
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -106,7 +135,6 @@
 
     [Parameter] public string? DisplayTzLabel { get; set; }
     private string _displayTzLabel => string.IsNullOrWhiteSpace(DisplayTzLabel) ? "Local (employee site)" : DisplayTzLabel;
-
     [Parameter] public bool OvertimeOnly { get; set; }
 
     [Parameter] public OvertimeAdjustmentDto? OvertimeAdjustment { get; set; }
@@ -115,7 +143,6 @@
     // Helper property to access Value safely without null checks everywhere
     // (We ensure it is initialized in OnParametersSet)
     private ScheduleChangeDto V => Value!;
-
     private bool? _isSplit
     {
         get => V.IsSplitSchedule;
@@ -155,6 +182,20 @@
 
     private static TimeSpan? ToSpan(TimeOnly? t) => t is null ? null : t.Value.ToTimeSpan();
     private static TimeOnly? ToTime(TimeSpan? s) => s is null ? null : TimeOnly.FromTimeSpan(s.Value);
+
+    // Validation Logic
+    private string? ValidateTime(TimeSpan? time)
+    {
+        // Null is allowed (Clearable=true)
+        if (!time.HasValue)
+            return null;
+
+        // Check if user typed something like "25:00" or "99:99"
+        if (time.Value.TotalHours >= 24)
+            return "Invalid time";
+
+        return null;
+    }
 
     // Helper Record for binding the TimePickers
     private record SchRow(string Label,
@@ -198,7 +239,7 @@
 
     private void BuildRows()
     {
-        // FIX: Removed 'with' syntax. We now mutate 'V' (Value) directly and call FireChange().
+        // We now mutate 'V' (Value) directly and call FireChange().
 
         _rows1 = new()
         {
@@ -226,8 +267,6 @@
 
         // Note: For Shift 2 (Rows2), we are just storing them in local fields for now
         // because ScheduleChangeDto only holds Shift 1.
-        // If you need Shift 2 saved, your DTO needs properties for it, or you handle it elsewhere.
-        // Keeping logic as provided in your snippet:
         _rows2 = new()
         {
             Row("Mon", () => _s2MonS, s => _s2MonS = s, () => _s2MonE, s => _s2MonE = s),
@@ -242,7 +281,6 @@
 
     private static SchRow Row(string d, Func<TimeSpan?> sg, Action<TimeSpan?> ss, Func<TimeSpan?> eg, Action<TimeSpan?> es)
         => new(d, sg, ss, eg, es);
-
     private TimeSpan? _s2MonS, _s2MonE, _s2TueS, _s2TueE, _s2WedS, _s2WedE,
                       _s2ThuS, _s2ThuE, _s2FriS, _s2FriE, _s2SatS, _s2SatE, _s2SunS, _s2SunE;
 }

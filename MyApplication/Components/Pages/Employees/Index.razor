@@ -36,6 +36,7 @@
             <MudItem xs="12" sm="6" md="3">
                 <MudAutocomplete T="string" Label="Manager"
                                  Value="_selectedManager"
+                                 MaxItems="null"
                                  ValueChanged="@(async (string s) => { _selectedManager = s; await RefreshAsync(); })"
                                  SearchFunc="@((x, ct) => SearchList(x, _options.Managers))"
                                  Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
@@ -45,6 +46,7 @@
             <MudItem xs="12" sm="6" md="3">
                 <MudAutocomplete T="string" Label="Supervisor"
                                  Value="_selectedSupervisor"
+                                 MaxItems="null"
                                  ValueChanged="@(async (string s) => { _selectedSupervisor = s; await RefreshAsync(); })"
                                  SearchFunc="@((x, ct) => SearchList(x, _options.Supervisors))"
                                  Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
@@ -54,6 +56,7 @@
             <MudItem xs="12" sm="6" md="3">
                 <MudAutocomplete T="string" Label="Organization"
                                  Value="_selectedOrg"
+                                 MaxItems="null"
                                  ValueChanged="@(async (string s) => { _selectedOrg = s; await RefreshAsync(); })"
                                  SearchFunc="@((x, ct) => SearchList(x, _options.Organizations))"
                                  Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
@@ -63,6 +66,7 @@
             <MudItem xs="12" sm="6" md="3">
                 <MudAutocomplete T="string" Label="Sub-Organization"
                                  Value="_selectedSubOrg"
+                                 MaxItems="null"
                                  ValueChanged="@(async (string s) => { _selectedSubOrg = s; await RefreshAsync(); })"
                                  SearchFunc="@((x, ct) => SearchList(x, _options.SubOrganizations))"
                                  Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
@@ -86,7 +90,7 @@
 
                 <TemplateColumn CellClass="d-flex justify-end" Sortable="false">
                     <CellTemplate>
-                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => GoTo(context.Item.Id))">
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Href="@($"/employees/{context.Item.Id}")">
                             Details
                         </MudButton>
                     </CellTemplate>
@@ -113,10 +117,9 @@
     private string? _selectedSubOrg;
 
     private List<EmployeeListItem> _items = new();
-    private EmployeeFilterOptionsDto _options = new(); 
+    private EmployeeFilterOptionsDto _options = new();
 
     private CancellationTokenSource? _cts;
-
     protected override async Task OnInitializedAsync()
     {
         _options = await Repo.GetFilterOptionsAsync();
@@ -134,7 +137,6 @@
     {
         if (string.IsNullOrEmpty(value))
             return Task.FromResult<IEnumerable<string>>(list);
-        
         return Task.FromResult(list.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
     }
 
@@ -161,7 +163,6 @@
                 subOrg: _selectedSubOrg,
                 take: 1000,
                 ct: ct);
-
             StateHasChanged();
         }
         catch (TaskCanceledException)
@@ -171,7 +172,6 @@
     }
 
     private void GoTo(int id) => Nav.NavigateTo($"/employees/{id}");
-
     public void Dispose()
     {
         try

@@ -15,7 +15,7 @@
 
 <MudStack Spacing="2">
     <MudPaper Class="pa-4" Outlined="true">
-        
+
         <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
             <MudText Typo="Typo.h5">Opera Requests</MudText>
             <MudButton Variant="Variant.Filled"
@@ -29,15 +29,15 @@
         <MudDivider Class="my-3" />
 
         <MudGrid Spacing="2" Class="mt-2" AlignItems="Center">
-            
+
             <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="_filterText" 
-                              Placeholder="Search (Name, ID)..." 
-                              Variant="Variant.Outlined" 
+                <MudTextField @bind-Value="_filterText"
+                              Placeholder="Search (Name, ID)..."
+                              Variant="Variant.Outlined"
                               Margin="Margin.Dense"
-                              Adornment="Adornment.Start" 
+                              Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Outlined.Search"
-                              Clearable="true"/>
+                              Clearable="true" />
             </MudItem>
 
             <MudItem xs="6" md="2">
@@ -45,6 +45,7 @@
                                  Label="Status"
                                  Dense="true"
                                  Clearable="true"
+                                 MaxItems="null"
                                  Value="_selectedStatusObj"
                                  ValueChanged="OnStatusObjChanged"
                                  SearchFunc="SearchStatuses"
@@ -58,9 +59,44 @@
 
             <MudItem xs="6" md="2">
                 <MudAutocomplete T="KeyValuePair<int, string>?"
+                                 Label="Type"
+                                 Dense="true"
+                                 Clearable="true"
+                                 MaxItems="null"
+                                 Value="_selectedTypeKv"
+                                 ValueChanged="OnTypeKvChanged"
+                                 SearchFunc="SearchTypes"
+                                 ToStringFunc="@(kv => kv?.Value)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+            </MudItem>
+
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="OperaSubTypeDto"
+                                 Label="Sub Type"
+                                 Dense="true"
+                                 Clearable="true"
+                                 MaxItems="null"
+                                 Value="_selectedSubType"
+                                 ValueChanged="OnSubTypeChanged"
+                                 SearchFunc="SearchSubTypes"
+                                 ToStringFunc="@(x => x?.Name)"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+            </MudItem>
+
+            <MudItem xs="6" md="2">
+                <MudAutocomplete T="KeyValuePair<int, string>?"
                                  Label="Manager"
                                  Dense="true"
                                  Clearable="true"
+                                 MaxItems="null"
                                  Value="_selectedManagerKv"
                                  ValueChanged="OnManagerKvChanged"
                                  SearchFunc="SearchManagers"
@@ -77,6 +113,7 @@
                                  Label="Supervisor"
                                  Dense="true"
                                  Clearable="true"
+                                 MaxItems="null"
                                  Value="_selectedSupervisorKv"
                                  ValueChanged="OnSupervisorKvChanged"
                                  SearchFunc="SearchSupervisors"
@@ -100,16 +137,16 @@
                 </MudSelect>
             </MudItem>
 
-            <MudItem xs="12" md="9" Class="d-flex align-center justify-end gap-2">
-                <MudButton Variant="Variant.Text" 
-                           Color="Color.Secondary" 
+            <MudItem xs="12" md="6" Class="d-flex align-center justify-end gap-2">
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Secondary"
                            OnClick="ClearFilters"
                            StartIcon="@Icons.Material.Outlined.FilterAltOff">
                     Reset
                 </MudButton>
-                <MudButton Variant="Variant.Filled" 
-                           Color="Color.Primary" 
-                           OnClick="Reload" 
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="Reload"
                            StartIcon="@Icons.Material.Outlined.Search">
                     Search
                 </MudButton>
@@ -130,23 +167,24 @@
 @code {
     private List<OperaRequest> _items = new();
     private Dictionary<int, string> _types = new();
-    private Dictionary<int, string> _subTypes = new();
+    private List<OperaSubTypeDto> _subTypes = new();
     private Dictionary<int, string?> _employeeSiteTz = new();
 
-    // Lookup Data
     private List<OperaStatus> _statuses = new();
     private List<KeyValuePair<int, string>> _managers = new();
     private List<KeyValuePair<int, string>> _supervisors = new();
 
-    // Bound Objects
     private OperaStatus? _selectedStatusObj;
     private KeyValuePair<int, string>? _selectedManagerKv;
     private KeyValuePair<int, string>? _selectedSupervisorKv;
+    private KeyValuePair<int, string>? _selectedTypeKv;
+    private OperaSubTypeDto? _selectedSubType;
 
-    // Derived IDs
     private int? _statusId => _selectedStatusObj?.Id;
     private int? _managerId => _selectedManagerKv?.Key;
     private int? _supervisorId => _selectedSupervisorKv?.Key;
+    private int? _typeId => _selectedTypeKv?.Key;
+    private int? _subTypeId => _selectedSubType?.Id;
 
     private string? _filterText;
     private DateRange? _range;
@@ -157,8 +195,9 @@
     private const int ProcessedStatusId = 3;
     private const int CancelledStatusId = 4;
     private const int RejectedStatusId = 5;
+    private const int PendingStatusId = 6;
 
-    private enum StatusAction { Approve, Reject, Cancel }
+    private enum StatusAction { Approve, Reject, Cancel, SetPending }
 
     private TimeDisplayMode _displayMode = TimeDisplayMode.EmployeeLocal;
     private string DisplayTzLabel => _displayMode switch
@@ -172,7 +211,6 @@
     private DateTime _todayEt;
     private DateTime _todayMt;
 
-    // Roles
     private bool _isAdmin;
     private bool _isWfm;
     private bool _isOst;
@@ -189,19 +227,19 @@
         _isManager = user.IsInRole("Manager");
         _isSupervisor = user.IsInRole("Supervisor");
 
-        try 
+        try
         {
             var tStatus = Repo.GetStatusesAsync();
             var tTypes = Repo.GetActivityTypesAsync();
-            var tSubTypes = Repo.GetActivitySubTypesAsync();
-            var tManagers = Repo.GetManagersAsync();       
-            var tSupervisors = Repo.GetSupervisorsAsync(); 
+            var tSubTypes = Repo.GetSubTypesAsync();
+            var tManagers = Repo.GetManagersAsync();
+            var tSupervisors = Repo.GetSupervisorsAsync();
 
             await Task.WhenAll(tStatus, tTypes, tSubTypes, tManagers, tSupervisors);
 
             _statuses = (await tStatus).ToList();
             _types = await tTypes;
-            _subTypes = await tSubTypes;
+            _subTypes = (await tSubTypes).ToList();
             _managers = await tManagers;
             _supervisors = await tSupervisors;
         }
@@ -223,14 +261,16 @@
         {
             NameOrId = _filterText,
             StatusId = _statusId,
-            ManagerId = _managerId,       
-            SupervisorId = _supervisorId, 
+            ManagerId = _managerId,
+            SupervisorId = _supervisorId,
+            ActivityTypeId = _typeId,
+            ActivitySubTypeId = _subTypeId,
             FromUtc = fromEt,
             ToUtc = toEt,
             Take = 1000
         };
 
-        try 
+        try
         {
             var (items, _) = await Repo.SearchAsync(q);
             _items = items.ToList();
@@ -241,7 +281,7 @@
 
             await LoadEmployeeSiteTimezonesAsync();
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             Snackbar.Add($"Error searching: {ex.Message}", Severity.Error);
         }
@@ -257,13 +297,15 @@
     }
 
     private Task Reload() => LoadAsync();
-    
+
     private void ClearFilters()
     {
         _filterText = null;
         _selectedStatusObj = null;
         _selectedManagerKv = null;
         _selectedSupervisorKv = null;
+        _selectedTypeKv = null;
+        _selectedSubType = null;
         _range = null;
         Reload();
     }
@@ -280,9 +322,8 @@
 
     private Task<IEnumerable<KeyValuePair<int, string>?>> SearchManagers(string value, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(value)) 
+        if (string.IsNullOrEmpty(value))
             return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_managers.Select(x => (KeyValuePair<int, string>?)x));
-
         return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
             _managers.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
                      .Select(x => (KeyValuePair<int, string>?)x));
@@ -290,18 +331,53 @@
 
     private Task<IEnumerable<KeyValuePair<int, string>?>> SearchSupervisors(string value, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(value)) 
+        if (string.IsNullOrEmpty(value))
             return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_supervisors.Select(x => (KeyValuePair<int, string>?)x));
-
         return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
             _supervisors.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
                         .Select(x => (KeyValuePair<int, string>?)x));
     }
 
+    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchTypes(string value, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_types.Select(x => (KeyValuePair<int, string>?)x));
+        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
+            _types.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
+                  .Select(x => (KeyValuePair<int, string>?)x));
+    }
+
+    private Task<IEnumerable<OperaSubTypeDto>> SearchSubTypes(string value, CancellationToken ct)
+    {
+        var source = _subTypes.AsEnumerable();
+
+        // Filter by Type if selected
+        if (_typeId.HasValue)
+        {
+            source = source.Where(x => x.ActivityTypeId == _typeId.Value);
+        }
+
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult(source);
+
+        return Task.FromResult(
+            source.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
+        );
+    }
+
     // --- Binding Handlers ---
-    private void OnStatusObjChanged(OperaStatus? val) { _selectedStatusObj = val; } // Note: Change doesn't trigger reload here, user clicks "Search" button
+    private void OnStatusObjChanged(OperaStatus? val) { _selectedStatusObj = val; }
     private void OnManagerKvChanged(KeyValuePair<int, string>? val) { _selectedManagerKv = val; }
     private void OnSupervisorKvChanged(KeyValuePair<int, string>? val) { _selectedSupervisorKv = val; }
+
+    private void OnTypeKvChanged(KeyValuePair<int, string>? val)
+    {
+        _selectedTypeKv = val;
+        // Clear subtype when type changes to ensure consistency
+        _selectedSubType = null;
+    }
+
+    private void OnSubTypeChanged(OperaSubTypeDto? val) { _selectedSubType = val; }
 
     // ---------- Helpers for Sorting ----------
 
@@ -345,7 +421,9 @@
 
     private bool IsPendingPastOrFuture(OperaRequest r)
     {
-        if (GetStatusId(r) != SubmittedStatusId) return false;
+        var s = GetStatusId(r);
+        if (s != SubmittedStatusId && s != PendingStatusId) return false;
+
         return !IsTodayInEtOrMt(r.StartTime);
     }
 
@@ -357,7 +435,9 @@
 
     private bool CanApprove(OperaRequest r)
     {
-        if (GetStatusId(r) != SubmittedStatusId) return false;
+        var s = GetStatusId(r);
+        if (s != SubmittedStatusId && s != PendingStatusId) return false;
+
         if (IsPendingPastOrFuture(r)) return _isAdmin || _isWfm;
         return _isOst || _isWfm || _isAdmin;
     }
@@ -367,9 +447,16 @@
     private bool CanCancel(OperaRequest r)
     {
         var s = GetStatusId(r);
-        if (s != SubmittedStatusId && s != ApprovedStatusId && s != ProcessedStatusId) return false;
+        if (s != SubmittedStatusId && s != PendingStatusId && s != ApprovedStatusId && s != ProcessedStatusId) return false;
+
         if (IsPendingPastOrFuture(r)) return _isAdmin || _isWfm;
         return true;
+    }
+
+    private bool CanSetPending(OperaRequest r)
+    {
+        if (!(_isWfm || _isAdmin)) return false;
+        return GetStatusId(r) == SubmittedStatusId;
     }
 
     // ---------- tab-specific views ----------
@@ -385,19 +472,27 @@
     private IEnumerable<OperaRequest> PendingPastItems =>
         _items.Where(r =>
         {
-            if (GetStatusId(r) != SubmittedStatusId) return false;
+            var s = GetStatusId(r);
+            if (s != SubmittedStatusId && s != PendingStatusId) return false;
+
             var etDate = r.StartTime.Date;
             var mtDate = Et.ToMt(r.StartTime).Date;
             return etDate < _todayEt && mtDate < _todayMt;
         });
 
     private IEnumerable<OperaRequest> PendingTodayItems =>
-        _items.Where(r => GetStatusId(r) == SubmittedStatusId && IsTodayInEtOrMt(r.StartTime));
+        _items.Where(r =>
+        {
+            var s = GetStatusId(r);
+            return (s == SubmittedStatusId || s == PendingStatusId) && IsTodayInEtOrMt(r.StartTime);
+        });
 
     private IEnumerable<OperaRequest> PendingFutureItems =>
         _items.Where(r =>
         {
-            if (GetStatusId(r) != SubmittedStatusId) return false;
+            var s = GetStatusId(r);
+            if (s != SubmittedStatusId && s != PendingStatusId) return false;
+
             var etDate = r.StartTime.Date;
             var mtDate = Et.ToMt(r.StartTime).Date;
             return etDate > _todayEt && mtDate > _todayMt;
@@ -420,6 +515,7 @@
             StatusAction.Approve => "Approv",
             StatusAction.Reject => "Reject",
             StatusAction.Cancel => "Cancel",
+            StatusAction.SetPending => "Pending",
             _ => ""
         };
 
@@ -434,7 +530,6 @@
 
         var profile = await UserProfile.GetAsync();
         var actor = profile.UserName;
-
         await Repo.SetStatusAsync(req.RequestId, status.Id, actor);
 
         Snackbar.Add($"Request #{req.RequestId} set to {status.Name}.", Severity.Success);
@@ -457,13 +552,15 @@
                 <MudTh>Actions</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="OperaId">@context.RequestId</MudTd>
+                <MudTd DataLabel="OperaId">
+                    <MudLink Href="@($"/opera/{context.RequestId}")" Typo="Typo.body2">@context.RequestId</MudLink>
+                </MudTd>
                 <MudTd DataLabel="Employee">@($"{context.Employees?.LastName}, {context.Employees?.FirstName} (#{context.EmployeeId})")</MudTd>
                 <MudTd DataLabel="Start">@ToDisplayTime(context.StartTime, context.EmployeeId).ToString("MM/dd HH:mm")</MudTd>
                 <MudTd DataLabel="End">@ToDisplayTime(context.EndTime, context.EmployeeId).ToString("MM/dd HH:mm")</MudTd>
                 <MudTd DataLabel="Type/SubType">
                     @(_types.TryGetValue(context.ActivityTypeId, out var tName) ? tName : "") /
-                    @(_subTypes.TryGetValue(context.ActivitySubTypeId, out var stName) ? stName : "")
+                    @(_subTypes.FirstOrDefault(s => s.Id == context.ActivitySubTypeId)?.Name ?? "")
                 </MudTd>
                 <MudTd DataLabel="Status">
                     <MudChip T="int" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">
@@ -472,9 +569,12 @@
                 </MudTd>
                 <MudTd DataLabel="Actions">
                     <MudMenu Icon="@Icons.Material.Filled.MoreVert" Dense="true">
-                        <MudMenuItem OnClick="@(() => Nav.NavigateTo($"/opera/{context.RequestId}"))" Disabled="@(!CanOpen(context))">Open</MudMenuItem>
+                        <MudMenuItem Href="@($"/opera/{context.RequestId}")" Disabled="@(!CanOpen(context))">Open</MudMenuItem>
+                        <MudMenuItem Href="@($"/opera/{context.RequestId}")" Target="_blank" Disabled="@(!CanOpen(context))">Open in New Tab</MudMenuItem>
+
                         <MudMenuItem OnClick="@(() => SetStatusAsync(context, StatusAction.Approve))" Disabled="@(!CanApprove(context))">Approve</MudMenuItem>
                         <MudMenuItem OnClick="@(() => SetStatusAsync(context, StatusAction.Reject))" Disabled="@(!CanReject(context))">Reject</MudMenuItem>
+                        <MudMenuItem OnClick="@(() => SetStatusAsync(context, StatusAction.SetPending))" Disabled="@(!CanSetPending(context))">Set Pending</MudMenuItem>
                         <MudMenuItem OnClick="@(() => SetStatusAsync(context, StatusAction.Cancel))" Disabled="@(!CanCancel(context))">Cancel</MudMenuItem>
                     </MudMenu>
                 </MudTd>

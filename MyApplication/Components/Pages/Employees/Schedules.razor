@@ -78,34 +78,71 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
-    /* Colors */
-    .mud-theme-success {
-        background-color: #00c853 !important;
+    /* --- Custom Activity Colors --- */
+    .activity-offline {
+        background-color: #000000 !important;
+        color: #fff;
     }
 
-    .mud-theme-info {
-        background-color: #2196f3 !important;
+    .activity-admin {
+        background-color: #0D98BA !important;
+        color: #fff;
     }
 
-    .mud-theme-warning {
-        background-color: #ff9800 !important;
-        color: #fff !important;
+    .activity-system {
+        background-color: #000000 !important;
+        color: #fff;
     }
 
-    .mud-theme-primary {
-        background-color: #594ae2 !important;
+    .activity-available {
+        background-color: #1F4E78 !important;
+        color: #fff;
     }
 
-    .mud-theme-secondary {
-        background-color: #ff4081 !important;
+    .activity-ol-customer {
+        background-color: #FF9900 !important;
+        color: #000;
+    }
+    /* Dark text for light orange */
+    .activity-peer {
+        background-color: #8EBAE2 !important;
+        color: #000;
     }
 
-    .mud-theme-dark {
-        background-color: #424242 !important;
+    .activity-break {
+        background-color: #FD1FBE !important;
+        color: #fff;
     }
 
-    .mud-theme-error {
-        background-color: #f44336 !important;
+    .activity-lunch {
+        background-color: #BE0288 !important;
+        color: #fff;
+    }
+
+    .activity-corporate {
+        background-color: #F3AA79 !important;
+        color: #000;
+    }
+
+    .activity-coaching {
+        background-color: #D36113 !important;
+        color: #fff;
+    }
+
+    .activity-meeting {
+        background-color: #833C0C !important;
+        color: #fff;
+    }
+
+    .activity-training {
+        background-color: #FFFF00 !important;
+        color: #000;
+    }
+    /* Black text for yellow */
+
+    .activity-default {
+        background-color: #9E9E9E !important;
+        color: #fff;
     }
 
     /* Legend Chip */
@@ -173,6 +210,12 @@
                        Color="Color.Primary"
                        Class="mr-2" />
             <MudText Class="mr-4">Active only</MudText>
+
+            <MudSwitch Value="_agentsOnly"
+                       ValueChanged="@(async (bool v) => { _agentsOnly = v; await LoadAsync(); })"
+                       Color="Color.Primary"
+                       Class="mr-2" />
+            <MudText Class="mr-4">Agents only</MudText>
         </MudStack>
 
         <MudGrid>
@@ -340,7 +383,6 @@
 
                         @foreach (var site in _vm.Sites)
                         {
-                            // 1. Calculate Bounds based on Midnight
                             var referenceTime = _vm.Date.ToDateTime(TimeOnly.MinValue);
                             double totalMinutesToRender = 1440;
 
@@ -384,17 +426,27 @@
 
                                     @foreach (var emp in site.Employees)
                                     {
-                                        <div style="@($"display:flex; flex-direction:column; border-bottom:1px solid #ddd;")">
+                                        var baseIds = new[] { 47, 49, 50, 51, 53, 54 };
 
-                                            @* ROW 1: SCHEDULE (Plan) *@
-                                            <div style="@($"display:flex; min-width: {minWidth}px; height: 32px; align-items:center; position:relative;")">
+                                        var baseSegments = emp.Segments
+                                        .Where(s => s.ActivitySubTypeId.HasValue && baseIds.Contains(s.ActivitySubTypeId.Value))
+                                        .ToList();
+
+                                        var extraSegments = emp.Segments
+                                        .Where(s => !s.ActivitySubTypeId.HasValue || !baseIds.Contains(s.ActivitySubTypeId.Value))
+                                        .ToList();
+
+                                        <div style="@($"display:flex; flex-direction:column; border-bottom:1px solid #ddd; position:relative; min-width: {minWidth}px;")">
+
+                                            @* ROW 1: SCHEDULE (Plan - Base) *@
+                                            <div style="@($"display:flex; height: 32px; align-items:center; position:relative;")">
                                                 <div style="width:250px; flex-shrink:0; padding-right:8px; padding-left:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                                     <MudText Typo="Typo.body2" Style="font-weight:bold;">@emp.EmployeeName</MudText>
                                                     <MudText Typo="Typo.caption" Style="font-size:0.7rem; color:#888;">Plan: @emp.ShiftString</MudText>
                                                 </div>
 
                                                 <div class="timeline-track" style="flex:1;">
-                                                    @foreach (var seg in emp.Segments)
+                                                    @foreach (var seg in baseSegments)
                                                     {
                                                         var startOffset = (seg.Start - referenceTime).TotalMinutes;
                                                         var endOffset = (seg.End - referenceTime).TotalMinutes;
@@ -404,16 +456,64 @@
                                                         var leftPct = (startOffset / totalMinutesToRender) * 100;
                                                         var widthPct = ((endOffset - startOffset) / totalMinutesToRender) * 100;
 
-                                                        <div title="@($"SCHEDULE: {seg.ActivityName}\n{seg.Start:MM/dd HH:mm} - {seg.End:HH:mm}")"
+                                                        <div title="@($"SCHEDULE: {seg.ActivityName} - {seg.SubActivityName}\n{seg.Start:MM/dd HH:mm} - {seg.End:HH:mm}")"
                                                              class="timeline-bar @seg.ColorClass"
                                                              style="left:@($"{leftPct:F2}%"); width:@($"{widthPct:F2}%"); z-index:@seg.ZIndex;">
+                                                            <span style="padding:0 4px;">
+                                                                @if (!string.IsNullOrEmpty(seg.SubActivityName) && seg.SubActivityName != "-")
+                                                                {
+                                                                    @($"{seg.ActivityName} - {seg.SubActivityName}")
+                                                                }
+                                                                else
+                                                                {
+                                                                    @seg.ActivityName
+                                                                }
+                                                            </span>
                                                         </div>
                                                     }
                                                 </div>
                                             </div>
 
-                                            @* ROW 2: ACTUAL (AWS) *@
-                                            <div style="@($"display:flex; min-width: {minWidth}px; height: 32px; align-items:center; position:relative; background-color:#f9f9f9;")">
+                                            @* ROW 2: SCHEDULE (Plan - Activities) - Only if exists *@
+                                            @if (extraSegments.Any())
+                                            {
+                                                <div style="@($"display:flex; height: 32px; align-items:center; position:relative; margin-top:0;")">
+                                                    <div style="width:250px; flex-shrink:0; padding-right:8px; padding-left:24px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                        <MudText Typo="Typo.caption" Style="font-size:0.7rem; color:#888;">Activities</MudText>
+                                                    </div>
+
+                                                    <div class="timeline-track" style="flex:1;">
+                                                        @foreach (var seg in extraSegments)
+                                                        {
+                                                            var startOffset = (seg.Start - referenceTime).TotalMinutes;
+                                                            var endOffset = (seg.End - referenceTime).TotalMinutes;
+
+                                                            if (endOffset <= 0) continue;
+
+                                                            var leftPct = (startOffset / totalMinutesToRender) * 100;
+                                                            var widthPct = ((endOffset - startOffset) / totalMinutesToRender) * 100;
+
+                                                            <div title="@($"SCHEDULE: {seg.ActivityName} - {seg.SubActivityName}\n{seg.Start:MM/dd HH:mm} - {seg.End:HH:mm}")"
+                                                                 class="timeline-bar @seg.ColorClass"
+                                                                 style="left:@($"{leftPct:F2}%"); width:@($"{widthPct:F2}%"); z-index:@seg.ZIndex;">
+                                                                <span style="padding:0 4px;">
+                                                                    @if (!string.IsNullOrEmpty(seg.SubActivityName) && seg.SubActivityName != "-")
+                                                                    {
+                                                                        @($"{seg.ActivityName} - {seg.SubActivityName}")
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        @seg.ActivityName
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            @* ROW 3: ACTUAL (AWS) *@
+                                            <div style="@($"display:flex; height: 32px; align-items:center; position:relative; background-color:#f9f9f9; border-top: 1px dotted #e0e0e0;")">
                                                 <div style="width:250px; flex-shrink:0; padding-right:8px; padding-left:24px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-right: 1px solid #f0f0f0;">
                                                     <MudText Typo="Typo.caption" Style="font-size:0.7rem; color:#666; font-style:italic;">Actual (AWS)</MudText>
                                                 </div>
@@ -440,6 +540,29 @@
                                                 </div>
                                             </div>
 
+                                            @* OVERLAY: ALERTS (FLAGS) *@
+                                            @if (emp.AlertSegments != null && emp.AlertSegments.Any())
+                                            {
+                                                <div style="position:absolute; top:0; bottom:0; left:250px; right:0; pointer-events:none; z-index:50;">
+                                                    <div class="timeline-track" style="height:100%; background:transparent;">
+                                                        @foreach (var seg in emp.AlertSegments)
+                                                        {
+                                                            var startOffset = (seg.Start - referenceTime).TotalMinutes;
+                                                            var endOffset = (seg.End - referenceTime).TotalMinutes;
+
+                                                            if (endOffset <= 0) continue;
+
+                                                            var leftPct = (startOffset / totalMinutesToRender) * 100;
+                                                            var widthPct = ((endOffset - startOffset) / totalMinutesToRender) * 100;
+
+                                                            <div title="@($"ALERT: {seg.SubActivityName}\n{seg.Start:MM/dd HH:mm} - {seg.End:HH:mm}")"
+                                                                 style="position:absolute; left:@($"{leftPct:F2}%"); width:@($"{widthPct:F2}%"); height: 100%; background-color: rgba(244, 67, 54, 0.4); pointer-events:auto;">
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+
                                         </div>
                                     }
                                 </div>
@@ -463,31 +586,31 @@
     private SortOption _sortBy = SortOption.StartTime; // Default sort
     private CancellationTokenSource? _cts;
     private bool _isAdmin = false;
-
     // Filter Logic
     private string _query = string.Empty;
     private bool _activeOnly = true;
+    private bool _agentsOnly = true; // Defaulted to true
     private string? _selectedManager;
     private string? _selectedSupervisor;
     private string? _selectedOrg;
     private string? _selectedSubOrg;
     private EmployeeFilterOptionsDto _options = new();
 
-    // Defined Legend Items
+    // UPDATED LEGEND ITEMS
     private List<(string Name, string Class)> _legendItems = new()
     {
-        ("Offline", "mud-theme-dark"),
-        ("Available", "mud-theme-success"),
-        ("OL Customer Work", "mud-theme-info"),
-        ("Admin Tasks", "mud-theme-secondary"),
-        ("Break", "mud-theme-warning"),
-        ("Coaching", "mud-theme-primary"),
-        ("Lunch", "mud-theme-info"),
-        ("Meeting", "mud-theme-primary"),
-        ("Peer Mentoring", "mud-theme-primary"),
-        ("System", "mud-theme-dark"),
-        ("Training", "mud-theme-primary"),
-        ("Corp Engagement", "mud-theme-secondary")
+        ("Offline", "activity-offline"),
+        ("Available", "activity-available"),
+        ("OL Customer Work", "activity-ol-customer"),
+        ("Admin Tasks", "activity-admin"),
+        ("Break", "activity-break"),
+        ("Coaching", "activity-coaching"),
+        ("Lunch", "activity-lunch"),
+        ("Meeting", "activity-meeting"),
+        ("Peer Mentoring", "activity-peer"),
+        ("System", "activity-system"),
+        ("Training", "activity-training"),
+        ("Corp Engagement", "activity-corporate")
     };
 
     private TimeDisplayMode Mode
@@ -543,14 +666,12 @@
     {
         if (string.IsNullOrEmpty(value))
             return Task.FromResult<IEnumerable<string>>(list);
-
         return Task.FromResult(list.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
     }
 
     private async Task LoadAsync()
     {
         if (!_date.HasValue) return;
-
         try
         {
             _cts?.Cancel();
@@ -572,12 +693,12 @@
                 _mode,
                 _query,
                 _activeOnly,
+                _agentsOnly,
                 _selectedManager,
                 _selectedSupervisor,
                 _selectedOrg,
                 _selectedSubOrg,
                 token);
-
             // Apply sorting immediately after load
             ApplySort();
         }
@@ -595,7 +716,6 @@
     private void ApplySort()
     {
         if (_vm == null) return;
-
         foreach (var site in _vm.Sites)
         {
             if (_sortBy == SortOption.StartTime)

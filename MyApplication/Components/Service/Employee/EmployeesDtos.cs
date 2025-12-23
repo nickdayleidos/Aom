@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace MyApplication.Components.Service.Employee.Dtos
 {
@@ -7,7 +8,7 @@ namespace MyApplication.Components.Service.Employee.Dtos
         public int Id { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
-        public string? MiddleInitial { get; set; } // Added
+        public string? MiddleInitial { get; set; }
         public bool IsActive { get; set; }
         public string? Manager { get; set; }
         public string? Supervisor { get; set; }
@@ -19,7 +20,6 @@ namespace MyApplication.Components.Service.Employee.Dtos
         public List<string> Skills { get; set; } = new();
         public List<DayScheduleDto> DailySchedules { get; set; } = new();
 
-        // Computed property for the table column
         public string DisplayName
         {
             get
@@ -30,6 +30,7 @@ namespace MyApplication.Components.Service.Employee.Dtos
             }
         }
     }
+
     public class EmployeeFilterOptionsDto
     {
         public List<string> Managers { get; set; } = new();
@@ -37,6 +38,7 @@ namespace MyApplication.Components.Service.Employee.Dtos
         public List<string> Organizations { get; set; } = new();
         public List<string> SubOrganizations { get; set; } = new();
     }
+
     public class DayScheduleDto
     {
         public string Day { get; set; }
@@ -97,30 +99,27 @@ namespace MyApplication.Components.Service.Employee.Dtos
         public TimeOnly BeforeShiftSunday { get; set; }
         public TimeOnly AfterShiftSunday { get; set; }
     }
+
     public class DailyScheduleRow
     {
         public int DetailedScheduleId { get; set; }
         public int EmployeeId { get; set; }
-        public string? EmployeeName { get; set; } // Nullable just in case
+        public string? EmployeeName { get; set; }
         public DateOnly ScheduleDate { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
-
-        // FIXED: Database column is nullable (bool?), so this must be nullable
         public bool? IsImpacting { get; set; }
 
         public int ActivityTypeId { get; set; }
-        public string? ActivityName { get; set; } // Nullable just in case
+        public string? ActivityName { get; set; }
         public int? ActivitySubTypeId { get; set; }
 
-        // FIXED: These come from LEFT JOINs, so they can be NULL
         public string? SubActivityName { get; set; }
         public string? AwsStatusName { get; set; }
 
-        public string SiteName { get; set; } // Handled by ISNULL in View
-        public string SiteTimeZoneId { get; set; } // Handled by ISNULL in View
+        public string SiteName { get; set; }
+        public string SiteTimeZoneId { get; set; }
 
-        // FIXED: These come from OUTER APPLY, so they can be NULL
         public string? OrganizationName { get; set; }
         public string? SubOrganizationName { get; set; }
         public string? SupervisorName { get; set; }
@@ -138,21 +137,19 @@ namespace MyApplication.Components.Service.Employee.Dtos
         public string? CorporateEmail { get; set; }
         public string? CorporateId { get; set; }
         public string? DomainLoginName { get; set; }
-        public int? AwsId { get; set; } // For mapping
+        public int? AwsId { get; set; }
     }
 
     public class AwsAgentActivityDto
     {
         public string EventId { get; set; }
         public string AwsId { get; set; }
-        public DateTime StartTime { get; set; } // Maps to eventTimeET
-        public DateTime EndTime { get; set; }
+        public DateTime StartTime { get; set; } // Matches [eventTimeET]
         public string CurrentAgentStatus { get; set; }
-        public int Duration { get; set; }
-        public Guid AwsGuid { get; set; } // Used to link back to Employee
+        public DateTime EndTime { get; set; }
+        public int? Duration { get; set; }
+        public Guid AwsGuid { get; set; }
     }
-
-   
 
     public class AwsIdentifierLookupDto
     {
@@ -161,13 +158,10 @@ namespace MyApplication.Components.Service.Employee.Dtos
     }
 
     public sealed record SchedulesIndexFilter(
-    string? EmployeeSearch,
-    string? Manager,
-    string? Supervisor,
-    string? Organization,
-    string? SubOrganization
-)
-    {
-    }
-    };
-
+        string? EmployeeSearch,
+        string? Manager,
+        string? Supervisor,
+        string? Organization,
+        string? SubOrganization
+    );
+}

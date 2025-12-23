@@ -4,10 +4,12 @@
 @using MyApplication.Common.Time
 @using MyApplication.Components.Service
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IOperaRepository Repo
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject UserProfileService UserProfile
+@inject AuthenticationStateProvider AuthStateProvider
 
 <MudStack Spacing="4">
     <MudPaper Class="pa-4" Outlined="true">
@@ -47,14 +49,51 @@
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAsync">Save</MudButton>
                     <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="CancelEdit">Cancel</MudButton>
                 }
-                else
+                else if (_item != null)
                 {
+                    @* --- ACTION BUTTONS --- *@
+
+                    @* Actions available if NOT Cancelled/Rejected? Or maybe only active? 
+                       For now, keeping actions for 1/6, but EDIT is open to all. *@
+                    @if (_item.OperaStatusId == 1 || _item.OperaStatusId == 6)
+                    {
+                        <MudTooltip Text="Approve">
+                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" OnClick="@(() => SetStatusAsync(2))" />
+                        </MudTooltip>
+                        <MudTooltip Text="Reject">
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" OnClick="@(() => SetStatusAsync(5))" />
+                        </MudTooltip>
+
+                        @* PENDING ACTION *@
+                        @if (_isWfmOrAdmin && _item.OperaStatusId == 1)
+                        {
+                            <MudTooltip Text="Set Pending">
+                                <MudIconButton Icon="@Icons.Material.Filled.HourglassEmpty" Color="Color.Warning" OnClick="@(() => SetStatusAsync(6))" />
+                            </MudTooltip>
+                        }
+
+                        <MudTooltip Text="Cancel Request">
+                            <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Default" OnClick="@(() => SetStatusAsync(4))" />
+                        </MudTooltip>
+                    }
+
+                    @* WFM / Admin Specific Actions *@
+                    @if (_isWfmOrAdmin)
+                    {
+                        @if (_item.OperaStatusId == 2)
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => SetStatusAsync(1))">Unapprove</MudButton>
+                        }
+                    }
+
+                    @* EDIT Button: Available to all authorized roles, resets status on save *@
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="StartEdit">Edit Request</MudButton>
                 }
             </MudItem>
         </MudGrid>
     </MudPaper>
 
+    @* ... (Rest of UI same as before) ... *@
     @if (_item == null)
     {
         <MudProgressLinear Indeterminate="true" />
@@ -149,10 +188,25 @@
                                 <MudText Typo="Typo.caption"><b>Last Updated:</b> @ToDisplayTime(_item.LastUpdatedTime.Value).ToString("g") by @_item.LastUpdatedBy</MudText>
                             }
                         </MudStack>
+
+                        @if (_item.ApproveTime.HasValue)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Success"><b>Approved:</b> @ToDisplayTime(_item.ApproveTime.Value).ToString("g") by @_item.ApproveBy</MudText>
+                        }
+                        @if (_item.RejectedTime.HasValue)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Error"><b>Rejected:</b> @ToDisplayTime(_item.RejectedTime.Value).ToString("g") by @_item.RejectedBy</MudText>
+                        }
+                        @if (_item.CancelledTime.HasValue)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Default"><b>Cancelled:</b> @ToDisplayTime(_item.CancelledTime.Value).ToString("g") by @_item.CancelledBy</MudText>
+                        }
+
                     </MudStack>
                 </MudPaper>
             </MudItem>
 
+            @* Schedule Block *@
             <MudItem xs="12" md="6">
                 <MudPaper Class="pa-4 h-100" Outlined="true">
                     <MudStack Spacing="3">
@@ -169,7 +223,6 @@
                             </HeaderContent>
                             <RowTemplate Context="sch">
                                 @{
-                                    // Convert schedule items to display time
                                     var displayStart = ToDisplayTime(sch.StartTime);
                                     var displayEnd = ToDisplayTime(sch.EndTime);
                                 }
@@ -213,11 +266,18 @@
     private DateTime? _editEndDate;
     private TimeSpan? _editEndTime;
 
+    // Permissions State
+    private bool _isWfmOrAdmin = false;
+
     // Cache raw subtypes for filtering
     private List<ActivitySubType> _rawSubTypes = new();
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isWfmOrAdmin = user.IsInRole("Admin") || user.IsInRole("WFM") || user.IsInRole("OST");
+
         await LoadDataAsync();
     }
 
@@ -226,24 +286,41 @@
         _item = await Repo.GetAsync(RequestId);
         if (_item != null)
         {
-            // 1. Resolve Timezone for "Local" mode
             var timezones = await Repo.GetEmployeeSiteTimeZonesAsync(new[] { _item.EmployeeId });
             if (timezones.TryGetValue(_item.EmployeeId, out var tz))
             {
                 _employeeSiteTzId = tz;
             }
 
-            // 2. Load lookups
             _types = await Repo.GetActivityTypesAsync();
             _rawSubTypes = await Db.ActivitySubTypes.AsNoTracking().Where(x => x.IsActive == true).ToListAsync();
             _subTypes = _rawSubTypes.ToDictionary(k => k.Id, v => v.Name);
 
-            // 3. Initial filter
             FilterSubTypes(_item.ActivityTypeId);
 
-            // 4. Load Schedule (Use Start of week based on request start)
             var startOfWeek = DateOnly.FromDateTime(_item.StartTime.Date.AddDays(-(int)_item.StartTime.DayOfWeek));
             _schedule = await Repo.GetEmployeeWeeklyScheduleAsync(_item.EmployeeId, startOfWeek);
+        }
+    }
+
+    // --- Status Actions ---
+
+    private async Task SetStatusAsync(int statusId)
+    {
+        if (_item == null) return;
+
+        var user = await UserProfile.GetAsync();
+        var actor = user.UserName ?? "Unknown";
+
+        try
+        {
+            await Repo.SetStatusAsync(_item.RequestId, statusId, actor);
+            Snackbar.Add("Status updated.", Severity.Success);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating status: {ex.Message}", Severity.Error);
         }
     }
 
@@ -296,7 +373,6 @@
     {
         if (_item == null) return;
 
-        // Initialize edit fields using CURRENT display mode
         var startDisplay = ToDisplayTime(_item.StartTime);
         var endDisplay = ToDisplayTime(_item.EndTime);
 
@@ -318,28 +394,30 @@
     private async Task SaveAsync()
     {
         if (_item == null) return;
-
         if (!_editStartDate.HasValue || !_editStartTime.HasValue || !_editEndDate.HasValue || !_editEndTime.HasValue)
         {
             Snackbar.Add("Start and End times are required.", Severity.Warning);
             return;
         }
 
-        // Construct DateTime in the DISPLAY timezone
         var startDisplay = _editStartDate.Value.Date + _editStartTime.Value;
         var endDisplay = _editEndDate.Value.Date + _editEndTime.Value;
 
-        // Convert back to ET for storage
         _item.StartTime = FromDisplayTime(startDisplay);
         _item.EndTime = FromDisplayTime(endDisplay);
 
+        // --- NEW STATUS LOGIC ---
+        // Vacation (11) -> Pending (6), Else -> Submitted (1)
+        int newStatus = (_item.ActivitySubTypeId == 11) ? 6 : 1;
+        _item.OperaStatusId = newStatus;
+        // ------------------------
+
         var user = await UserProfile.GetAsync();
         _item.LastUpdatedBy = user.UserName ?? "Unknown";
-
         try
         {
             await Repo.UpdateAsync(_item);
-            Snackbar.Add("Request updated successfully.", Severity.Success);
+            Snackbar.Add("Request updated and status reset.", Severity.Success);
             _isEditing = false;
             await LoadDataAsync();
         }

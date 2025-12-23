@@ -423,24 +423,27 @@ namespace MyApplication.Components.Service.Employee
         }
 
         // ====================================================================
-        // UPDATED: GetDailySchedulesAsync with FILTER parameters
+        // UPDATED: GetDailySchedulesAsync 
+        // - Uses Subtractive Logic for Valid Work Windows
+        // - Merges Actuals to handle short segments
+        // - Clips future alerts based on "Now" in target timezone
         // ====================================================================
         public async Task<ScheduleDashboardVm> GetDailySchedulesAsync(
-    DateOnly date,
-    TimeDisplayMode mode,
-    string? query,
-    bool activeOnly,
-    string? manager,
-    string? supervisor,
-    string? org,
-    string? subOrg,
-    CancellationToken ct = default)
+            DateOnly date,
+            TimeDisplayMode mode,
+            string? query,
+            bool activeOnly,
+            bool agentsOnly,
+            string? manager,
+            string? supervisor,
+            string? org,
+            string? subOrg,
+            CancellationToken ct = default)
         {
             if (date == DateOnly.MinValue) return new ScheduleDashboardVm { Date = date };
 
             using var ctx = await _factory.CreateDbContextAsync();
 
-            // 1. Get raw schedule data
             var rawData = await ctx.DetailedSchedule.AsNoTracking()
                 .Where(x => x.ScheduleDate == date)
                 .Include(x => x.ActivityType)
@@ -448,7 +451,6 @@ namespace MyApplication.Components.Service.Employee
                 .Include(x => x.AwsStatus)
                 .ToListAsync(ct);
 
-            // ... [Step 2: Get History/Filters (Keep existing code)] ...
             var empIds = rawData.Select(x => x.EmployeeId).Distinct().ToList();
             var histories = await ctx.EmployeeHistory.AsNoTracking()
                 .Where(h => empIds.Contains(h.EmployeeId))
@@ -467,14 +469,31 @@ namespace MyApplication.Components.Service.Employee
 
             var filteredHistory = bestHistory.Where(h =>
             {
-                // ... [Keep your existing filter block] ...
                 if (activeOnly && h.IsActive != true) return false;
-                if (!string.IsNullOrEmpty(manager)) { /* ... */ }
-                // (Assume standard filters are here)
+
+                if (agentsOnly)
+                {
+                    if (h.SubOrganization?.AwsStatusId == null || h.SubOrganization.AwsStatusId == 1) return false;
+                }
+
+                if (!string.IsNullOrEmpty(manager))
+                {
+                    var mName = h.Manager?.Employee != null ? $"{h.Manager.Employee.LastName}, {h.Manager.Employee.FirstName}" : "";
+                    if (!mName.Contains(manager, StringComparison.OrdinalIgnoreCase)) return false;
+                }
+
+                if (!string.IsNullOrEmpty(supervisor))
+                {
+                    var sName = h.Supervisor?.Employee != null ? $"{h.Supervisor.Employee.LastName}, {h.Supervisor.Employee.FirstName}" : "";
+                    if (!sName.Contains(supervisor, StringComparison.OrdinalIgnoreCase)) return false;
+                }
+
+                if (!string.IsNullOrEmpty(org) && h.Organization?.Name != org) return false;
+                if (!string.IsNullOrEmpty(subOrg) && h.SubOrganization?.Name != subOrg) return false;
+
                 return true;
             }).ToList();
 
-            // ... [Step 3: Resolve Mappings (Keep existing code)] ...
             var visibleEmpIds = filteredHistory.Select(x => x.EmployeeId).Distinct().ToList();
             var awsMappingsRaw = await ctx.Identifiers.AsNoTracking()
                 .Where(x => visibleEmpIds.Contains(x.EmployeeId ?? 0) && !string.IsNullOrEmpty(x.Guid))
@@ -489,8 +508,6 @@ namespace MyApplication.Components.Service.Employee
             }
             var distinctGuids = guidToEmpMap.Keys.ToList();
 
-            // 4. Fetch AWS Data 
-            // We still fetch a wide window from SQL to be safe (-1 to +2 days)
             var sqlQueryStart = date.AddDays(-1).ToDateTime(TimeOnly.MinValue);
             var sqlQueryEnd = date.AddDays(2).ToDateTime(TimeOnly.MinValue);
 
@@ -504,11 +521,8 @@ namespace MyApplication.Components.Service.Employee
                 .Where(a => guidToEmpMap.ContainsKey(a.AwsGuid))
                 .ToLookup(a => guidToEmpMap[a.AwsGuid]);
 
-            // 5. Build View Model
             var dashboard = new ScheduleDashboardVm { Date = date };
 
-            // Global Day Window (used as fallback for unscheduled employees)
-            // 00:00 Today -> 06:00 Tomorrow (Local)
             var globalDayStart = date.ToDateTime(TimeOnly.MinValue);
             var globalDayEnd = globalDayStart.AddHours(30);
 
@@ -528,6 +542,18 @@ namespace MyApplication.Components.Service.Employee
                     _ => siteTz
                 };
 
+                // Determine "Now" cutoff in target Timezone to prevent future alerts
+                DateTime nowInTarget;
+                try
+                {
+                    var targetZone = TimeZoneInfo.FindSystemTimeZoneById(targetTzId);
+                    nowInTarget = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, targetZone);
+                }
+                catch
+                {
+                    nowInTarget = DateTime.MaxValue; // Fail safe
+                }
+
                 foreach (var hist in siteGroup)
                 {
                     var empSchedules = rawData.Where(x => x.EmployeeId == hist.EmployeeId).OrderBy(x => x.StartTime).ToList();
@@ -541,31 +567,85 @@ namespace MyApplication.Components.Service.Employee
                         SupervisorName = hist.Supervisor?.Employee != null ? $"{hist.Supervisor.Employee.LastName}, {hist.Supervisor.Employee.FirstName}" : ""
                     };
 
-                    // -----------------------------------------------------------
-                    // NEW LOGIC: Determine Valid AWS Window (ET)
-                    // -----------------------------------------------------------
                     DateTime validWindowStartEt;
                     DateTime validWindowEndEt;
 
                     if (empSchedules.Any())
                     {
-                        // Has Schedule: Window = [Earliest Start - 2h] to [Latest End + 2h]
-                        // Note: empSchedules.StartTime is already ET from the DB
                         var minStart = empSchedules.Min(s => s.StartTime);
                         var maxEnd = empSchedules.Max(s => s.EndTime);
-
                         validWindowStartEt = minStart.AddHours(-8);
                         validWindowEndEt = maxEnd.AddHours(8);
                     }
                     else
                     {
-                        // No Schedule (OFF): Fallback to Global Day Window (Local -> ET)
-                        // If they work on their day off, we want to see it, but clipped to "Today"
                         validWindowStartEt = Tz.FromSiteToEt(globalDayStart, targetTzId);
                         validWindowEndEt = Tz.FromSiteToEt(globalDayEnd, targetTzId);
                     }
 
-                    // A. Map Scheduled Segments
+                    // Prepare for Alert Logic: 
+                    var actualSegmentsForAlerts = new List<(DateTime Start, DateTime End)>();
+                    var offlineSegments = new List<(DateTime Start, DateTime End)>();
+                    var workingSegments = new List<(DateTime Start, DateTime End)>();
+
+                    // 1. Classify Schedule Segments
+                    foreach (var s in empSchedules)
+                    {
+                        var sStart = Tz.FromEtToSite(s.StartTime, targetTzId);
+                        var sEnd = Tz.FromEtToSite(s.EndTime, targetTzId);
+
+                        // If ID=1, it is an Offline Segment (Exceptions, Breaks, etc.)
+                        if (s.AwsStatus?.Id == 1)
+                        {
+                            offlineSegments.Add((sStart, sEnd));
+                        }
+                        else
+                        {
+                            // Otherwise, it is a Working Segment (Shift, Overtime, etc.)
+                            workingSegments.Add((sStart, sEnd));
+                        }
+                    }
+
+                    // 2. Build Valid Work Windows (Working - Offline)
+                    // This handles overlapping segments where an offline activity overrides a shift
+                    var validWorkWindows = new List<(DateTime Start, DateTime End)>();
+
+                    if (workingSegments.Any())
+                    {
+                        // Start with working segments sorted
+                        workingSegments.Sort((a, b) => a.Start.CompareTo(b.Start));
+                        offlineSegments.Sort((a, b) => a.Start.CompareTo(b.Start));
+
+                        foreach (var work in workingSegments)
+                        {
+                            var currentStart = work.Start;
+                            var workEnd = work.End;
+
+                            // Subtract overlapping offline segments
+                            foreach (var off in offlineSegments)
+                            {
+                                if (off.End <= currentStart) continue;
+                                if (off.Start >= workEnd) break;
+
+                                // Valid Work before the offline segment starts
+                                if (off.Start > currentStart)
+                                {
+                                    validWorkWindows.Add((currentStart, off.Start));
+                                }
+
+                                // Advance start to end of offline segment
+                                if (off.End > currentStart) currentStart = off.End;
+                            }
+
+                            // Remaining work after last offline segment
+                            if (currentStart < workEnd)
+                            {
+                                validWorkWindows.Add((currentStart, workEnd));
+                            }
+                        }
+                    }
+
+                    // A. Map Scheduled Segments & Build View
                     DateTime? minDt = null;
                     DateTime? maxDt = null;
 
@@ -579,8 +659,11 @@ namespace MyApplication.Components.Service.Employee
 
                         empVm.Segments.Add(new ScheduleSegmentVm
                         {
+                            ActivityTypeId = item.ActivityTypeId,
+                            ActivitySubTypeId = item.ActivitySubTypeId,
                             ActivityName = item.ActivityType?.Name ?? "?",
                             SubActivityName = item.ActivitySubType?.Name ?? "-",
+                            AwsStatusId = item.AwsStatus?.Id,
                             AwsStatusName = item.AwsStatus?.Name ?? "-",
                             Start = localStart,
                             End = localEnd,
@@ -589,16 +672,13 @@ namespace MyApplication.Components.Service.Employee
                     }
                     empVm.ShiftString = (minDt.HasValue && maxDt.HasValue) ? $"{minDt.Value:HH:mm} - {maxDt.Value:HH:mm}" : "OFF";
 
-                    // B. Map Actual Segments (AWS) with DYNAMIC WINDOW
+                    // B. Map Actual Segments (AWS)
                     if (employeeAwsData.Contains(hist.EmployeeId))
                     {
                         foreach (var act in employeeAwsData[hist.EmployeeId])
                         {
-                            // Filter: Strict check against the Calculated Window (in ET)
-                            // We check ET vs ET to avoid timezone conversion headaches during filtering
                             if (act.StartTime >= validWindowStartEt && act.StartTime < validWindowEndEt)
                             {
-                                // Pass Filter -> Convert to Local for Display
                                 var actStart = Tz.FromEtToSite(act.StartTime, targetTzId);
                                 var actEnd = Tz.FromEtToSite(act.EndTime, targetTzId);
 
@@ -611,6 +691,179 @@ namespace MyApplication.Components.Service.Employee
                                     End = actEnd,
                                     IsImpacting = true
                                 });
+
+                                actualSegmentsForAlerts.Add((actStart, actEnd));
+                            }
+                        }
+                    }
+
+                    // MERGE ACTUALS
+                    var mergedActuals = new List<(DateTime Start, DateTime End)>();
+                    if (actualSegmentsForAlerts.Any())
+                    {
+                        actualSegmentsForAlerts.Sort((a, b) => a.Start.CompareTo(b.Start));
+                        var currentStart = actualSegmentsForAlerts[0].Start;
+                        var currentEnd = actualSegmentsForAlerts[0].End;
+
+                        for (int i = 1; i < actualSegmentsForAlerts.Count; i++)
+                        {
+                            if (actualSegmentsForAlerts[i].Start <= currentEnd.AddMinutes(1))
+                            {
+                                if (actualSegmentsForAlerts[i].End > currentEnd) currentEnd = actualSegmentsForAlerts[i].End;
+                            }
+                            else
+                            {
+                                mergedActuals.Add((currentStart, currentEnd));
+                                currentStart = actualSegmentsForAlerts[i].Start;
+                                currentEnd = actualSegmentsForAlerts[i].End;
+                            }
+                        }
+                        mergedActuals.Add((currentStart, currentEnd));
+                    }
+
+                    // -----------------------------------------------------------
+                    // ALERT LOGIC 1: Missing Work (> 5 minutes)
+                    // (Schedule says Work, Actual is Missing)
+                    // -----------------------------------------------------------
+                    if (empVm.Segments.Any())
+                    {
+                        var subtractMask = new List<(DateTime Start, DateTime End)>();
+                        subtractMask.AddRange(mergedActuals);
+                        subtractMask.AddRange(offlineSegments); // Also subtract authorized offline times
+                        subtractMask.Sort((a, b) => a.Start.CompareTo(b.Start));
+
+                        foreach (var plan in empVm.Segments)
+                        {
+                            if (plan.AwsStatusId == 1) continue;
+
+                            var current = plan.Start;
+                            var end = plan.End;
+
+                            foreach (var mask in subtractMask)
+                            {
+                                if (mask.End <= current) continue;
+                                if (mask.Start >= end) break;
+
+                                // Gap detected
+                                if (mask.Start > current)
+                                {
+                                    var alertStart = current;
+                                    var alertEnd = mask.Start;
+
+                                    // CLIP FUTURE ALERTS
+                                    if (alertStart < nowInTarget)
+                                    {
+                                        if (alertEnd > nowInTarget) alertEnd = nowInTarget;
+
+                                        if ((alertEnd - alertStart).TotalMinutes > 5)
+                                        {
+                                            empVm.AlertSegments.Add(new ScheduleSegmentVm
+                                            {
+                                                ActivityName = "Alert",
+                                                SubActivityName = "Missing",
+                                                Start = alertStart,
+                                                End = alertEnd,
+                                                IsImpacting = true
+                                            });
+                                        }
+                                    }
+                                }
+                                if (mask.End > current) current = mask.End;
+                            }
+
+                            if (current < end)
+                            {
+                                var alertStart = current;
+                                var alertEnd = end;
+
+                                // CLIP FUTURE ALERTS
+                                if (alertStart < nowInTarget)
+                                {
+                                    if (alertEnd > nowInTarget) alertEnd = nowInTarget;
+
+                                    if ((alertEnd - alertStart).TotalMinutes > 5)
+                                    {
+                                        empVm.AlertSegments.Add(new ScheduleSegmentVm
+                                        {
+                                            ActivityName = "Alert",
+                                            SubActivityName = "Missing",
+                                            Start = alertStart,
+                                            End = alertEnd,
+                                            IsImpacting = true
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // -----------------------------------------------------------
+                    // ALERT LOGIC 2: Unexpected Work (> 5 minutes)
+                    // (Actual exists, but Valid Work Window is missing)
+                    // -----------------------------------------------------------
+                    if (mergedActuals.Any())
+                    {
+                        foreach (var act in mergedActuals)
+                        {
+                            var current = act.Start;
+                            var end = act.End;
+
+                            // Subtract VALID WORK windows from Actuals
+                            // If actual remains, it is unexpected
+                            foreach (var valid in validWorkWindows)
+                            {
+                                if (valid.End <= current) continue;
+                                if (valid.Start >= end) break;
+
+                                // Unexpected Work
+                                if (valid.Start > current)
+                                {
+                                    var alertStart = current;
+                                    var alertEnd = valid.Start;
+
+                                    // CLIP FUTURE ALERTS
+                                    if (alertStart < nowInTarget)
+                                    {
+                                        if (alertEnd > nowInTarget) alertEnd = nowInTarget;
+
+                                        if ((alertEnd - alertStart).TotalMinutes > 5)
+                                        {
+                                            empVm.AlertSegments.Add(new ScheduleSegmentVm
+                                            {
+                                                ActivityName = "Alert",
+                                                SubActivityName = "Unexpected",
+                                                Start = alertStart,
+                                                End = alertEnd,
+                                                IsImpacting = true
+                                            });
+                                        }
+                                    }
+                                }
+                                if (valid.End > current) current = valid.End;
+                            }
+
+                            if (current < end)
+                            {
+                                var alertStart = current;
+                                var alertEnd = end;
+
+                                // CLIP FUTURE ALERTS
+                                if (alertStart < nowInTarget)
+                                {
+                                    if (alertEnd > nowInTarget) alertEnd = nowInTarget;
+
+                                    if ((alertEnd - alertStart).TotalMinutes > 5)
+                                    {
+                                        empVm.AlertSegments.Add(new ScheduleSegmentVm
+                                        {
+                                            ActivityName = "Alert",
+                                            SubActivityName = "Unexpected",
+                                            Start = alertStart,
+                                            End = alertEnd,
+                                            IsImpacting = true
+                                        });
+                                    }
+                                }
                             }
                         }
                     }
@@ -625,19 +878,11 @@ namespace MyApplication.Components.Service.Employee
             return dashboard;
         }
 
-        // Helper method to query the external AWS table
-        // Passing the DbContext to reuse the connection
-
-
-
         public async Task<EmployeeDetailDto?> GetDetailAsync(int employeeId, CancellationToken ct = default)
         {
             return null;
         }
 
-        // =========================
-        // HELPERS (With Mode)
-        // =========================
         private List<DayScheduleDto> BuildDailySchedules(AcrSchedule? s, TimeDisplayMode mode)
         {
             var list = new List<DayScheduleDto>();
@@ -685,8 +930,6 @@ namespace MyApplication.Components.Service.Employee
             return "Varies";
         }
 
-        // In EmployeesRepository.cs
-
         private async Task<List<AwsAgentActivityDto>> GetAwsActivitiesAsync(
             AomDbContext db,
             List<Guid> visibleEmployeeAwsGuids,
@@ -698,8 +941,7 @@ namespace MyApplication.Components.Service.Employee
 
             var guidList = string.Join("','", visibleEmployeeAwsGuids);
 
-            // UPDATED: Added "AND [currentAgentStatus] != 'Offline'"
-            // Also kept the CASTs to prevent the invalid cast exceptions
+            // Fetch only Online activities (Not 'Offline')
             var sql = $@"
     SELECT CAST([eventId] AS NVARCHAR(36)) as [EventId]
           ,CAST([awsId] AS NVARCHAR(36)) as [AwsId]
@@ -720,8 +962,6 @@ namespace MyApplication.Components.Service.Employee
                 .AsNoTracking()
                 .ToListAsync(ct);
         }
-
-
 
         private TimeOnly? Convert(TimeOnly? time, TimeDisplayMode mode)
         {

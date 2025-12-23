@@ -25,8 +25,9 @@ namespace MyApplication.Components.Service.Employee
         public string SubOrganizationName { get; set; }
         public string SupervisorName { get; set; }
         public string ShiftString { get; set; }
-        public List<ScheduleSegmentVm> Segments { get; set; } = new();     // Lane 1: Plan
-        public List<ScheduleSegmentVm> AwsSegments { get; set; } = new();  // Lane 2: Actual
+        public List<ScheduleSegmentVm> Segments { get; set; } = new();
+        public List<ScheduleSegmentVm> AlertSegments { get; set; } = new();
+        public List<ScheduleSegmentVm> AwsSegments { get; set; } = new();
     }
 }
 
@@ -46,7 +47,6 @@ public class ScheduleSegmentVm
 
     public int ZIndex => ActivityName == "Offline" ? 0 : 10;
 
-    // FIXED: Robust matching logic for colors
     public string ColorClass
     {
         get
@@ -54,24 +54,24 @@ public class ScheduleSegmentVm
             var name = SubActivityName != "-" ? SubActivityName : ActivityName;
             if (!string.IsNullOrEmpty(AwsStatusName) && AwsStatusName != "-") name = AwsStatusName;
 
-            if (string.IsNullOrEmpty(name)) return "mud-theme-secondary";
+            if (string.IsNullOrEmpty(name)) return "activity-default";
 
-            // Normalize string (Trim and Lowercase for matching)
             var cleanName = name.Trim();
 
-            if (cleanName.Equals("Available", StringComparison.OrdinalIgnoreCase)) return "mud-theme-success";
-            if (cleanName.Equals("Offline", StringComparison.OrdinalIgnoreCase)) return "mud-theme-dark";
-            if (cleanName.Equals("Lunch", StringComparison.OrdinalIgnoreCase)) return "mud-theme-info";
-            if (cleanName.Equals("Break", StringComparison.OrdinalIgnoreCase)) return "mud-theme-warning";
-            if (cleanName.Equals("Training", StringComparison.OrdinalIgnoreCase)) return "mud-theme-primary";
-            if (cleanName.Equals("Meeting", StringComparison.OrdinalIgnoreCase)) return "mud-theme-primary";
-            if (cleanName.Equals("Coaching", StringComparison.OrdinalIgnoreCase)) return "mud-theme-primary";
-            if (cleanName.Equals("Peer Mentoring", StringComparison.OrdinalIgnoreCase)) return "mud-theme-primary";
-            if (cleanName.Equals("Admin Tasks", StringComparison.OrdinalIgnoreCase)) return "mud-theme-secondary";
-            if (cleanName.Equals("OL Customer Work", StringComparison.OrdinalIgnoreCase)) return "mud-theme-info";
-            if (cleanName.Equals("System", StringComparison.OrdinalIgnoreCase)) return "mud-theme-dark";
+            if (cleanName.Equals("Offline", StringComparison.OrdinalIgnoreCase)) return "activity-offline";
+            if (cleanName.Equals("Admin Tasks", StringComparison.OrdinalIgnoreCase)) return "activity-admin";
+            if (cleanName.Equals("System", StringComparison.OrdinalIgnoreCase)) return "activity-system";
+            if (cleanName.Equals("Available", StringComparison.OrdinalIgnoreCase)) return "activity-available";
+            if (cleanName.Equals("OL Customer Work", StringComparison.OrdinalIgnoreCase)) return "activity-ol-customer";
+            if (cleanName.Equals("Peer Mentoring", StringComparison.OrdinalIgnoreCase)) return "activity-peer";
+            if (cleanName.Equals("Break", StringComparison.OrdinalIgnoreCase)) return "activity-break";
+            if (cleanName.Equals("Lunch", StringComparison.OrdinalIgnoreCase)) return "activity-lunch";
+            if (cleanName.Equals("Corporate Engagement", StringComparison.OrdinalIgnoreCase) || cleanName.Equals("Corp Engagement", StringComparison.OrdinalIgnoreCase)) return "activity-corporate";
+            if (cleanName.Equals("Coaching", StringComparison.OrdinalIgnoreCase)) return "activity-coaching";
+            if (cleanName.Equals("Meeting", StringComparison.OrdinalIgnoreCase)) return "activity-meeting";
+            if (cleanName.Equals("Training", StringComparison.OrdinalIgnoreCase)) return "activity-training";
 
-            return "mud-theme-secondary"; // Default Pink if unknown
+            return "activity-default";
         }
     }
 }

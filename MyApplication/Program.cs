@@ -133,7 +133,7 @@ builder.Services.AddScoped<IProactiveRepository, ProactiveRepository>();
 builder.Services.AddScoped<MyApplication.Components.Service.Security.SecurityService>();
 
 builder.Services.AddScoped<MyApplication.Components.Service.Aws.AwsRoutingService>();
-builder.Services.AddScoped<MyApplication.Components.Service.Admin.HistoryReprocessor>();
+
 
 
 // ────────────────────────────────────────────────────────────────────────────────

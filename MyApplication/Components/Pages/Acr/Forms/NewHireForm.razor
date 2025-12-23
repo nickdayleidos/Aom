@@ -1,4 +1,4 @@
-﻿
+﻿@using MyApplication.Components.Service.Acr
 
 <MudStack Spacing="2">
     <MudText Typo="Typo.subtitle2">New Hire</MudText>
@@ -95,8 +95,6 @@
         get => Current.NmciEmail;
         set => Current = Current with { NmciEmail = value };
     }
-
-  
 
     private string? UsnOperatorId
     {

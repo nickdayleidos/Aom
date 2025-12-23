@@ -4,12 +4,19 @@ using EmployeeEntity = MyApplication.Components.Model.AOM.Employee.Employees;
 
 namespace MyApplication.Components.Service
 {
+    public record OperaSubTypeDto(int Id, string Name, int ActivityTypeId);
     public sealed class OperaQuery
     {
         public string? NameOrId { get; set; }
         public int? StatusId { get; set; }
-        public int? ManagerId { get; set; }    // <--- Added
-        public int? SupervisorId { get; set; } // <--- Added
+        public int? ManagerId { get; set; }
+        public int? SupervisorId { get; set; }
+
+        // --- NEW FILTERS ---
+        public int? ActivityTypeId { get; set; }
+        public int? ActivitySubTypeId { get; set; }
+        // -------------------
+
         public DateTime? FromUtc { get; set; }
         public DateTime? ToUtc { get; set; }
         public int Take { get; set; } = 1000;
@@ -22,6 +29,7 @@ namespace MyApplication.Components.Service
         Task<int> CreateManyAsync(IEnumerable<OperaRequest> requests, CancellationToken ct = default);
         Task UpdateAsync(OperaRequest req, CancellationToken ct = default);
         Task SetStatusAsync(int requestId, int statusId, string actor, CancellationToken ct = default);
+        Task<IReadOnlyList<OperaSubTypeDto>> GetSubTypesAsync(CancellationToken ct = default);
         Task<IReadOnlyList<OperaStatus>> GetStatusesAsync(CancellationToken ct = default);
         Task<IReadOnlyList<EmployeeEntity>> SearchEmployeesAsync(string term, int take = 20, CancellationToken ct = default);
 

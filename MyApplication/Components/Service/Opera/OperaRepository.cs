@@ -17,7 +17,7 @@ namespace MyApplication.Components.Service
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
 
-            // 1. Join OperaRequests with EmployeeCurrentDetails to enable Hierarchy Filtering
+            // 1. Join OperaRequests with EmployeeCurrentDetails
             var qry = db.OperaRequests
                 .AsNoTracking()
                 .Include(x => x.Employees)
@@ -30,15 +30,13 @@ namespace MyApplication.Components.Service
                 .AsQueryable();
 
             // 2. Apply Hierarchy Filters
-            if (q.ManagerId.HasValue)
-            {
-                qry = qry.Where(x => x.Details.ManagerId == q.ManagerId);
-            }
+            if (q.ManagerId.HasValue) qry = qry.Where(x => x.Details.ManagerId == q.ManagerId);
+            if (q.SupervisorId.HasValue) qry = qry.Where(x => x.Details.SupervisorId == q.SupervisorId);
 
-            if (q.SupervisorId.HasValue)
-            {
-                qry = qry.Where(x => x.Details.SupervisorId == q.SupervisorId);
-            }
+            // --- NEW: Apply Type/SubType Filters ---
+            if (q.ActivityTypeId.HasValue) qry = qry.Where(x => x.Request.ActivityTypeId == q.ActivityTypeId);
+            if (q.ActivitySubTypeId.HasValue) qry = qry.Where(x => x.Request.ActivitySubTypeId == q.ActivitySubTypeId);
+            // ---------------------------------------
 
             // 3. Apply Name/ID Search
             if (!string.IsNullOrWhiteSpace(q.NameOrId))
@@ -46,55 +44,46 @@ namespace MyApplication.Components.Service
                 var t = q.NameOrId.Trim();
                 if (int.TryParse(t, out var asInt))
                 {
-                    // Match ID (EmployeeId or RequestId)
                     qry = qry.Where(x => x.Request.EmployeeId == asInt || x.Request.RequestId == asInt);
                 }
                 else
                 {
                     t = Regex.Replace(t, @"\s+", " ");
-
-                    // Match Name (Last, First MI OR First Last)
                     qry = qry.Where(x =>
-                        // "Doe, John M"
-                        (x.Request.Employees.LastName + ", " + x.Request.Employees.FirstName + (x.Request.Employees.MiddleInitial == null ? "" : " " + x.Request.Employees.MiddleInitial)).Contains(t)
-                        ||
-                        // "John Doe"
-                        (x.Request.Employees.FirstName + " " + x.Request.Employees.LastName).Contains(t)
-                        ||
-                        // Partial matches
-                        EF.Functions.Like(x.Request.Employees.FirstName, $"%{t}%")
-                        ||
+                        (x.Request.Employees.LastName + ", " + x.Request.Employees.FirstName + (x.Request.Employees.MiddleInitial == null ? "" : " " + x.Request.Employees.MiddleInitial)).Contains(t) ||
+                        (x.Request.Employees.FirstName + " " + x.Request.Employees.LastName).Contains(t) ||
+                        EF.Functions.Like(x.Request.Employees.FirstName, $"%{t}%") ||
                         EF.Functions.Like(x.Request.Employees.LastName, $"%{t}%")
                     );
                 }
             }
 
+
             // 4. Apply Status and Date Filters
-            if (q.StatusId.HasValue)
-            {
-                qry = qry.Where(x => x.Request.OperaStatusId == q.StatusId.Value);
-            }
+            if (q.StatusId.HasValue) qry = qry.Where(x => x.Request.OperaStatusId == q.StatusId.Value);
+            if (q.FromUtc.HasValue) qry = qry.Where(x => x.Request.StartTime >= q.FromUtc.Value);
+            if (q.ToUtc.HasValue) qry = qry.Where(x => x.Request.StartTime < q.ToUtc.Value);
 
-            if (q.FromUtc.HasValue)
-            {
-                qry = qry.Where(x => x.Request.StartTime >= q.FromUtc.Value);
-            }
-
-            if (q.ToUtc.HasValue)
-            {
-                qry = qry.Where(x => x.Request.StartTime < q.ToUtc.Value);
-            }
-
-            // 5. Execute Queries (Count & Fetch)
+            // 5. Execute
             var total = await qry.CountAsync(ct);
 
             var items = await qry
-                .OrderByDescending(x => x.Request.StartTime) // Sort applied here
+                .OrderByDescending(x => x.Request.StartTime)
                 .Take(q.Take)
-                .Select(x => x.Request) // Project back to the entity
+                .Select(x => x.Request)
                 .ToListAsync(ct);
 
             return (items, total);
+        }
+
+        public async Task<IReadOnlyList<OperaSubTypeDto>> GetSubTypesAsync(CancellationToken ct = default)
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            return await db.ActivitySubTypes
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .Select(x => new OperaSubTypeDto(x.Id, x.Name, x.ActivityTypeId))
+                .ToListAsync(ct);
         }
 
         public async Task<OperaRequest?> GetAsync(int requestId, CancellationToken ct = default)
@@ -121,11 +110,27 @@ namespace MyApplication.Components.Service
             var existing = await db.OperaRequests.FirstOrDefaultAsync(x => x.RequestId == req.RequestId, ct);
             if (existing != null)
             {
+                // Update editable fields
                 existing.StartTime = req.StartTime;
                 existing.EndTime = req.EndTime;
                 existing.ActivityTypeId = req.ActivityTypeId;
                 existing.ActivitySubTypeId = req.ActivitySubTypeId;
                 existing.SubmitterComments = req.SubmitterComments;
+
+                // --- NEW: Update Status and Reset Logic ---
+                existing.OperaStatusId = req.OperaStatusId;
+
+                // If resetting to Submitted (1) or Pending (6), clear approval/rejection history
+                if (existing.OperaStatusId == 1 || existing.OperaStatusId == 6)
+                {
+                    existing.ApproveTime = null;
+                    existing.ApproveBy = null;
+                    existing.RejectedTime = null;
+                    existing.RejectedBy = null;
+                    existing.CancelledTime = null;
+                    existing.CancelledBy = null;
+                }
+                // ------------------------------------------
 
                 // Audit
                 existing.LastUpdatedTime = Et.Now;
@@ -135,6 +140,8 @@ namespace MyApplication.Components.Service
             }
         }
 
+        // File: MyApplication/Components/Service/Opera/OperaRepository.cs
+
         public async Task SetStatusAsync(int requestId, int statusId, string actor, CancellationToken ct = default)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
@@ -143,6 +150,19 @@ namespace MyApplication.Components.Service
 
             r.OperaStatusId = statusId;
             var nowEt = Et.Now;
+
+            // --- NEW LOGIC START ---
+            // Clear final state fields if returning to a non-final state (Submitted or Pending)
+            if (statusId == 1 || statusId == 6)
+            {
+                r.ApproveTime = null;
+                r.ApproveBy = null;
+                r.RejectedTime = null;
+                r.RejectedBy = null;
+                r.CancelledTime = null;
+                r.CancelledBy = null;
+            }
+            // --- NEW LOGIC END ---
 
             if (statusId == 2) // Approved
             {
@@ -159,6 +179,10 @@ namespace MyApplication.Components.Service
                 r.CancelledTime = nowEt;
                 r.CancelledBy = actor;
             }
+
+            // Always update audit
+            r.LastUpdatedTime = nowEt;
+            r.LastUpdatedBy = actor;
 
             await db.SaveChangesAsync(ct);
         }

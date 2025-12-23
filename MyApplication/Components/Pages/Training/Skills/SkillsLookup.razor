@@ -25,7 +25,6 @@
         <MudDivider Class="my-3" />
 
         <MudGrid Spacing="2" AlignItems="Center">
-
             <MudItem xs="12" md="3">
                 <MudTextField @bind-Value="_employeeSearch"
                               Placeholder="Search employee (Name)..."
@@ -34,7 +33,7 @@
                               Immediate="true"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Outlined.Search"
-                              OnBlur="@(_ => RefreshAsync())"
+                              OnKeyDown="@(e => { if (e.Key == "Enter") RefreshAsync(); })"
                               Clearable="true" />
             </MudItem>
 
@@ -100,17 +99,24 @@
                     Search
                 </MudButton>
             </MudItem>
-
         </MudGrid>
 
         <MudTabs @bind-ActivePanelIndex="_tabIndex" Rounded="true" Elevation="0" Color="Color.Transparent" Class="mt-4">
 
             <MudTabPanel Text="Line Items" Icon="@Icons.Material.Outlined.ViewList">
-                <MudTable Items="_rows" Dense="true" Hover="true" Bordered="false" Striped="true" Elevation="0">
+                <MudTable T="SkillLookupRow"
+                          @ref="_tableLineItems"
+                          ServerData="ServerReloadLineItems"
+                          Dense="true"
+                          Hover="true"
+                          Bordered="false"
+                          Striped="true"
+                          Elevation="0"
+                          RowsPerPage="50">
                     <HeaderContent>
-                        <MudTh><MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.EmployeeName)">Employee</MudTableSortLabel></MudTh>
-                        <MudTh><MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.SkillTypeName ?? string.Empty)">Skill</MudTableSortLabel></MudTh>
-                        <MudTh><MudTableSortLabel SortBy="new Func<SkillLookupRow, object>(x => x.SkillDate)">Date</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortLabel="EmployeeName" T="SkillLookupRow">Employee</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortLabel="SkillTypeName" T="SkillLookupRow">Skill</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortLabel="SkillDate" T="SkillLookupRow">Date</MudTableSortLabel></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.EmployeeName</MudTd>
@@ -120,15 +126,26 @@
                     <NoRecordsContent>
                         <MudText Class="pa-4 text-center">No skills found with the selected filters.</MudText>
                     </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+                    </PagerContent>
                 </MudTable>
             </MudTabPanel>
 
             <MudTabPanel Text="By Employee" Icon="@Icons.Material.Outlined.Groups">
-                <MudTable Items="_summaryRows" Dense="true" Hover="true" Bordered="false" Striped="true" Elevation="0">
+                <MudTable T="SkillEmployeeSummaryRow"
+                          @ref="_tableSummary"
+                          ServerData="ServerReloadSummary"
+                          Dense="true"
+                          Hover="true"
+                          Bordered="false"
+                          Striped="true"
+                          Elevation="0"
+                          RowsPerPage="50">
                     <HeaderContent>
-                        <MudTh><MudTableSortLabel SortBy="new Func<SkillEmployeeSummaryRow, object>(x => x.EmployeeName)">Employee</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortLabel="EmployeeName" T="SkillEmployeeSummaryRow">Employee</MudTableSortLabel></MudTh>
                         <MudTh>Skills</MudTh>
-                        <MudTh><MudTableSortLabel SortBy="new Func<SkillEmployeeSummaryRow, object>(x => x.EffectiveDate)">Effective Date</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortLabel="EffectiveDate" T="SkillEmployeeSummaryRow">Effective Date</MudTableSortLabel></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.EmployeeName</MudTd>
@@ -151,6 +168,9 @@
                     <NoRecordsContent>
                         <MudText Class="pa-4 text-center">No employee skills found with the selected filters.</MudText>
                     </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+                    </PagerContent>
                 </MudTable>
             </MudTabPanel>
 
@@ -162,14 +182,14 @@
     private string? _employeeSearch;
     private int _tabIndex;
 
-    // Data Sources
+    // References to tables to trigger reload
+    private MudTable<SkillLookupRow>? _tableLineItems;
+    private MudTable<SkillEmployeeSummaryRow>? _tableSummary;
+
+    // Data Sources for Dropdowns
     private IReadOnlyList<SkillType> _skillTypes = Array.Empty<SkillType>();
     private List<KeyValuePair<int, string>> _managers = new();
     private List<KeyValuePair<int, string>> _supervisors = new();
-
-    // Results
-    private IReadOnlyList<SkillLookupRow> _rows = Array.Empty<SkillLookupRow>();
-    private IReadOnlyList<SkillEmployeeSummaryRow> _summaryRows = Array.Empty<SkillEmployeeSummaryRow>();
 
     // Bound Objects
     private SkillType? _selectedSkillTypeObj;
@@ -181,15 +201,13 @@
     private int? _managerId => _selectedManagerKv?.Key;
     private int? _supervisorId => _selectedSupervisorKv?.Key;
 
-    // Colors
     private static readonly Color[] SkillColorPalette = new[]
     {
         Color.Primary,Color.Secondary,Color.Tertiary,Color.Info,Color.Success,
         Color.Warning,Color.Error,Color.Dark,Color.Default
     };
 
-    private Color GetSkillColorByIndex(int index) =>
-        index < 0 ? Color.Default : SkillColorPalette[index % SkillColorPalette.Length];
+    private Color GetSkillColorByIndex(int index) => index < 0 ? Color.Default : SkillColorPalette[index % SkillColorPalette.Length];
 
     protected override async Task OnInitializedAsync()
     {
@@ -209,11 +227,68 @@
         {
             Snackbar.Add($"Error loading lookups: {ex.Message}", Severity.Error);
         }
-
-        await RefreshAsync();
+        // No need to call RefreshAsync here, MudTable calls ServerData automatically on first render
     }
 
-    // --- Search Helpers ---
+    // --- Server Side Data Providers ---
+
+    private async Task<TableData<SkillLookupRow>> ServerReloadLineItems(TableState state, CancellationToken ct)
+    {
+        var search = new SkillSearchVm(
+             EmployeeSearch: _employeeSearch,
+             SkillTypeId: _selectedSkillTypeId,
+             ManagerId: _managerId,
+             SupervisorId: _supervisorId
+         );
+
+        try
+        {
+            var result = await SkillsService.SearchSkillsServerDataAsync(
+                search,
+                state.Page,
+                state.PageSize,
+                state.SortLabel,
+                (int)state.SortDirection,
+                ct);
+
+            return new TableData<SkillLookupRow> { TotalItems = result.TotalCount, Items = result.Items };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+            return new TableData<SkillLookupRow> { TotalItems = 0, Items = Array.Empty<SkillLookupRow>() };
+        }
+    }
+
+    private async Task<TableData<SkillEmployeeSummaryRow>> ServerReloadSummary(TableState state, CancellationToken ct)
+    {
+        var search = new SkillSearchVm(
+             EmployeeSearch: _employeeSearch,
+             SkillTypeId: _selectedSkillTypeId,
+             ManagerId: _managerId,
+             SupervisorId: _supervisorId
+         );
+
+        try
+        {
+            var result = await SkillsService.GetEmployeeSkillSummariesServerDataAsync(
+                search,
+                state.Page,
+                state.PageSize,
+                state.SortLabel,
+                (int)state.SortDirection,
+                ct);
+
+            return new TableData<SkillEmployeeSummaryRow> { TotalItems = result.TotalCount, Items = result.Items };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading data: {ex.Message}", Severity.Error);
+            return new TableData<SkillEmployeeSummaryRow> { TotalItems = 0, Items = Array.Empty<SkillEmployeeSummaryRow>() };
+        }
+    }
+
+    // --- Search Helpers (Dropdowns) ---
 
     private Task<IEnumerable<SkillType>> SearchSkillTypes(string value, CancellationToken ct)
     {
@@ -225,7 +300,6 @@
     {
         if (string.IsNullOrEmpty(value))
             return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_managers.Select(x => (KeyValuePair<int, string>?)x));
-
         return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
             _managers.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
                      .Select(x => (KeyValuePair<int, string>?)x));
@@ -235,7 +309,6 @@
     {
         if (string.IsNullOrEmpty(value))
             return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_supervisors.Select(x => (KeyValuePair<int, string>?)x));
-
         return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
             _supervisors.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
                         .Select(x => (KeyValuePair<int, string>?)x));
@@ -253,32 +326,12 @@
         _selectedSkillTypeObj = null;
         _selectedManagerKv = null;
         _selectedSupervisorKv = null;
-        _ = RefreshAsync();
+        RefreshAsync();
     }
 
-    private async Task RefreshAsync()
+    private void RefreshAsync()
     {
-        try
-        {
-            var search = new SkillSearchVm(
-                EmployeeSearch: _employeeSearch,
-                SkillTypeId: _selectedSkillTypeId,
-                ManagerId: _managerId,
-                SupervisorId: _supervisorId
-            );
-
-            // Parallel load
-            var t1 = SkillsService.SearchSkillsAsync(search);
-            var t2 = SkillsService.GetEmployeeSkillSummariesAsync(search);
-
-            await Task.WhenAll(t1, t2);
-
-            _rows = await t1;
-            _summaryRows = await t2;
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error loading skills: {ex.Message}", Severity.Error);
-        }
+        _tableLineItems?.ReloadServerData();
+        _tableSummary?.ReloadServerData();
     }
 }

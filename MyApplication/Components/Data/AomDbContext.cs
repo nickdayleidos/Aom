@@ -90,10 +90,6 @@ namespace MyApplication.Components.Data
             // AUTO-LOAD CONFIGURATIONS (Loads Employee, EmployeeCurrentDetails, AcrOvertimeSchedules)
             b.ApplyConfigurationsFromAssembly(typeof(AomDbContext).Assembly);
 
-            // =========================================================================================
-            // TODO: Move the rest of these configurations to their own files like EmployeeConfiguration
-            // =========================================================================================
-
             b.Entity<Employer>().ToTable(nameof(Employer), "Employee").HasKey(x => x.Id);
             b.Entity<Manager>().ToTable(nameof(Manager), "Employee").HasKey(x => x.Id);
             b.Entity<Supervisor>().ToTable(nameof(Supervisor), "Employee").HasKey(x => x.Id);
@@ -150,16 +146,15 @@ namespace MyApplication.Components.Data
 
             // Security
             b.Entity<AppRole>().ToTable("AppRole", "Security").HasData(
-            new AppRole { Id = 1, Name = "Admin" },
-            new AppRole { Id = 2, Name = "Manager" },
-            new AppRole { Id = 3, Name = "Supervisor" },
-            new AppRole { Id = 4, Name = "WFM" },
-            new AppRole { Id = 5, Name = "OST" },
-            new AppRole { Id = 6, Name = "ViewOnly" }
-        );
+                new AppRole { Id = 1, Name = "Admin" },
+                new AppRole { Id = 2, Name = "Manager" },
+                new AppRole { Id = 3, Name = "Supervisor" },
+                new AppRole { Id = 4, Name = "WFM" },
+                new AppRole { Id = 5, Name = "OST" },
+                new AppRole { Id = 6, Name = "ViewOnly" }
+            );
 
             b.Entity<AppRoleAssignment>().ToTable("AppRoleAssignment", "Security");
-
 
             b.Entity<DailyScheduleRow>(entity =>
             {
@@ -167,25 +162,34 @@ namespace MyApplication.Components.Data
                 entity.ToView("vw_DailyScheduleDetails", "Employee");
             });
 
-
             // ============================================================
             // RELATIONSHIPS
             // ============================================================
             b.Entity<Manager>(e =>
             {
-                
                 e.HasOne(m => m.Employee)
-                 .WithMany() // Or .WithOne() if a Manager has only 1 Employee record ever
+                 .WithMany()
                  .HasForeignKey(m => m.EmployeeId)
-                 .OnDelete(DeleteBehavior.NoAction); // Optional: prevents cascade cycles
+                 .OnDelete(DeleteBehavior.NoAction);
             });
 
-            // FIX: Changed .HasOne<Employees>() to .HasOne(x => x.Employee) to use the navigation property
             b.Entity<Supervisor>()
              .HasOne(x => x.Employee)
              .WithMany()
              .HasForeignKey(x => x.EmployeeId)
              .OnDelete(DeleteBehavior.Restrict);
+
+            // ============================================================
+            // FIX: Map Employees <-> Identifiers correctly (1:1)
+            // Identifiers holds the Foreign Key (EmployeeId)
+            // ============================================================
+            b.Entity<Employees>(e =>
+            {
+                e.HasOne(x => x.Aws)
+                 .WithOne(i => i.Employee)
+                 .HasForeignKey<Identifiers>(i => i.EmployeeId)
+                 .OnDelete(DeleteBehavior.SetNull);
+            });
 
             b.Entity<DetailedSchedule>(e =>
             {
@@ -210,8 +214,6 @@ namespace MyApplication.Components.Data
              .WithMany()
              .HasForeignKey(x => x.EmployeeId)
              .OnDelete(DeleteBehavior.Restrict);
-
-
 
             b.Entity<EmployeeHistory>(e =>
             {
@@ -318,9 +320,9 @@ namespace MyApplication.Components.Data
             b.Entity<AcrOrganization>(e =>
             {
                 e.HasOne(o => o.AcrRequest)
-     .WithOne(r => r.AcrOrganization)
-     .HasForeignKey<AcrOrganization>(o => o.AcrRequestId)
-     .OnDelete(DeleteBehavior.Cascade);
+                 .WithOne(r => r.AcrOrganization)
+                 .HasForeignKey<AcrOrganization>(o => o.AcrRequestId)
+                 .OnDelete(DeleteBehavior.Cascade);
 
                 e.HasOne(o => o.Manager).WithMany().HasForeignKey(o => o.ManagerId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
                 e.HasOne(o => o.Supervisor).WithMany().HasForeignKey(o => o.SupervisorId).IsRequired(false).OnDelete(DeleteBehavior.NoAction);
@@ -333,9 +335,9 @@ namespace MyApplication.Components.Data
             b.Entity<AcrSchedule>(e =>
             {
                 e.HasOne(s => s.AcrRequest)
-      .WithMany(r => r.AcrSchedules)
-      .HasForeignKey(s => s.AcrRequestId)
-      .OnDelete(DeleteBehavior.Cascade);
+                  .WithMany(r => r.AcrSchedules)
+                  .HasForeignKey(s => s.AcrRequestId)
+                  .OnDelete(DeleteBehavior.Cascade);
             });
 
             b.Entity<Skills>(e =>
@@ -363,7 +365,7 @@ namespace MyApplication.Components.Data
             b.Entity<RoutingProfileQueue>(e =>
             {
                 e.HasOne(rpq => rpq.RoutingProfile)
-                 .WithMany(p => p.RoutingProfileQueues) // <--- CHANGED: Connect to the new collection
+                 .WithMany(p => p.RoutingProfileQueues)
                  .HasForeignKey(rpq => rpq.RoutingProfileId)
                  .OnDelete(DeleteBehavior.Restrict);
 
@@ -391,13 +393,7 @@ namespace MyApplication.Components.Data
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
-            b.Entity<Identifiers>(e =>
-            {
-                e.HasOne(i => i.Employee)
-                 .WithMany()
-                 .HasForeignKey(i => i.EmployeeId)
-                 .OnDelete(DeleteBehavior.Restrict);
-            });
+            // ✅ FIX: Removed conflicting b.Entity<Identifiers> configuration here!
 
             b.Entity<AwsAgentActivityDto>()
                 .HasNoKey()
