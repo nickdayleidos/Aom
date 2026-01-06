@@ -326,7 +326,7 @@
             return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_managers.Select(x => (KeyValuePair<int, string>?)x));
         return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
             _managers.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
-                     .Select(x => (KeyValuePair<int, string>?)x));
+                      .Select(x => (KeyValuePair<int, string>?)x));
     }
 
     private Task<IEnumerable<KeyValuePair<int, string>?>> SearchSupervisors(string value, CancellationToken ct)
@@ -442,7 +442,16 @@
         return _isOst || _isWfm || _isAdmin;
     }
 
-    private bool CanReject(OperaRequest r) => CanApprove(r);
+    private bool CanReject(OperaRequest r)
+    {
+        var s = GetStatusId(r);
+        if (s != SubmittedStatusId && s != PendingStatusId) return false;
+
+        if (IsPendingPastOrFuture(r)) return _isAdmin || _isWfm;
+
+        // Reject permissions - WFM, Admin
+        return _isAdmin || _isWfm;
+    }
 
     private bool CanCancel(OperaRequest r)
     {

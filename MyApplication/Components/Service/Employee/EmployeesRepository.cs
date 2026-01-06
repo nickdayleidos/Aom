@@ -393,13 +393,59 @@ namespace MyApplication.Components.Service.Employee
         public async Task UpdateProfileAsync(EmployeeProfileUpdateDto dto)
         {
             using var ctx = await _factory.CreateDbContextAsync();
-            var emp = await ctx.Employees.FindAsync(dto.Id);
+            // Include Aws to check current state if needed
+            var emp = await ctx.Employees
+                .Include(e => e.Aws)
+                .FirstOrDefaultAsync(e => e.Id == dto.Id);
+
             if (emp != null)
             {
-                emp.FirstName = dto.FirstName; emp.LastName = dto.LastName; emp.MiddleInitial = dto.MiddleInitial;
-                emp.NmciEmail = dto.NmciEmail; emp.UsnOperatorId = dto.UsnOperatorId; emp.UsnAdminId = dto.UsnAdminId;
-                emp.CorporateEmail = dto.CorporateEmail; emp.CorporateId = dto.CorporateId;
-                emp.DomainLoginName = dto.DomainLoginName; emp.AwsId = dto.AwsId;
+                // Update standard profile fields
+                emp.FirstName = dto.FirstName;
+                emp.LastName = dto.LastName;
+                emp.MiddleInitial = dto.MiddleInitial;
+                emp.NmciEmail = dto.NmciEmail;
+                emp.UsnOperatorId = dto.UsnOperatorId;
+                emp.UsnAdminId = dto.UsnAdminId;
+                emp.CorporateEmail = dto.CorporateEmail;
+                emp.CorporateId = dto.CorporateId;
+                emp.DomainLoginName = dto.DomainLoginName;
+
+                // --- FIX: Handle AWS Relationship Sync ---
+                // If the selection has changed (or if we need to enforce self-healing)
+                if (emp.AwsId != dto.AwsId)
+                {
+                    // 1. Unlink any Identifier currently pointing to this employee
+                    // We query Identifiers directly because emp.Aws might be null if data is inconsistent
+                    var oldLinks = await ctx.Identifiers.Where(i => i.EmployeeId == emp.Id).ToListAsync();
+                    foreach (var link in oldLinks)
+                    {
+                        link.EmployeeId = null;
+                    }
+
+                    // 2. Link the new Identifier (if one is selected)
+                    if (dto.AwsId.HasValue)
+                    {
+                        var newLink = await ctx.Identifiers.FindAsync(dto.AwsId.Value);
+                        if (newLink != null)
+                        {
+                            newLink.EmployeeId = emp.Id;
+                        }
+                    }
+
+                    // 3. Update the local column on Employees (to keep the bidirectional ref in sync)
+                    emp.AwsId = dto.AwsId;
+                }
+                else if (dto.AwsId.HasValue && emp.Aws == null)
+                {
+                    // Edge Case: AWS ID is set on Employee, but the Identifier doesn't point back (Data Mismatch)
+                    var link = await ctx.Identifiers.FindAsync(dto.AwsId.Value);
+                    if (link != null && link.EmployeeId != emp.Id)
+                    {
+                        link.EmployeeId = emp.Id;
+                    }
+                }
+
                 await ctx.SaveChangesAsync();
             }
         }

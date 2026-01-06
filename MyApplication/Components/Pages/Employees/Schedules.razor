@@ -366,7 +366,7 @@
                     </MudExpansionPanels>
                 </MudTabPanel>
 
-                @if (_isAdmin)
+                @if (_canViewTimeline)
                 {
                     <MudTabPanel Text="Timeline View" Icon="@Icons.Material.Filled.Timeline">
 
@@ -436,6 +436,7 @@
                                         .Where(s => !s.ActivitySubTypeId.HasValue || !baseIds.Contains(s.ActivitySubTypeId.Value))
                                         .ToList();
 
+                                        // Apply relative positioning and min-width to the wrapper so absolute children scale correctly
                                         <div style="@($"display:flex; flex-direction:column; border-bottom:1px solid #ddd; position:relative; min-width: {minWidth}px;")">
 
                                             @* ROW 1: SCHEDULE (Plan - Base) *@
@@ -585,7 +586,7 @@
     private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
     private SortOption _sortBy = SortOption.StartTime; // Default sort
     private CancellationTokenSource? _cts;
-    private bool _isAdmin = false;
+    private bool _canViewTimeline = false;
     // Filter Logic
     private string _query = string.Empty;
     private bool _activeOnly = true;
@@ -636,7 +637,13 @@
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthState.GetAuthenticationStateAsync();
-        _isAdmin = state.User.IsInRole("Admin");
+        var user = state.User;
+        _canViewTimeline = user.IsInRole("Admin") ||
+                           user.IsInRole("OST") ||
+                           user.IsInRole("WFM") ||
+                           user.IsInRole("Manager") ||
+                           user.IsInRole("Supervisor");
+
         // Load options
         _options = await Repository.GetFilterOptionsAsync();
     }

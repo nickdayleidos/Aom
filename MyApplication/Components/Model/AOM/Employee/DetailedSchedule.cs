@@ -26,5 +26,6 @@ namespace MyApplication.Components.Model.AOM.Employee
         public Status? AwsStatus { get; set; }
         public int? Minutes { get; set; }
         public bool? IsImpacting { get; set; }
+        public bool? ImpactingOverride { get; set; }
     }
 }

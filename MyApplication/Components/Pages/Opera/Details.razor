@@ -53,32 +53,40 @@
                 {
                     @* --- ACTION BUTTONS --- *@
 
-                    @* Actions available if NOT Cancelled/Rejected? Or maybe only active? 
-                       For now, keeping actions for 1/6, but EDIT is open to all. *@
                     @if (_item.OperaStatusId == 1 || _item.OperaStatusId == 6)
                     {
-                        <MudTooltip Text="Approve">
-                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" OnClick="@(() => SetStatusAsync(2))" />
-                        </MudTooltip>
-                        <MudTooltip Text="Reject">
-                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" OnClick="@(() => SetStatusAsync(5))" />
-                        </MudTooltip>
+                        @* Approve: OST, WFM, Admin *@
+                        @if (_canApprove)
+                        {
+                            <MudTooltip Text="Approve">
+                                <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" OnClick="@(() => SetStatusAsync(2))" />
+                            </MudTooltip>
+                        }
 
-                        @* PENDING ACTION *@
-                        @if (_isWfmOrAdmin && _item.OperaStatusId == 1)
+                        @* Reject: WFM, Admin *@
+                        @if (_canRejectPending)
+                        {
+                            <MudTooltip Text="Reject">
+                                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" OnClick="@(() => SetStatusAsync(5))" />
+                            </MudTooltip>
+                        }
+
+                        @* PENDING ACTION: WFM, Admin *@
+                        @if (_canRejectPending && _item.OperaStatusId == 1)
                         {
                             <MudTooltip Text="Set Pending">
                                 <MudIconButton Icon="@Icons.Material.Filled.HourglassEmpty" Color="Color.Warning" OnClick="@(() => SetStatusAsync(6))" />
                             </MudTooltip>
                         }
 
+                        @* Cancel: All Authorized Roles *@
                         <MudTooltip Text="Cancel Request">
                             <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Default" OnClick="@(() => SetStatusAsync(4))" />
                         </MudTooltip>
                     }
 
-                    @* WFM / Admin Specific Actions *@
-                    @if (_isWfmOrAdmin)
+                    @* WFM / Admin Specific Actions (Unapprove) *@
+                    @if (_canRejectPending)
                     {
                         @if (_item.OperaStatusId == 2)
                         {
@@ -86,7 +94,7 @@
                         }
                     }
 
-                    @* EDIT Button: Available to all authorized roles, resets status on save *@
+                    @* EDIT Button: Available to all authorized roles *@
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="StartEdit">Edit Request</MudButton>
                 }
             </MudItem>
@@ -267,7 +275,8 @@
     private TimeSpan? _editEndTime;
 
     // Permissions State
-    private bool _isWfmOrAdmin = false;
+    private bool _canApprove = false;
+    private bool _canRejectPending = false; // WFM, Admin
 
     // Cache raw subtypes for filtering
     private List<ActivitySubType> _rawSubTypes = new();
@@ -276,7 +285,16 @@
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
-        _isWfmOrAdmin = user.IsInRole("Admin") || user.IsInRole("WFM") || user.IsInRole("OST");
+
+        bool isAdmin = user.IsInRole("Admin");
+        bool isWfm = user.IsInRole("WFM");
+        bool isOst = user.IsInRole("OST");
+
+        // approve - WFM, OST, Admin
+        _canApprove = isAdmin || isWfm || isOst;
+
+        // reject/ pending status permissions - WFM, Admin
+        _canRejectPending = isAdmin || isWfm;
 
         await LoadDataAsync();
     }
