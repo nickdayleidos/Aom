@@ -262,7 +262,7 @@
         try
         {
             var list = await Repo.SearchEmployeesAsync(query ?? "", 50, _empCts.Token) ?? Array.Empty<Employees>();
-            foreach (var e in list) _labelCache[e.Id] = $"{e.LastName}, {e.FirstName} (#{e.Id})";
+            foreach (var e in list) _labelCache[e.Id] = $"{e.LastName}, {e.FirstName} {e.MiddleInitial} (#{e.Id})";
             _employeeOptions = list.Select(e => new EmployeeOption(e.Id, _labelCache[e.Id])).ToList();
         }
         catch (OperationCanceledException) { }
@@ -336,7 +336,7 @@
         {
             var profile = await UserProfile.GetAsync();
             var actor = profile.UserName ?? profile.DisplayName ?? "unknown";
-            var nowUtc = DateTime.UtcNow;
+            var nowEt = Et.Now;
             var requests = new List<OperaRequest>();
             var errorMessages = new List<string>();
 
@@ -370,7 +370,7 @@
                     StartTime = startEt,
                     EndTime = finalEnd,
                     SubmittedBy = actor,
-                    SubmitTime = nowUtc,
+                    SubmitTime = nowEt,
                     OperaStatusId = initialStatus,
                     ActivityTypeId = _typeId.Value,
                     ActivitySubTypeId = _subTypeId.Value,

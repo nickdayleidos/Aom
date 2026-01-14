@@ -3,7 +3,8 @@ using MyApplication.Components.Model.AOM.Aws;
 using MyApplication.Components.Model.AOM.Employee;
 using MyApplication.Components.Model.AOM.Security;
 using MyApplication.Components.Model.AOM.Tools;
-using MyApplication.Components.Service.Employee.Dtos;
+using MyApplication.Components.Service.Employee;
+
 using System.Reflection.Emit;
 
 namespace MyApplication.Components.Data
@@ -23,6 +24,11 @@ namespace MyApplication.Components.Data
         public DbSet<Organization> Organizations { get; set; } = default!;
         public DbSet<SubOrganization> SubOrganizations { get; set; } = default!;
         public DbSet<EmployeeHistory> EmployeeHistory { get; set; } = default!;
+
+        // Certifications
+        public DbSet<CertificationType> CertificationTypes { get; set; } = default!;
+        public DbSet<CertificationVendor> CertificationVendors { get; set; } = default!;
+        public DbSet<Certification> Certifications { get; set; } = default!;
 
         // NEW: View
         public DbSet<EmployeeCurrentDetails> EmployeeCurrentDetails { get; set; } = default!;
@@ -126,6 +132,11 @@ namespace MyApplication.Components.Data
             b.Entity<Skills>().ToTable(nameof(Skills), "Employee").HasKey(x => x.Id);
             b.Entity<SkillType>().ToTable(nameof(SkillType), "Employee").HasKey(x => x.Id);
 
+            // Certifications Configuration
+            b.Entity<CertificationType>().ToTable("CertificationTypes", "Employee").HasKey(x => x.Id);
+            b.Entity<CertificationVendor>().ToTable("CertificationVendors", "Employee").HasKey(x => x.Id);
+            b.Entity<Certification>().ToTable("Certifications", "Employee").HasKey(x => x.Id);
+
             b.Entity<EmailTemplates>().ToTable(nameof(EmailTemplates), "Tools").HasKey(x => x.Id);
             b.Entity<IntervalSummary>().ToTable(nameof(IntervalSummary), "Tools").HasKey(x => x.Id);
             b.Entity<OiCategory>().ToTable(nameof(OiCategory), "Tools").HasKey(x => x.Id);
@@ -179,10 +190,27 @@ namespace MyApplication.Components.Data
              .HasForeignKey(x => x.EmployeeId)
              .OnDelete(DeleteBehavior.Restrict);
 
-            // ============================================================
-            // FIX: Map Employees <-> Identifiers correctly (1:1)
-            // Identifiers holds the Foreign Key (EmployeeId)
-            // ============================================================
+            b.Entity<CertificationType>(e =>
+            {
+                e.HasOne(x => x.Vendor)
+                 .WithMany()
+                 .HasForeignKey(x => x.VendorId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            b.Entity<Certification>(e =>
+            {
+                e.HasOne(x => x.Employee)
+                 .WithMany()
+                 .HasForeignKey(x => x.EmployeeId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.CertificationType)
+                 .WithMany()
+                 .HasForeignKey(x => x.CertificationTypeId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
             b.Entity<Employees>(e =>
             {
                 e.HasOne(x => x.Aws)
@@ -353,7 +381,6 @@ namespace MyApplication.Components.Data
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // New AWS Relationships
             b.Entity<CallQueue>(e =>
             {
                 e.HasOne(q => q.SkillType)
@@ -392,8 +419,6 @@ namespace MyApplication.Components.Data
                  .HasForeignKey(erp => erp.WeekendProfileId)
                  .OnDelete(DeleteBehavior.Restrict);
             });
-
-            // ✅ FIX: Removed conflicting b.Entity<Identifiers> configuration here!
 
             b.Entity<AwsAgentActivityDto>()
                 .HasNoKey()

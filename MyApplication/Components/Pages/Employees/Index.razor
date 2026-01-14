@@ -1,186 +1,174 @@
 ﻿@page "/employees"
-@using MudBlazor
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
 @using MyApplication.Components.Service.Employee
-@using MyApplication.Components.Service.Employee.Dtos
-@inject EmployeesRepository Repo
-@inject NavigationManager Nav
-@implements IDisposable
+@inject EmployeesRepository Repository
+@inject NavigationManager Navigation
 
-<MudStack Spacing="2">
-    <MudPaper Class="pa-4" Outlined>
-        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
-            <MudText Typo="Typo.h5">Employees</MudText>
-            <MudSpacer />
+<PageTitle>Employees</PageTitle>
 
-            <MudSwitch Value="_activeOnly"
-                       ValueChanged="@(async (bool v) => { _activeOnly = v; await RefreshAsync(); })"
-                       Color="Color.Primary"
-                       Class="mr-2" />
-            <MudText Class="mr-4">Active only</MudText>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Employees</MudText>
 
-            <MudTextField T="string"
-                          Value="@_query"
-                          ValueChanged="OnQueryChanged"
-                          Placeholder="Search by Name or ID"
-                          Immediate="true"
-                          DebounceInterval="350"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search"
-                          Class="w-64" />
-        </MudStack>
+    <MudGrid Class="mb-4 align-center" Spacing="1">
+        <MudItem xs="12" sm="6" md="2">
+            <MudTextField T="string" Value="@_filter.SearchText" ValueChanged="@OnSearchTextChanged" Label="Search Name" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="500" Clearable="true" OnClearButtonClick="LoadData" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="int" Label="Organization" MultiSelection="true" SelectedValues="@_filter.OrganizationIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.OrganizationIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="OnFilterChanged" SearchFunc="@SearchOrganizations" ToStringFunc="@(id => _organizations.FirstOrDefault(x => x.Id == id)?.Name)">
+                @foreach (var org in _organizations)
+                {
+                    <MudSelectItem Value="@org.Id">@org.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="int" Label="Sub Organization" MultiSelection="true" SelectedValues="@_filter.SubOrganizationIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.SubOrganizationIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="OnFilterChanged" SearchFunc="@SearchSubOrganizations" ToStringFunc="@(id => _subOrganizations.FirstOrDefault(x => x.Id == id)?.Name)">
+                @foreach (var subOrg in GetFilteredSubOrganizations())
+                {
+                    <MudSelectItem Value="@subOrg.Id">@subOrg.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="int" Label="Supervisor" MultiSelection="true" SelectedValues="@_filter.SupervisorIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.SupervisorIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="OnFilterChanged" SearchFunc="@SearchSupervisors" ToStringFunc="@(id => _supervisors.FirstOrDefault(x => x.Id == id)?.Name)">
+                @foreach (var sup in _supervisors)
+                {
+                    <MudSelectItem Value="@sup.Id">@sup.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="int" Label="Manager" MultiSelection="true" SelectedValues="@_filter.ManagerIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.ManagerIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="OnFilterChanged" SearchFunc="@SearchManagers" ToStringFunc="@(id => _managers.FirstOrDefault(x => x.Id == id)?.Name)">
+                @foreach (var man in _managers)
+                {
+                    <MudSelectItem Value="@man.Id">@man.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" sm="3" md="2" Class="d-flex align-center justify-center">
+            <MudCheckBox Value="@_filter.IncludeInactive" ValueChanged="@((bool v) => OnIncludeInactiveChanged(v))" Label="Inactive" Dense="true" Color="Color.Primary"></MudCheckBox>
+        </MudItem>
+    </MudGrid>
 
-        <MudDivider Class="my-2" />
-
-        <MudGrid>
-            <MudItem xs="12" sm="6" md="3">
-                <MudAutocomplete T="string" Label="Manager"
-                                 Value="_selectedManager"
-                                 MaxItems="null"
-                                 ValueChanged="@(async (string s) => { _selectedManager = s; await RefreshAsync(); })"
-                                 SearchFunc="@((x, ct) => SearchList(x, _options.Managers))"
-                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudAutocomplete T="string" Label="Supervisor"
-                                 Value="_selectedSupervisor"
-                                 MaxItems="null"
-                                 ValueChanged="@(async (string s) => { _selectedSupervisor = s; await RefreshAsync(); })"
-                                 SearchFunc="@((x, ct) => SearchList(x, _options.Supervisors))"
-                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudAutocomplete T="string" Label="Organization"
-                                 Value="_selectedOrg"
-                                 MaxItems="null"
-                                 ValueChanged="@(async (string s) => { _selectedOrg = s; await RefreshAsync(); })"
-                                 SearchFunc="@((x, ct) => SearchList(x, _options.Organizations))"
-                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudAutocomplete T="string" Label="Sub-Organization"
-                                 Value="_selectedSubOrg"
-                                 MaxItems="null"
-                                 ValueChanged="@(async (string s) => { _selectedSubOrg = s; await RefreshAsync(); })"
-                                 SearchFunc="@((x, ct) => SearchList(x, _options.SubOrganizations))"
-                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true" />
-            </MudItem>
-        </MudGrid>
-
-    </MudPaper>
-
-    <MudPaper Class="pa-2" Outlined>
-        <MudDataGrid T="EmployeeListItem" Items="_items" Hover="true" Dense="true" Bordered="true"
-                     Filterable="false" SortMode="SortMode.Multiple">
-            <Columns>
-                <PropertyColumn Property="x => x.DisplayName" Title="Employee" Sortable="true" />
-
-                <PropertyColumn Property="x => x.Manager" Title="Manager" Sortable="true" />
-                <PropertyColumn Property="x => x.Supervisor" Title="Supervisor" Sortable="true" />
-                <PropertyColumn Property="x => x.Organization" Title="Organization" Sortable="true" />
-                <PropertyColumn Property="x => x.SubOrganization" Title="Sub-Org" Sortable="true" />
-
-                <TemplateColumn CellClass="d-flex justify-end" Sortable="false">
-                    <CellTemplate>
-                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Href="@($"/employees/{context.Item.Id}")">
-                            Details
-                        </MudButton>
-                    </CellTemplate>
-                </TemplateColumn>
-            </Columns>
-            <PagerContent>
-                <MudDataGridPager T="EmployeeListItem" />
-            </PagerContent>
-            <NoRecordsContent>
-                <MudText Class="pa-4">No employees found.</MudText>
-            </NoRecordsContent>
-        </MudDataGrid>
-    </MudPaper>
-</MudStack>
+    <MudDataGrid T="EmployeeDto" Items="@_employees" Filterable="false" SortMode="SortMode.Multiple" Groupable="false" Dense="true" Striped="true">
+        <Columns>
+            <PropertyColumn Property="x => x.Name" Title="Name" />
+            <PropertyColumn Property="x => x.Organization" Title="Organization" />
+            <PropertyColumn Property="x => x.SubOrganization" Title="Sub Organization" />
+            <PropertyColumn Property="x => x.Site" Title="Site" />
+            <PropertyColumn Property="x => x.Supervisor" Title="Supervisor" />
+            <PropertyColumn Property="x => x.Manager" Title="Manager" />
+            <TemplateColumn Title="Actions" CellClass="d-flex justify-end">
+                <CellTemplate>
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ViewDetails(context.Item.Id))" Title="Details" />
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="EmployeeDto" />
+        </PagerContent>
+    </MudDataGrid>
+</MudContainer>
 
 @code {
-    private string _query = string.Empty;
-    private bool _activeOnly = true;
+    private List<EmployeeDto> _employees = new();
+    private EmployeesFilterDto _filter = new();
 
-    // Filter Selections
-    private string? _selectedManager;
-    private string? _selectedSupervisor;
-    private string? _selectedOrg;
-    private string? _selectedSubOrg;
+    private List<OrganizationDto> _organizations = new();
+    private List<SubOrganizationDto> _subOrganizations = new();
+    private List<SiteDto> _sites = new();
+    private List<SupervisorDto> _supervisors = new();
+    private List<ManagerDto> _managers = new();
 
-    private List<EmployeeListItem> _items = new();
-    private EmployeeFilterOptionsDto _options = new();
-
-    private CancellationTokenSource? _cts;
     protected override async Task OnInitializedAsync()
     {
-        _options = await Repo.GetFilterOptionsAsync();
-        await RefreshAsync();
+        await LoadLookups();
+        await LoadData();
     }
 
-    private async Task OnQueryChanged(string value)
+    private async Task LoadLookups()
     {
-        _query = value ?? string.Empty;
-        await RefreshAsync();
+        _organizations = await Repository.GetOrganizationsAsync();
+        _subOrganizations = await Repository.GetSubOrganizationsAsync();
+        _sites = await Repository.GetSitesAsync();
+        _supervisors = await Repository.GetSupervisorsAsync();
+        _managers = await Repository.GetManagersAsync();
     }
 
-    // Helper for Autocomplete search
-    private Task<IEnumerable<string>> SearchList(string value, List<string> list)
+    private async Task LoadData()
+    {
+        _employees = await Repository.GetEmployeesAsync(_filter);
+        StateHasChanged();
+    }
+
+    private async Task OnSearchTextChanged(string text)
+    {
+        _filter.SearchText = text;
+        await LoadData();
+    }
+
+    // Generic handler to update the specific filter property and reload data
+    private async Task OnFilterChanged(IEnumerable<int> values, Action<IEnumerable<int>> setter)
+    {
+        setter(values);
+        await LoadData();
+    }
+
+    private async Task OnFilterChanged(MouseEventArgs args)
+    {
+        // This is primarily for the Clear button click which might trigger without value change immediately or needs explicit handling if bind-SelectedValues clears it first.
+        // Usually SelectedValuesChanged handles the update, but OnClearButtonClick is an EventCallback<MouseEventArgs>
+        // We just reload data. The binding should have updated the filter to empty.
+        await LoadData();
+    }
+
+    private async Task OnIncludeInactiveChanged(bool value)
+    {
+        _filter.IncludeInactive = value;
+        await LoadData();
+    }
+
+    private void ViewDetails(int id)
+    {
+        Navigation.NavigateTo($"/employees/{id}");
+    }
+
+    private IEnumerable<SubOrganizationDto> GetFilteredSubOrganizations()
+    {
+        if (_filter.OrganizationIds == null || !_filter.OrganizationIds.Any())
+        {
+            return _subOrganizations;
+        }
+
+        return _subOrganizations.Where(x => _filter.OrganizationIds.Contains(x.OrganizationId));
+    }
+
+    // Search Functions for MudSelect
+    private Task<IEnumerable<int>> SearchOrganizations(string value, CancellationToken token)
     {
         if (string.IsNullOrEmpty(value))
-            return Task.FromResult<IEnumerable<string>>(list);
-        return Task.FromResult(list.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+            return Task.FromResult(_organizations.Select(x => x.Id));
+        return Task.FromResult(_organizations.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(x => x.Id));
     }
 
-    private async Task RefreshAsync()
+    private Task<IEnumerable<int>> SearchSubOrganizations(string value, CancellationToken token)
     {
-        try
-        {
-            _cts?.Cancel();
-            _cts?.Dispose();
-        }
-        catch (ObjectDisposedException) { }
-
-        _cts = new CancellationTokenSource();
-        var ct = _cts.Token;
-
-        try
-        {
-            _items = await Repo.SearchAsync(
-                query: _query,
-                activeOnly: _activeOnly,
-                manager: _selectedManager,
-                supervisor: _selectedSupervisor,
-                org: _selectedOrg,
-                subOrg: _selectedSubOrg,
-                take: 1000,
-                ct: ct);
-            StateHasChanged();
-        }
-        catch (TaskCanceledException)
-        {
-            // Ignore
-        }
+        var source = GetFilteredSubOrganizations();
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult(source.Select(x => x.Id));
+        return Task.FromResult(source.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(x => x.Id));
     }
 
-    private void GoTo(int id) => Nav.NavigateTo($"/employees/{id}");
-    public void Dispose()
+    private Task<IEnumerable<int>> SearchSupervisors(string value, CancellationToken token)
     {
-        try
-        {
-            _cts?.Cancel();
-            _cts?.Dispose();
-        }
-        catch (ObjectDisposedException) { }
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult(_supervisors.Select(x => x.Id));
+        return Task.FromResult(_supervisors.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(x => x.Id));
+    }
 
-        _cts = null;
+    private Task<IEnumerable<int>> SearchManagers(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult(_managers.Select(x => x.Id));
+        return Task.FromResult(_managers.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(x => x.Id));
     }
 }

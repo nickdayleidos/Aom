@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260109173519_fixroutingprofileguid")]
+    partial class fixroutingprofileguid
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -658,111 +661,6 @@ namespace MyApplication.Migrations
                     b.ToTable("BreakTemplates", "Employee");
                 });
 
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Certification", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateOnly?>("CeRegistrationDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly>("CertificationDate")
-                        .HasColumnType("date");
-
-                    b.Property<int>("CertificationTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.Property<DateOnly>("ExpirationDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasColumnType("varchar(64)");
-
-                    b.Property<string>("SerialNumber")
-                        .IsRequired()
-                        .HasColumnType("varchar(32)");
-
-                    b.Property<DateTime>("UploadDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UploadedBy")
-                        .HasColumnType("varchar(32)");
-
-                    b.Property<bool>("Verified")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("VerifiedBy")
-                        .IsRequired()
-                        .HasColumnType("varchar(32)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CertificationTypeId");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.ToTable("Certifications", "Employee");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.CertificationType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("IamLevel")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IatLevel")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IsContinuingEducation")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("varchar(64)");
-
-                    b.Property<string>("ShortName")
-                        .IsRequired()
-                        .HasColumnType("varchar(32)");
-
-                    b.Property<int?>("VendorId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VendorId");
-
-                    b.ToTable("CertificationTypes", "Employee");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.CertificationVendor", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("varchar(64)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("CertificationVendors", "Employee");
-                });
-
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.DetailedSchedule", b =>
                 {
                     b.Property<int>("Id")
@@ -829,8 +727,8 @@ namespace MyApplication.Migrations
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("EffectiveDate")
-                        .HasColumnType("datetime2");
+                    b.Property<DateOnly?>("EffectiveDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("EmployerName")
                         .HasColumnType("nvarchar(max)");
@@ -1265,12 +1163,6 @@ namespace MyApplication.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("AwsStatusId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IamLevel")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IatLevel")
                         .HasColumnType("int");
 
                     b.Property<bool?>("IsActive")
@@ -2181,35 +2073,6 @@ namespace MyApplication.Migrations
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.Certification", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.CertificationType", "CertificationType")
-                        .WithMany()
-                        .HasForeignKey("CertificationTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("CertificationType");
-
-                    b.Navigation("Employee");
-                });
-
-            modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.CertificationType", b =>
-                {
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.CertificationVendor", "Vendor")
-                        .WithMany()
-                        .HasForeignKey("VendorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Vendor");
                 });
 
             modelBuilder.Entity("MyApplication.Components.Model.AOM.Employee.DetailedSchedule", b =>

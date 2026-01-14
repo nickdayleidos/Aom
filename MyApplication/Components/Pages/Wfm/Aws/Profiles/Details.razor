@@ -1,64 +1,106 @@
-﻿@page "/wfm/aws/profiles/{Id:int}"
-@attribute [Authorize(Roles = "Admin,OST,WFM")]
+﻿@page "/wfm/aws/profiles/{id:int}"
+@attribute [Authorize(Roles = "Admin,WFM")]
 @using MyApplication.Components.Model.AOM.Aws
 @using MyApplication.Components.Service.Aws
 @inject AwsRoutingService Service
 @inject IDialogService DialogService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
 
 <MudStack Spacing="4">
-    <MudText Typo="Typo.h5">Profile: @_profile?.Name</MudText>
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/wfm/aws/profiles"))" />
+        <MudText Typo="Typo.h5">@_profile?.Name</MudText>
+    </MudStack>
 
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
-            <MudText Typo="Typo.h6">Assigned Queues</MudText>
-            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Secondary" OnClick="AddQueue">Assign Queue</MudButton>
-        </MudStack>
+    @if (_profile != null)
+    {
+        <MudPaper Class="pa-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.h6">Assigned Queues</MudText>
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" OnClick="AddQueue">Add Queue</MudButton>
+            </MudStack>
 
-        <MudTable Items="_assignedQueues" Dense="true" Hover="true">
-            <HeaderContent>
-                <MudTh>Priority</MudTh>
-                <MudTh>Queue</MudTh>
-                <MudTh>Delay (sec)</MudTh>
-                <MudTh></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.Priority</MudTd>
-                <MudTd>@context.CallQueue?.Name</MudTd>
-                <MudTd>@context.Delay</MudTd>
-                <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveQueue(context))" />
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudPaper>
+            <MudTable Items="_queues" Dense="true" Hover="true" Class="mt-4">
+                <HeaderContent>
+                    <MudTh>Queue</MudTh>
+                    <MudTh>Priority</MudTh>
+                    <MudTh>Delay</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.CallQueue?.Name</MudTd>
+                    <MudTd>@context.Priority</MudTd>
+                    <MudTd>@context.Delay</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => EditQueue(context))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveQueue(context))" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+    else
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
 </MudStack>
 
 @code {
     [Parameter] public int Id { get; set; }
+
     private RoutingProfile? _profile;
-    private List<RoutingProfileQueue> _assignedQueues = new();
+    private List<RoutingProfileQueue> _queues = new();
 
     protected override async Task OnInitializedAsync()
     {
-        _profile = await Service.GetProfileDetailsAsync(Id);
-        await LoadQueues();
+        await LoadData();
     }
 
-    private async Task LoadQueues() => _assignedQueues = await Service.GetQueuesForProfileAsync(Id);
+    private async Task LoadData()
+    {
+        _profile = await Service.GetProfileDetailsAsync(Id);
+        _queues = await Service.GetQueuesForProfileAsync(Id);
+    }
 
     private async Task AddQueue()
     {
-        var allQueues = await Service.GetQueuesAsync();
-        // Simple dialog to pick queue, priority, delay
-        var parameters = new DialogParameters { ["ProfileId"] = Id, ["AvailableQueues"] = allQueues };
-        var dialog = await DialogService.ShowAsync<AddQueueToProfileDialog>("Assign Queue", parameters);
+        var parameters = new DialogParameters { ["ProfileId"] = Id };
+        var dialog = await DialogService.ShowAsync<AddQueueToProfileDialog>("Add Queue to Profile", parameters);
         var result = await dialog.Result;
-        if (!result.Canceled) await LoadQueues();
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+            Snackbar.Add("Queue added", Severity.Success);
+        }
+    }
+
+    private async Task EditQueue(RoutingProfileQueue mapping)
+    {
+        var parameters = new DialogParameters
+        {
+            ["ProfileId"] = Id,
+            ["ExistingMapping"] = mapping
+        };
+        var dialog = await DialogService.ShowAsync<AddQueueToProfileDialog>("Edit Queue Assignment", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+            Snackbar.Add("Queue assignment updated", Severity.Success);
+        }
     }
 
     private async Task RemoveQueue(RoutingProfileQueue item)
     {
-        await Service.RemoveQueueFromProfileAsync(item.Id);
-        await LoadQueues();
+        var confirm = await DialogService.ShowMessageBox("Remove Queue", "Are you sure?", yesText: "Remove", cancelText: "Cancel");
+        if (confirm == true)
+        {
+            await Service.RemoveQueueFromProfileAsync(item.Id);
+            await LoadData();
+            Snackbar.Add("Queue removed", Severity.Success);
+        }
     }
 }

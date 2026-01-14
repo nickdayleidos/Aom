@@ -47,31 +47,6 @@ public class ScheduleSegmentVm
 
     public int ZIndex => ActivityName == "Offline" ? 0 : 10;
 
-    public string ColorClass
-    {
-        get
-        {
-            var name = SubActivityName != "-" ? SubActivityName : ActivityName;
-            if (!string.IsNullOrEmpty(AwsStatusName) && AwsStatusName != "-") name = AwsStatusName;
-
-            if (string.IsNullOrEmpty(name)) return "activity-default";
-
-            var cleanName = name.Trim();
-
-            if (cleanName.Equals("Offline", StringComparison.OrdinalIgnoreCase)) return "activity-offline";
-            if (cleanName.Equals("Admin Tasks", StringComparison.OrdinalIgnoreCase)) return "activity-admin";
-            if (cleanName.Equals("System", StringComparison.OrdinalIgnoreCase)) return "activity-system";
-            if (cleanName.Equals("Available", StringComparison.OrdinalIgnoreCase)) return "activity-available";
-            if (cleanName.Equals("OL Customer Work", StringComparison.OrdinalIgnoreCase)) return "activity-ol-customer";
-            if (cleanName.Equals("Peer Mentoring", StringComparison.OrdinalIgnoreCase)) return "activity-peer";
-            if (cleanName.Equals("Break", StringComparison.OrdinalIgnoreCase)) return "activity-break";
-            if (cleanName.Equals("Lunch", StringComparison.OrdinalIgnoreCase)) return "activity-lunch";
-            if (cleanName.Equals("Corporate Engagement", StringComparison.OrdinalIgnoreCase) || cleanName.Equals("Corp Engagement", StringComparison.OrdinalIgnoreCase)) return "activity-corporate";
-            if (cleanName.Equals("Coaching", StringComparison.OrdinalIgnoreCase)) return "activity-coaching";
-            if (cleanName.Equals("Meeting", StringComparison.OrdinalIgnoreCase)) return "activity-meeting";
-            if (cleanName.Equals("Training", StringComparison.OrdinalIgnoreCase)) return "activity-training";
-
-            return "activity-default";
-        }
-    }
+    // FIX: Changed to a read-write property so the Repository can set the correct color.
+    public string ColorClass { get; set; } = "activity-default";
 }

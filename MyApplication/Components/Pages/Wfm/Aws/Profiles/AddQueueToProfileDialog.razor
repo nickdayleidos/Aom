@@ -1,39 +1,97 @@
 ﻿@using MyApplication.Components.Model.AOM.Aws
 @using MyApplication.Components.Service.Aws
 @inject AwsRoutingService Service
+@inject ISnackbar Snackbar
 
 <MudDialog>
     <DialogContent>
-        <MudForm @ref="_form">
-            <MudSelect T="int" Label="Queue" @bind-Value="_model.CallQueueId" Required="true">
-                @foreach (var q in AvailableQueues)
-                {
-                    <MudSelectItem Value="@q.Id">@q.Name</MudSelectItem>
-                }
-            </MudSelect>
-            <MudNumericField @bind-Value="_model.Priority" Label="Priority" Min="1" />
-            <MudNumericField @bind-Value="_model.Delay" Label="Delay (Seconds)" Min="0" />
-        </MudForm>
+        <MudStack Spacing="3">
+            @if (Mapping.Id == 0)
+            {
+                <MudSelect T="int" Label="Select Queue" @bind-Value="Mapping.CallQueueId" AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var q in _queues)
+                    {
+                        <MudSelectItem Value="@q.Id">@q.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else
+            {
+                <MudTextField Value="@_queueName" Label="Queue" ReadOnly="true" Variant="Variant.Filled" />
+            }
+
+            <MudStack Row="true" Spacing="4">
+                <MudNumericField @bind-Value="Mapping.Priority" Label="Priority" Min="1" />
+                <MudNumericField @bind-Value="Mapping.Delay" Label="Delay (sec)" Min="0" />
+            </MudStack>
+        </MudStack>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
-        <MudButton Color="Color.Primary" OnClick="Submit">Assign</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">@(Mapping.Id == 0 ? "Add" : "Save")</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
-    [Parameter] public int ProfileId { get; set; }
-    [Parameter] public List<CallQueue> AvailableQueues { get; set; }
 
-    private RoutingProfileQueue _model = new() { Priority = 1, Delay = 0 };
-    private MudForm _form;
+    [Parameter] public int ProfileId { get; set; }
+
+    // If provided, we are editing this mapping
+    [Parameter] public RoutingProfileQueue? ExistingMapping { get; set; }
+
+    private RoutingProfileQueue Mapping { get; set; } = new();
+    private List<CallQueue> _queues = new();
+    private string _queueName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _queues = await Service.GetQueuesAsync();
+
+        if (ExistingMapping != null)
+        {
+            // Edit Mode
+            Mapping = new RoutingProfileQueue
+            {
+                Id = ExistingMapping.Id,
+                RoutingProfileId = ExistingMapping.RoutingProfileId,
+                CallQueueId = ExistingMapping.CallQueueId,
+                Priority = ExistingMapping.Priority,
+                Delay = ExistingMapping.Delay
+            };
+            _queueName = _queues.FirstOrDefault(q => q.Id == Mapping.CallQueueId)?.Name ?? "Unknown";
+        }
+        else
+        {
+            // Add Mode
+            Mapping = new RoutingProfileQueue
+            {
+                RoutingProfileId = ProfileId,
+                Priority = 1,
+                Delay = 0
+            };
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
 
     private async Task Submit()
     {
-        _model.RoutingProfileId = ProfileId;
-        await Service.AddQueueToProfileAsync(_model);
+        if (Mapping.CallQueueId == 0)
+        {
+            Snackbar.Add("Please select a queue", Severity.Warning);
+            return;
+        }
+
+        if (Mapping.Id == 0)
+        {
+            await Service.AddQueueToProfileAsync(Mapping);
+        }
+        else
+        {
+            await Service.UpdateQueueInProfileAsync(Mapping);
+        }
+
         MudDialog.Close(DialogResult.Ok(true));
     }
-    private void Cancel() => MudDialog.Cancel();
 }

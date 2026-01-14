@@ -4,7 +4,7 @@
 @using MyApplication.Components.Model.AOM.Aws
 @using MyApplication.Components.Service.Aws
 @using MyApplication.Components.Service.Employee
-@using MyApplication.Components.Service.Employee.Dtos
+
 @using MyApplication.Common.Time
 @inject AwsRoutingService AwsService
 @inject EmployeesRepository EmployeeRepo
@@ -118,7 +118,7 @@
                 @if (!string.IsNullOrEmpty(context.SubOrganization))
                 {
                     <br />
-                
+
                     <MudText Typo="Typo.caption" Color="Color.Secondary">@context.SubOrganization</MudText>
                 }
             </MudTd>
@@ -200,6 +200,7 @@
     {
         _profiles = await AwsService.GetProfilesAsync();
     }
+
 
     private async Task<TableData<EmployeeListItem>> ServerReload(TableState state, CancellationToken ct)
     {

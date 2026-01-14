@@ -1,0 +1,200 @@
+﻿@page "/training/certifications/details/{Id:int}"
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Training.Certifications
+@using Microsoft.AspNetCore.Components.Authorization
+@inject ICertificationsRepository Repository
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IDialogService DialogService
+
+<PageTitle>Certification Details</PageTitle>
+
+<AuthorizeView Roles="Admin,Manager,Supervisor,WFM,OST,Training">
+    <Authorized Context="authContext">
+        @if (_cert == null)
+        {
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        }
+        else
+        {
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4" Style="height: 90vh; display: flex; flex-direction: column;">
+
+                <!-- Header -->
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+                    <MudText Typo="Typo.h5">
+                        Details: @_cert.Employee?.FirstName @_cert.Employee?.LastName - @_cert.CertificationType?.Name
+                    </MudText>
+
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/training/certifications"))">Back</MudButton>
+
+                        @if (_isEditMode)
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Default" StartIcon="@Icons.Material.Filled.Cancel" OnClick="CancelEdit">Cancel</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="Save">Save Changes</MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => _isEditMode = true)">Edit</MudButton>
+                        }
+
+                        <AuthorizeView Roles="Training,Admin" Context="verifyContext">
+                            <Authorized>
+                                @if (!_cert.Verified)
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Verified" OnClick="Verify">Verify</MudButton>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Verified by @_cert.VerifiedBy</MudChip>
+                                }
+                            </Authorized>
+                            <NotAuthorized>
+                                @if (_cert.Verified)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Verified by @_cert.VerifiedBy</MudChip>
+                                }
+                            </NotAuthorized>
+                        </AuthorizeView>
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="Delete">Delete</MudButton>
+                    </MudStack>
+                </MudStack>
+
+                <MudGrid Style="flex-grow: 1; overflow: hidden;">
+                    <!-- Left: Form -->
+                    <MudItem xs="12" md="4" Style="overflow-y: auto; max-height: 100%;">
+                        <MudPaper Class="p-4">
+                            <MudForm @ref="_form">
+                                <MudTextField Label="Employee" Value="@($"{_cert.Employee?.LastName}, {_cert.Employee?.FirstName}")" ReadOnly="true" Variant="Variant.Filled" Class="mb-3" />
+
+                                @if (_isEditMode)
+                                {
+                                    <MudSelect T="int" Label="Certification Type" @bind-Value="_cert.CertificationTypeId" AnchorOrigin="Origin.BottomCenter">
+                                        @foreach (var type in _types)
+                                        {
+                                            <MudSelectItem Value="@type.Id">@type.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudTextField Label="Serial Number" @bind-Value="_cert.SerialNumber" Class="mt-3" />
+
+                                    <MudDatePicker Label="Certification Date" @bind-Date="_certDate" Class="mt-3" />
+                                    <MudDatePicker Label="Expiration Date" @bind-Date="_expDate" Class="mt-3" />
+                                    <MudDatePicker Label="CE Registration Date" @bind-Date="_ceDate" Class="mt-3" />
+                                }
+                                else
+                                {
+                                    <MudTextField Label="Certification Type" Value="@_cert.CertificationType?.Name" ReadOnly="true" Variant="Variant.Outlined" Class="mb-3" />
+                                    <MudTextField Label="Serial Number" Value="@_cert.SerialNumber" ReadOnly="true" Variant="Variant.Outlined" Class="mt-3" />
+                                    <MudTextField Label="Certification Date" Value="@_cert.CertificationDate.ToShortDateString()" ReadOnly="true" Variant="Variant.Outlined" Class="mt-3" />
+                                    <MudTextField Label="Expiration Date" Value="@_cert.ExpirationDate.ToShortDateString()" ReadOnly="true" Variant="Variant.Outlined" Class="mt-3" />
+                                    <MudTextField Label="CE Registration Date" Value="@(_cert.CeRegistrationDate?.ToShortDateString() ?? "N/A")" ReadOnly="true" Variant="Variant.Outlined" Class="mt-3" />
+                                }
+
+                                <MudDivider Class="my-4" />
+
+                                <MudTextField Label="Uploaded By" Value="@_cert.UploadedBy" ReadOnly="true" Variant="Variant.Filled" />
+                                <MudTextField Label="Upload Date" Value="@_cert.UploadDate.ToString("g")" ReadOnly="true" Variant="Variant.Filled" Class="mt-3" />
+                                <MudTextField Label="File Name" Value="@_cert.FileName" ReadOnly="true" Variant="Variant.Filled" Class="mt-3" />
+                            </MudForm>
+                        </MudPaper>
+                    </MudItem>
+
+                    <!-- Right: PDF Viewer -->
+                    <MudItem xs="12" md="8" Style="height: 100%;">
+                        <MudPaper Class="p-2" Style="height: 100%; display: flex; flex-direction: column;">
+                            <MudText Typo="Typo.subtitle1" Class="mb-2">Document Preview</MudText>
+                            <iframe src="@($"/api/certifications/view/{_cert.Id}")" style="width:100%; height:100%; border:none;" type="application/pdf"></iframe>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-16 text-center">
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled">You are not authorized to view this page.</MudAlert>
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Certification? _cert;
+    private List<CertificationType> _types = new();
+    private MudForm _form;
+    private bool _isEditMode = false;
+
+    // Dates helpers
+    private DateTime? _certDate;
+    private DateTime? _expDate;
+    private DateTime? _ceDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cert = await Repository.GetCertificationByIdAsync(Id);
+        _types = await Repository.GetCertificationTypesAsync();
+
+        RefreshDates();
+    }
+
+    private void RefreshDates()
+    {
+        if (_cert != null)
+        {
+            _certDate = _cert.CertificationDate.ToDateTime(TimeOnly.MinValue);
+            _expDate = _cert.ExpirationDate.ToDateTime(TimeOnly.MinValue);
+            _ceDate = _cert.CeRegistrationDate?.ToDateTime(TimeOnly.MinValue);
+        }
+    }
+
+    private void CancelEdit()
+    {
+        _isEditMode = false;
+        RefreshDates(); // Reset any unsaved date changes
+    }
+
+    private async Task Save()
+    {
+        if (_cert == null) return;
+
+        // Update model from helpers
+        if (_certDate.HasValue) _cert.CertificationDate = DateOnly.FromDateTime(_certDate.Value);
+        if (_expDate.HasValue) _cert.ExpirationDate = DateOnly.FromDateTime(_expDate.Value);
+        _cert.CeRegistrationDate = _ceDate.HasValue ? DateOnly.FromDateTime(_ceDate.Value) : null;
+
+        await Repository.UpdateCertificationAsync(_cert);
+        Snackbar.Add("Changes saved.", Severity.Success);
+        _isEditMode = false;
+    }
+
+    private async Task Verify()
+    {
+        if (_cert == null) return;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _cert.Verified = true;
+        _cert.VerifiedBy = authState.User.Identity?.Name ?? "Unknown";
+
+        await Repository.UpdateCertificationAsync(_cert);
+        Snackbar.Add("Certification Verified.", Severity.Success);
+    }
+
+    private async Task Delete()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        var result = await DialogService.ShowMessageBox(
+            "Warning",
+            "Deleting this record will remove the database entry. It will NOT delete the physical file on disk (per safety policies). Continue?",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (result == true)
+        {
+            await Repository.DeleteCertificationAsync(Id);
+            Navigation.NavigateTo("/training/certifications");
+        }
+    }
+}

@@ -1,0 +1,201 @@
+﻿@page "/training/certifications/upload"
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Training.Certifications
+@using Microsoft.AspNetCore.Components.Authorization
+@inject ICertificationsRepository Repository
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Upload Certification</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Upload New Certification</MudText>
+
+    <MudPaper Class="p-4">
+        <MudForm @ref="_form" @bind-IsValid="_success">
+            <MudGrid>
+                <!-- Employee Search -->
+                <MudItem xs="12" md="6">
+                    <MudAutocomplete T="Employees" Label="Employee" @bind-Value="_selectedEmployee"
+                                     SearchFunc="@SearchEmployees" ToStringFunc="@(e => e == null ? null : $"{e.LastName}, {e.FirstName} {(string.IsNullOrEmpty(e.MiddleInitial) ? "" : e.MiddleInitial)}")"
+                                     Required="true" RequiredError="Employee is required"
+                                     ResetValueOnEmptyText="true"
+                                     MaxItems="null"
+                                     CoerceText="false" CoerceValue="false" />
+                </MudItem>
+
+                <!-- Certification Type Search -->
+                <MudItem xs="12" md="6">
+                    <MudAutocomplete T="CertificationType" Label="Certification Type" @bind-Value="_selectedType"
+                                     SearchFunc="@SearchTypes" ToStringFunc="@(t => t?.Name)"
+                                     Required="true" RequiredError="Type is required"
+                                     ResetValueOnEmptyText="true"
+                                     MaxItems="null"
+                                     CoerceText="false" CoerceValue="false" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudDatePicker Label="Certification Date" @bind-Date="_certDate" Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker Label="Expiration Date" @bind-Date="_expDate" Required="true" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField Label="Serial Number" @bind-Value="_cert.SerialNumber" Required="true" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                                Select PDF File
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    @if (_file != null)
+                    {
+                        <MudText Typo="Typo.body2" Class="mt-2">Selected: @_file.Name (@(_file.Size / 1024) KB)</MudText>
+                    }
+                </MudItem>
+
+                <MudItem xs="12" Class="d-flex justify-end gap-2">
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/training/certifications"))">Cancel</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_success || _file == null || _selectedEmployee == null || _selectedType == null)" OnClick="Submit">Upload & Save</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private Certification _cert = new();
+    private List<Employees> _allEmployees = new();
+    private List<CertificationType> _allTypes = new();
+    private MudForm _form;
+    private bool _success;
+    private IBrowserFile _file;
+
+    // Autocomplete selections
+    private Employees? _selectedEmployee;
+    private CertificationType? _selectedType;
+
+    // Date pickers use DateTime?, model uses DateOnly
+    private DateTime? _certDate;
+    private DateTime? _expDate;
+    private DateTime? _ceDate;
+
+    // Hardcoded path
+    private const string BasePath = @"\\NmciTod\Web\TODData\EmployeeCertificates\";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allEmployees = await Repository.GetEmployeesAsync();
+        _allTypes = await Repository.GetCertificationTypesAsync();
+    }
+
+    private async Task<IEnumerable<Employees>> SearchEmployees(string value, CancellationToken token)
+    {
+        // If empty, return nothing or maybe just active ones? Let's return nothing until they type for performance if list is huge
+        // But requests says "searchable", usually implies wait for input.
+        if (string.IsNullOrEmpty(value))
+            return new List<Employees>();
+
+        await Task.Delay(5, token); // Debounce slightly
+
+        return _allEmployees.Where(e =>
+            // Last, First
+            $"{e.LastName}, {e.FirstName} {e.MiddleInitial}".Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            // First Last
+            $"{e.FirstName} {e.LastName}".Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            // First MI Last
+            $"{e.FirstName} {e.MiddleInitial} {e.LastName}".Contains(value, StringComparison.OrdinalIgnoreCase)
+        );
+    }
+
+    private async Task<IEnumerable<CertificationType>> SearchTypes(string value, CancellationToken token)
+    {
+        // "display all options in the dropdown" but searchable
+        if (string.IsNullOrEmpty(value))
+            return _allTypes;
+
+        await Task.Delay(5, token);
+        return _allTypes.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void UploadFiles(IBrowserFile file)
+    {
+        if (file.ContentType != "application/pdf")
+        {
+            Snackbar.Add("Only PDF files are allowed.", Severity.Error);
+            return;
+        }
+        _file = file;
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_form.IsValid || _file == null || _selectedEmployee == null || _selectedType == null) return;
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var userName = user.Identity?.Name ?? "Unknown";
+
+            // Bind Autocomplete selections to ID
+            _cert.EmployeeId = _selectedEmployee.Id;
+            _cert.CertificationTypeId = _selectedType.Id;
+
+            // Map Dates
+            _cert.CertificationDate = DateOnly.FromDateTime(_certDate.Value);
+            _cert.ExpirationDate = DateOnly.FromDateTime(_expDate.Value);
+            _cert.CeRegistrationDate = _ceDate.HasValue ? DateOnly.FromDateTime(_ceDate.Value) : null;
+            _cert.UploadDate = DateTime.Now;
+            _cert.UploadedBy = userName;
+            _cert.Verified = false;
+            _cert.VerifiedBy = "";
+
+            // File naming logic
+            string midInitial = "";
+            if (!string.IsNullOrWhiteSpace(_selectedEmployee.MiddleInitial))
+            {
+                midInitial = _selectedEmployee.MiddleInitial.Trim() + "-";
+            }
+
+            string cleanShortName = _selectedType.ShortName?.TrimEnd('+').Trim() ?? "Cert";
+            string dateStr = _cert.CertificationDate.ToString("yyyy-MM-dd");
+
+            string fileName = $"{_selectedEmployee.FirstName}-{midInitial}{_selectedEmployee.LastName}-{dateStr}-{cleanShortName}.pdf";
+
+            foreach (var c in Path.GetInvalidFileNameChars())
+            {
+                fileName = fileName.Replace(c, '-');
+            }
+
+            if (!Directory.Exists(BasePath))
+            {
+                Directory.CreateDirectory(BasePath);
+            }
+
+            var fullPath = Path.Combine(BasePath, fileName);
+
+            using (var stream = new FileStream(fullPath, FileMode.Create))
+            {
+                await _file.OpenReadStream(1024 * 1024 * 10).CopyToAsync(stream);
+            }
+
+            _cert.FileName = fileName;
+            await Repository.AddCertificationAsync(_cert);
+
+            Snackbar.Add("Certification uploaded successfully!", Severity.Success);
+            Navigation.NavigateTo("/training/certifications");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error uploading: {ex.Message}", Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,493 @@
+﻿@page "/training/certifications"
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Training.Certifications
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Text
+@using System
+@inject ICertificationsRepository Repository
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
+
+<PageTitle>Certifications</PageTitle>
+
+<!-- 1. Explicitly name the outer context to avoid conflict with default 'context' in tables -->
+<AuthorizeView Roles="Admin,Manager,Supervisor,WFM,OST,Training" Context="pageAuth">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+                <MudText Typo="Typo.h4">Certifications</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" OnClick="@(() => Navigation.NavigateTo("/training/certifications/upload"))">
+                    Upload Certification
+                </MudButton>
+            </MudStack>
+
+            <!-- Filters Section (Top) -->
+            <MudPaper Class="p-4 mb-4" Elevation="2">
+                <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudSwitch T="bool" @bind-Value="_showOnlyActive" Color="Color.Primary" Label="Active Only" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudSelect T="int?" Label="Manager" @bind-SelectedValues="_selectedManagers" MultiSelection="true" Clearable="true" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                            @foreach (var item in _managers)
+                            {
+                                <MudSelectItem Value="@((int?)item.Id)">@($"{item.Employee?.LastName}, {item.Employee?.FirstName}")</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudSelect T="int?" Label="Supervisor" @bind-SelectedValues="_selectedSupervisors" MultiSelection="true" Clearable="true" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                            @foreach (var item in _supervisors)
+                            {
+                                <MudSelectItem Value="@((int?)item.Id)">@($"{item.Employee?.LastName}, {item.Employee?.FirstName}")</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudSelect T="int?" Label="Organization" SelectedValues="_selectedOrgs" MultiSelection="true" SelectedValuesChanged="@(values => OnOrgChanged(values))" Clearable="true" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                            @foreach (var item in _organizations)
+                            {
+                                <MudSelectItem Value="@((int?)item.Id)">@item.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="2">
+                        <MudSelect T="int?" Label="Sub Organization" @bind-SelectedValues="_selectedSubOrgs" MultiSelection="true" Clearable="true" Disabled="@(_subOrganizations.Count == 0)" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                            @foreach (var item in _filteredSubOrgs)
+                            {
+                                <MudSelectItem Value="@((int?)item.Id)">@item.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="12" md="2" Class="d-flex justify-end">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="ResetFilters" Size="Size.Small">Reset Filters</MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <!-- Tabs for Views -->
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+                <MudTabPanel Text="All Certifications">
+                    <MudTable Items="@FilteredCertifications" Dense="true" Hover="true" Striped="true"
+                              Filter="new Func<Certification, bool>(FilterFunc)" SortLabel="Sort By">
+                        <ToolBarContent>
+                            <MudText Typo="Typo.h6">All Records</MudText>
+                            <MudSpacer />
+                            <MudTextField @bind-Value="_searchString" Placeholder="Search..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Employee?.LastName)">Employee</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationType?.Name)">Type</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.SerialNumber)">Serial Number</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationDate)">Cert Date</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.ExpirationDate)">Expires</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.UploadDate)">Uploaded</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Verified)">Verified</MudTableSortLabel></MudTh>
+                            <MudTh>Actions</MudTh>
+                        </HeaderContent>
+                        <!-- 2. Explicit context name 'certContext' -->
+                        <RowTemplate Context="certContext">
+                            <MudTd DataLabel="Employee">@certContext.Employee?.LastName, @certContext.Employee?.FirstName</MudTd>
+                            <MudTd DataLabel="Type">@certContext.CertificationType?.Name</MudTd>
+                            <MudTd DataLabel="Serial">@certContext.SerialNumber</MudTd>
+                            <MudTd DataLabel="Date">@certContext.CertificationDate.ToShortDateString()</MudTd>
+                            <MudTd DataLabel="Expires">@certContext.ExpirationDate.ToShortDateString()</MudTd>
+                            <MudTd DataLabel="Uploaded">@certContext.UploadDate.ToShortDateString()</MudTd>
+                            <MudTd DataLabel="Verified">
+                                @if (certContext.Verified)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" />
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Actions">
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo($"/training/certifications/details/{certContext.Id}"))" />
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Pending Review">
+                    <MudTable Items="@PendingCertifications" Dense="true" Hover="true" Striped="true"
+                              Filter="new Func<Certification, bool>(FilterFunc)" SortLabel="Sort By">
+                        <ToolBarContent>
+                            <MudText Typo="Typo.h6" Color="Color.Warning">Pending Review (@PendingCertifications.Count())</MudText>
+                            <MudSpacer />
+                            <MudTextField @bind-Value="_searchString" Placeholder="Search..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Employee?.LastName)">Employee</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationType?.Name)">Type</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.SerialNumber)">Serial Number</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationDate)">Cert Date</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.ExpirationDate)">Expires</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.UploadDate)">Uploaded</MudTableSortLabel></MudTh>
+                            <MudTh>Actions</MudTh>
+                        </HeaderContent>
+                        <!-- 3. Explicit context name 'certContext' (reusing same name is fine as scopes are separate) -->
+                        <RowTemplate Context="certContext">
+                            <MudTd DataLabel="Employee">@certContext.Employee?.LastName, @certContext.Employee?.FirstName</MudTd>
+                            <MudTd DataLabel="Type">@certContext.CertificationType?.Name</MudTd>
+                            <MudTd DataLabel="Serial">@certContext.SerialNumber</MudTd>
+                            <MudTd DataLabel="Date">@certContext.CertificationDate.ToShortDateString()</MudTd>
+                            <MudTd DataLabel="Expires">@certContext.ExpirationDate.ToShortDateString()</MudTd>
+                            <MudTd DataLabel="Uploaded">@certContext.UploadDate.ToShortDateString()</MudTd>
+                            <MudTd DataLabel="Actions">
+                                <!-- 4. Explicit context 'authContext' to avoid clash with 'certContext' -->
+                                <AuthorizeView Roles="Training,Admin" Context="authContext">
+                                    <Authorized>
+                                        <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Success" StartIcon="@Icons.Material.Filled.Check" OnClick="@(() => Navigation.NavigateTo($"/training/certifications/details/{certContext.Id}"))">Review</MudButton>
+                                    </Authorized>
+                                    <NotAuthorized>
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Disabled="true" StartIcon="@Icons.Material.Filled.Lock">Review</MudButton>
+                                    </NotAuthorized>
+                                </AuthorizeView>
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Current 8570 Report">
+                    <MudTable Items="@Filtered8570Report" Dense="true" Hover="true" Striped="true"
+                              Filter="new Func<Current8570ReportItem, bool>(Filter8570Func)" SortLabel="Sort By">
+                        <ToolBarContent>
+                            <MudText Typo="Typo.h6" Color="Color.Info">Active Employees Best Cert</MudText>
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="Export8570Report" Class="ml-4">Export CSV</MudButton>
+                            <MudSpacer />
+                            <MudTextField @bind-Value="_searchString" Placeholder="Search..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.EmployeeName)">Employee</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.SupervisorName)">Supervisor</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.HireDate)">Hire Date</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.RequiredLevel)">Required Level</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.CertificationName)">Best Certification</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.AchievedLevel)">Cert Level</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.ExpirationDate)">Expires</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.SerialNumber)">Serial Number</MudTableSortLabel></MudTh>
+                            <MudTh>Action</MudTh>
+                        </HeaderContent>
+                        <!-- 5. Explicit context name 'reportItem' -->
+                        <RowTemplate Context="reportItem">
+                            <MudTd DataLabel="Employee">@reportItem.EmployeeName</MudTd>
+                            <MudTd DataLabel="Supervisor">@reportItem.SupervisorName</MudTd>
+                            <MudTd DataLabel="Hire Date">@(reportItem.HireDate.HasValue? reportItem.HireDate.Value.ToShortDateString() : "")</MudTd>
+                            <MudTd DataLabel="Required Level">@reportItem.RequiredLevel</MudTd>
+                            <MudTd DataLabel="Certification">@reportItem.CertificationName</MudTd>
+                            <MudTd DataLabel="Cert Level">@reportItem.AchievedLevel</MudTd>
+                            <MudTd DataLabel="Expires">@(reportItem.ExpirationDate.HasValue? reportItem.ExpirationDate.Value.ToShortDateString() : "")</MudTd>
+                            <MudTd DataLabel="Serial Number">@reportItem.SerialNumber</MudTd>
+                            <MudTd DataLabel="Action">
+                                @if (reportItem.CertificationId.HasValue)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo($"/training/certifications/details/{reportItem.CertificationId}"))" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
+                </MudTabPanel>
+            </MudTabs>
+
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-16 text-center">
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled">You are not authorized to view this page.</MudAlert>
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<Certification> _allCertifications = new();
+    private List<Current8570ReportItem> _report8570 = new();
+    private List<EmployeeCurrentDetails> _currentDetails = new();
+
+    // Filter Lists
+    private List<Manager> _managers = new();
+    private List<Supervisor> _supervisors = new();
+    private List<Organization> _organizations = new();
+    private List<SubOrganization> _subOrganizations = new();
+
+    // Filter States
+    private bool _showOnlyActive = true;
+
+    // Note: Bind-Value on MudSelect MultiSelection expects IEnumerable<T>
+    private IEnumerable<int?> _selectedManagers { get; set; } = new HashSet<int?>();
+    private IEnumerable<int?> _selectedSupervisors { get; set; } = new HashSet<int?>();
+    private IEnumerable<int?> _selectedOrgs { get; set; } = new HashSet<int?>();
+    private IEnumerable<int?> _selectedSubOrgs { get; set; } = new HashSet<int?>();
+
+    private string _searchString = "";
+
+    // Derived list for SubOrganization dropdown
+    private IEnumerable<SubOrganization> _filteredSubOrgs =>
+        _subOrganizations.Where(x => !_selectedOrgs.Any() || (_selectedOrgs.Contains(x.OrganizationId) || x.OrganizationId == null));
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load data in parallel
+        var t1 = Repository.GetAllCertificationsAsync();
+        var t2 = Repository.GetManagersAsync();
+        var t3 = Repository.GetSupervisorsAsync();
+        var t4 = Repository.GetOrganizationsAsync();
+        var t5 = Repository.GetSubOrganizationsAsync();
+        var t6 = Repository.GetEmployeeCurrentDetailsAsync();
+        var t7 = Repository.GetCurrent8570ReportAsync();
+
+        await Task.WhenAll(t1, t2, t3, t4, t5, t6, t7);
+
+        _allCertifications = t1.Result;
+        _managers = t2.Result;
+        _supervisors = t3.Result;
+        _organizations = t4.Result;
+        _subOrganizations = t5.Result;
+        _currentDetails = t6.Result;
+        _report8570 = t7.Result;
+    }
+
+    private void OnOrgChanged(IEnumerable<int?> selectedValues)
+    {
+        _selectedOrgs = selectedValues;
+
+        // Filter current suborg selection to remove any that are no longer valid
+        if (_selectedSubOrgs.Any())
+        {
+            var validSubOrgIds = _filteredSubOrgs.Select(s => (int?)s.Id).ToList();
+            _selectedSubOrgs = _selectedSubOrgs.Where(id => validSubOrgIds.Contains(id)).ToList();
+        }
+    }
+
+    // --- FILTER LOGIC FOR REGULAR CERT LIST ---
+    private IEnumerable<Certification> ApplyCommonFilters(IEnumerable<Certification> source)
+    {
+        var query = source;
+
+        // 1. Filter Active
+        if (_showOnlyActive)
+        {
+            query = query.Where(c =>
+            {
+                var detail = _currentDetails.FirstOrDefault(d => d.EmployeeId == c.EmployeeId);
+                return detail?.IsActive == true;
+            });
+        }
+
+        // 2. Filter Manager (Multi)
+        if (_selectedManagers.Any())
+        {
+            query = query.Where(c =>
+            {
+                var detail = _currentDetails.FirstOrDefault(d => d.EmployeeId == c.EmployeeId);
+                return detail?.ManagerId.HasValue == true && _selectedManagers.Contains(detail.ManagerId.Value);
+            });
+        }
+
+        // 3. Filter Supervisor (Multi)
+        if (_selectedSupervisors.Any())
+        {
+            query = query.Where(c =>
+            {
+                var detail = _currentDetails.FirstOrDefault(d => d.EmployeeId == c.EmployeeId);
+                return detail?.SupervisorId.HasValue == true && _selectedSupervisors.Contains(detail.SupervisorId.Value);
+            });
+        }
+
+        // 4. Filter Org (Multi)
+        if (_selectedOrgs.Any())
+        {
+            var selectedOrgNames = _organizations
+                .Where(o => _selectedOrgs.Contains(o.Id))
+                .Select(o => o.Name)
+                .ToList();
+
+            if (selectedOrgNames.Any())
+            {
+                query = query.Where(c =>
+                {
+                    var detail = _currentDetails.FirstOrDefault(d => d.EmployeeId == c.EmployeeId);
+                    return !string.IsNullOrEmpty(detail?.OrganizationName) && selectedOrgNames.Contains(detail.OrganizationName);
+                });
+            }
+        }
+
+        // 5. Filter SubOrg (Multi)
+        if (_selectedSubOrgs.Any())
+        {
+            var selectedSubOrgNames = _subOrganizations
+                .Where(s => _selectedSubOrgs.Contains(s.Id))
+                .Select(s => s.Name)
+                .ToList();
+
+            if (selectedSubOrgNames.Any())
+            {
+                query = query.Where(c =>
+                {
+                    var detail = _currentDetails.FirstOrDefault(d => d.EmployeeId == c.EmployeeId);
+                    return !string.IsNullOrEmpty(detail?.SubOrganizationName) && selectedSubOrgNames.Contains(detail.SubOrganizationName);
+                });
+            }
+        }
+
+        return query;
+    }
+
+    private IEnumerable<Certification> FilteredCertifications => ApplyCommonFilters(_allCertifications);
+    private IEnumerable<Certification> PendingCertifications => ApplyCommonFilters(_allCertifications.Where(c => !c.Verified));
+
+    private bool FilterFunc(Certification element)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+        if (element.Employee?.FirstName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        if (element.Employee?.LastName?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        if (element.SerialNumber?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        if (element.CertificationType?.Name?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+
+        return false;
+    }
+
+    // --- FILTER LOGIC FOR 8570 REPORT ---
+    private IEnumerable<Current8570ReportItem> Filtered8570Report
+    {
+        get
+        {
+            var query = _report8570.AsEnumerable();
+
+            // Note: Report is ALREADY active employees only.
+
+            // 2. Filter Manager (Multi)
+            if (_selectedManagers.Any())
+            {
+                query = query.Where(r =>
+                {
+                    var detail = _currentDetails.FirstOrDefault(d => d.EmployeeId == r.EmployeeId);
+                    return detail?.ManagerId.HasValue == true && _selectedManagers.Contains(detail.ManagerId.Value);
+                });
+            }
+
+            // 3. Filter Supervisor (Multi)
+            if (_selectedSupervisors.Any())
+            {
+                query = query.Where(r =>
+                {
+                    var detail = _currentDetails.FirstOrDefault(d => d.EmployeeId == r.EmployeeId);
+                    return detail?.SupervisorId.HasValue == true && _selectedSupervisors.Contains(detail.SupervisorId.Value);
+                });
+            }
+
+            // 4. Filter Org (Multi)
+            if (_selectedOrgs.Any())
+            {
+                var selectedOrgNames = _organizations.Where(o => _selectedOrgs.Contains(o.Id)).Select(o => o.Name).ToList();
+                if (selectedOrgNames.Any())
+                {
+                    query = query.Where(r =>
+                    {
+                        var detail = _currentDetails.FirstOrDefault(d => d.EmployeeId == r.EmployeeId);
+                        return !string.IsNullOrEmpty(detail?.OrganizationName) && selectedOrgNames.Contains(detail.OrganizationName);
+                    });
+                }
+            }
+
+            // 5. Filter SubOrg (Multi)
+            if (_selectedSubOrgs.Any())
+            {
+                var selectedSubOrgNames = _subOrganizations.Where(s => _selectedSubOrgs.Contains(s.Id)).Select(s => s.Name).ToList();
+                if (selectedSubOrgNames.Any())
+                {
+                    query = query.Where(r =>
+                    {
+                        var detail = _currentDetails.FirstOrDefault(d => d.EmployeeId == r.EmployeeId);
+                        return !string.IsNullOrEmpty(detail?.SubOrganizationName) && selectedSubOrgNames.Contains(detail.SubOrganizationName);
+                    });
+                }
+            }
+
+            return query;
+        }
+    }
+
+    private bool Filter8570Func(Current8570ReportItem element)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+        if (element.EmployeeName.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.CertificationName.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.SerialNumber.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.RequiredLevel.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    private async Task Export8570Report()
+    {
+        var sb = new System.Text.StringBuilder();
+        // Header (Updated with Supervisor)
+        sb.AppendLine("Employee Name,Supervisor,Hire Date,Required Level,Best Certification,Cert Level,Expires,Serial Number");
+
+        foreach (var item in Filtered8570Report)
+        {
+            var line = string.Join(",",
+                EscapeCsv(item.EmployeeName),
+                EscapeCsv(item.SupervisorName),
+                EscapeCsv(item.HireDate?.ToShortDateString()),
+                EscapeCsv(item.RequiredLevel),
+                EscapeCsv(item.CertificationName),
+                EscapeCsv(item.AchievedLevel),
+                EscapeCsv(item.ExpirationDate?.ToShortDateString()),
+                EscapeCsv(item.SerialNumber)
+            );
+            sb.AppendLine(line);
+        }
+
+        var fileName = $"8570_Report_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+        var fileContent = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var base64 = Convert.ToBase64String(fileContent);
+
+        // Call our simple JS helper
+        await JS.InvokeVoidAsync("saveAsFile", fileName, base64);
+    }
+
+    private string EscapeCsv(string? field)
+    {
+        if (string.IsNullOrEmpty(field)) return "";
+
+        // Wrap field in quotes if it contains a comma
+        if (field.Contains(","))
+        {
+            return $"\"{field}\"";
+        }
+        return field;
+    }
+
+    private void ResetFilters()
+    {
+        _showOnlyActive = true;
+        _selectedManagers = new HashSet<int?>();
+        _selectedSupervisors = new HashSet<int?>();
+        _selectedOrgs = new HashSet<int?>();
+        _selectedSubOrgs = new HashSet<int?>();
+        _searchString = "";
+    }
+}

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260109185104_certs")]
+    partial class certs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -683,7 +686,7 @@ namespace MyApplication.Migrations
 
                     b.Property<string>("FileName")
                         .IsRequired()
-                        .HasColumnType("varchar(64)");
+                        .HasColumnType("varchar(32)");
 
                     b.Property<string>("SerialNumber")
                         .IsRequired()
@@ -718,9 +721,6 @@ namespace MyApplication.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("IamLevel")
-                        .HasColumnType("int");
 
                     b.Property<int?>("IatLevel")
                         .HasColumnType("int");
@@ -829,8 +829,8 @@ namespace MyApplication.Migrations
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("EffectiveDate")
-                        .HasColumnType("datetime2");
+                    b.Property<DateOnly?>("EffectiveDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("EmployerName")
                         .HasColumnType("nvarchar(max)");
@@ -1265,12 +1265,6 @@ namespace MyApplication.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int?>("AwsStatusId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IamLevel")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IatLevel")
                         .HasColumnType("int");
 
                     b.Property<bool?>("IsActive")

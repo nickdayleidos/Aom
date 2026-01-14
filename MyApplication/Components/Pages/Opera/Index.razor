@@ -169,7 +169,6 @@
     private Dictionary<int, string> _types = new();
     private List<OperaSubTypeDto> _subTypes = new();
     private Dictionary<int, string?> _employeeSiteTz = new();
-
     private List<OperaStatus> _statuses = new();
     private List<KeyValuePair<int, string>> _managers = new();
     private List<KeyValuePair<int, string>> _supervisors = new();
@@ -185,7 +184,6 @@
     private int? _supervisorId => _selectedSupervisorKv?.Key;
     private int? _typeId => _selectedTypeKv?.Key;
     private int? _subTypeId => _selectedSubType?.Id;
-
     private string? _filterText;
     private DateRange? _range;
     private int _activeTab;
@@ -196,7 +194,6 @@
     private const int CancelledStatusId = 4;
     private const int RejectedStatusId = 5;
     private const int PendingStatusId = 6;
-
     private enum StatusAction { Approve, Reject, Cancel, SetPending }
 
     private TimeDisplayMode _displayMode = TimeDisplayMode.EmployeeLocal;
@@ -207,7 +204,6 @@
         TimeDisplayMode.EmployeeLocal => "Local (employee site)",
         _ => "Local (employee site)"
     };
-
     private DateTime _todayEt;
     private DateTime _todayMt;
 
@@ -226,7 +222,6 @@
         _isOst = user.IsInRole("OST");
         _isManager = user.IsInRole("Manager");
         _isSupervisor = user.IsInRole("Supervisor");
-
         try
         {
             var tStatus = Repo.GetStatusesAsync();
@@ -234,7 +229,6 @@
             var tSubTypes = Repo.GetSubTypesAsync();
             var tManagers = Repo.GetManagersAsync();
             var tSupervisors = Repo.GetSupervisorsAsync();
-
             await Task.WhenAll(tStatus, tTypes, tSubTypes, tManagers, tSupervisors);
 
             _statuses = (await tStatus).ToList();
@@ -267,9 +261,8 @@
             ActivitySubTypeId = _subTypeId,
             FromUtc = fromEt,
             ToUtc = toEt,
-            Take = 1000
+            Take = 5000 // Limit increased to capture older pending items
         };
-
         try
         {
             var (items, _) = await Repo.SearchAsync(q);
@@ -350,7 +343,6 @@
     private Task<IEnumerable<OperaSubTypeDto>> SearchSubTypes(string value, CancellationToken ct)
     {
         var source = _subTypes.AsEnumerable();
-
         // Filter by Type if selected
         if (_typeId.HasValue)
         {
@@ -359,7 +351,6 @@
 
         if (string.IsNullOrEmpty(value))
             return Task.FromResult(source);
-
         return Task.FromResult(
             source.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
         );
@@ -416,7 +407,6 @@
     }
 
     private static int? GetStatusId(OperaRequest r) => r.OperaStatusId;
-
     // ---------- Logic for Permissions ----------
 
     private bool IsPendingPastOrFuture(OperaRequest r)
@@ -448,7 +438,6 @@
         if (s != SubmittedStatusId && s != PendingStatusId) return false;
 
         if (IsPendingPastOrFuture(r)) return _isAdmin || _isWfm;
-
         // Reject permissions - WFM, Admin
         return _isAdmin || _isWfm;
     }
@@ -457,7 +446,6 @@
     {
         var s = GetStatusId(r);
         if (s != SubmittedStatusId && s != PendingStatusId && s != ApprovedStatusId && s != ProcessedStatusId) return false;
-
         if (IsPendingPastOrFuture(r)) return _isAdmin || _isWfm;
         return true;
     }
@@ -474,7 +462,7 @@
     private bool IsTodayInEtOrMt(DateTime etStored)
     {
         var etDate = etStored.Date;
-        var mtDate = Et.ToMt(etStored).Date;
+        var mtDate = TimeZoneInfo.ConvertTime(etStored, Et.Zone, Mt.Zone).Date;
         return etDate == _todayEt || mtDate == _todayMt;
     }
 
@@ -485,7 +473,8 @@
             if (s != SubmittedStatusId && s != PendingStatusId) return false;
 
             var etDate = r.StartTime.Date;
-            var mtDate = Et.ToMt(r.StartTime).Date;
+            var mtDate = TimeZoneInfo.ConvertTime(r.StartTime, Et.Zone, Mt.Zone).Date;
+
             return etDate < _todayEt && mtDate < _todayMt;
         });
 
@@ -503,7 +492,8 @@
             if (s != SubmittedStatusId && s != PendingStatusId) return false;
 
             var etDate = r.StartTime.Date;
-            var mtDate = Et.ToMt(r.StartTime).Date;
+            var mtDate = TimeZoneInfo.ConvertTime(r.StartTime, Et.Zone, Mt.Zone).Date;
+
             return etDate > _todayEt && mtDate > _todayMt;
         });
 
@@ -527,10 +517,8 @@
             StatusAction.SetPending => "Pending",
             _ => ""
         };
-
         var status = _statuses.FirstOrDefault(
             s => s.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-
         if (status is null)
         {
             Snackbar.Add($"Status for '{action}' not found.", Severity.Error);
@@ -565,8 +553,8 @@
                     <MudLink Href="@($"/opera/{context.RequestId}")" Typo="Typo.body2">@context.RequestId</MudLink>
                 </MudTd>
                 <MudTd DataLabel="Employee">@($"{context.Employees?.LastName}, {context.Employees?.FirstName} (#{context.EmployeeId})")</MudTd>
-                <MudTd DataLabel="Start">@ToDisplayTime(context.StartTime, context.EmployeeId).ToString("MM/dd HH:mm")</MudTd>
-                <MudTd DataLabel="End">@ToDisplayTime(context.EndTime, context.EmployeeId).ToString("MM/dd HH:mm")</MudTd>
+                <MudTd DataLabel="Start">@ToDisplayTime(context.StartTime, context.EmployeeId).ToString("MM/dd/yyyy HH:mm")</MudTd>
+                <MudTd DataLabel="End">@ToDisplayTime(context.EndTime, context.EmployeeId).ToString("MM/dd/yyyy HH:mm")</MudTd>
                 <MudTd DataLabel="Type/SubType">
                     @(_types.TryGetValue(context.ActivityTypeId, out var tName) ? tName : "") /
                     @(_subTypes.FirstOrDefault(s => s.Id == context.ActivitySubTypeId)?.Name ?? "")

@@ -1,8 +1,76 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace MyApplication.Components.Service.Employee.Dtos
+namespace MyApplication.Components.Service.Employee
 {
+    public class EmployeeDto
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
+        public string? Title { get; set; }
+        public string? Email { get; set; }
+        public string? WorkPhone { get; set; }
+        public string? CellPhone { get; set; }
+        public string? Organization { get; set; }
+        public int OrganizationId { get; set; }
+        public string? SubOrganization { get; set; }
+        public int SubOrganizationId { get; set; }
+        public string? Site { get; set; }
+        public int SiteId { get; set; }
+        public string? Supervisor { get; set; }
+        public int? SupervisorId { get; set; }
+        public string? Manager { get; set; }
+        public int? ManagerId { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime? HireDate { get; set; }
+        public List<string> Skills { get; set; } = new();
+    }
+
+    public class EmployeesFilterDto
+    {
+        public string? SearchText { get; set; }
+
+        // Multi-selection collections
+        public IEnumerable<int> OrganizationIds { get; set; } = new HashSet<int>();
+        public IEnumerable<int> SubOrganizationIds { get; set; } = new HashSet<int>();
+        public IEnumerable<int> SiteIds { get; set; } = new HashSet<int>();
+        public IEnumerable<int> SupervisorIds { get; set; } = new HashSet<int>();
+        public IEnumerable<int> ManagerIds { get; set; } = new HashSet<int>();
+
+        public bool IncludeInactive { get; set; }
+    }
+
+    public class OrganizationDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class SubOrganizationDto
+    {
+        public int Id { get; set; }
+        public int OrganizationId { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class SiteDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class SupervisorDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class ManagerDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
     public sealed class EmployeeListItem
     {
         public int Id { get; set; }
@@ -144,7 +212,7 @@ namespace MyApplication.Components.Service.Employee.Dtos
     {
         public string EventId { get; set; }
         public string AwsId { get; set; }
-        public DateTime StartTime { get; set; } // Matches [eventTimeET]
+        public DateTime StartTime { get; set; }
         public string CurrentAgentStatus { get; set; }
         public DateTime EndTime { get; set; }
         public int? Duration { get; set; }
@@ -164,4 +232,17 @@ namespace MyApplication.Components.Service.Employee.Dtos
         string? Organization,
         string? SubOrganization
     );
+
+    public class CertificationReportItem
+    {
+        public int EmployeeId { get; set; }
+        public string EmployeeName { get; set; } = string.Empty;
+        public string Organization { get; set; } = string.Empty;
+        public string Vendor { get; set; } = string.Empty;
+        public string CertificationName { get; set; } = string.Empty;
+        public DateOnly? AchievedDate { get; set; }
+        public DateOnly? ExpirationDate { get; set; }
+        public string ValidationNumber { get; set; } = string.Empty;
+    }
+
 }

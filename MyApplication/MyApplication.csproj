@@ -42,4 +42,9 @@
     <Folder Include="Migrations\" />
     <Folder Include="wwwroot\Templates\" />
   </ItemGroup>
+
+
+  <ItemGroup>
+    <None Include="wwwroot\js\fileSaver.js" />
+  </ItemGroup>
 </Project>

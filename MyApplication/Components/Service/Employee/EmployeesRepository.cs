@@ -1,25 +1,23 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MyApplication.Components.Data;
-using MyApplication.Components.Service.Employee.Dtos;
-using MyApplication.Components.Model.AOM.Employee;
 using MyApplication.Common.Time;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using MyApplication.Components.Data;
+using MyApplication.Components.Model.AOM.Employee;
+using System.Linq.Expressions;
 
 namespace MyApplication.Components.Service.Employee
 {
     public sealed class EmployeesRepository
     {
-        private readonly IDbContextFactory<AomDbContext> _factory;
+        private readonly IDbContextFactory<AomDbContext> _contextFactory;
 
-        public EmployeesRepository(IDbContextFactory<AomDbContext> factory) => _factory = factory;
+        public EmployeesRepository(IDbContextFactory<AomDbContext> contextFactory)
+        {
+            _contextFactory = contextFactory;
+        }
 
         public async Task<EmployeeFullDetailsVm> GetFullDetailsAsync(int employeeId)
         {
-            using var ctx = await _factory.CreateDbContextAsync();
+            using var ctx = await _contextFactory.CreateDbContextAsync();
 
             var emp = await ctx.Employees.AsNoTracking()
                 .Include(e => e.Aws)
@@ -231,176 +229,311 @@ namespace MyApplication.Components.Service.Employee
             return vm;
         }
 
-        public async Task<List<EmployeeListItem>> SearchAsync(
-    string? query,
-    bool activeOnly,
-    string? manager = null,
-    string? supervisor = null,
-    string? org = null,
-    string? subOrg = null,
-    TimeDisplayMode mode = TimeDisplayMode.Eastern,
-    int take = 1000,
-    CancellationToken ct = default)
-        {
-            await using var db = await _factory.CreateDbContextAsync(ct);
-            var baseQuery = db.EmployeeCurrentDetails.AsQueryable();
 
-            if (activeOnly) baseQuery = baseQuery.Where(x => x.IsActive);
-
-            if (!string.IsNullOrEmpty(manager)) baseQuery = baseQuery.Where(x => x.ManagerName == manager);
-            if (!string.IsNullOrEmpty(supervisor)) baseQuery = baseQuery.Where(x => x.SupervisorName == supervisor);
-            if (!string.IsNullOrEmpty(org)) baseQuery = baseQuery.Where(x => x.OrganizationName == org);
-            if (!string.IsNullOrEmpty(subOrg)) baseQuery = baseQuery.Where(x => x.SubOrganizationName == subOrg);
-
-            if (!string.IsNullOrWhiteSpace(query))
-            {
-                var q = query.Trim();
-                var isId = int.TryParse(q, out var idValue);
-
-                baseQuery = baseQuery.Where(x =>
-                    // 1. Match "Last, First MI" (e.g. "Doe, John M" or "Doe, John")
-                    (x.LastName + ", " + x.FirstName + (x.MiddleInitial == null ? "" : " " + x.MiddleInitial)).Contains(q)
-                    ||
-                    // 2. Match "First Last" (e.g. "John Doe")
-                    (x.FirstName + " " + x.LastName).Contains(q)
-                    ||
-                    // 3. Match individual parts or ID
-                    (x.FirstName != null && EF.Functions.Like(x.FirstName, $"%{q}%"))
-                    || (x.LastName != null && EF.Functions.Like(x.LastName, $"%{q}%"))
-                    || (isId && x.EmployeeId == idValue)
-                );
-            }
-
-            var items = await baseQuery
-                .OrderBy(x => x.LastName).ThenBy(x => x.FirstName)
-                .Take(take)
-                .Select(x => new EmployeeListItem
-                {
-                    Id = x.EmployeeId,
-                    FirstName = x.FirstName,
-                    LastName = x.LastName,
-                    MiddleInitial = x.MiddleInitial,
-                    IsActive = x.IsActive,
-                    Manager = x.ManagerName,
-                    Supervisor = x.SupervisorName,
-                    Organization = x.OrganizationName,
-                    SubOrganization = x.SubOrganizationName,
-                })
-                .ToListAsync(ct);
-
-            if (!items.Any()) return items;
-
-            // Fetch Details
-            var empIds = items.Select(x => x.Id).ToList();
-
-            var profiles = await db.EmployeeRoutingProfiles.AsNoTracking()
-                .Where(p => empIds.Contains(p.EmployeeId))
-                .Include(p => p.WeekdayProfile).Include(p => p.WeekendProfile)
-                .ToListAsync(ct);
-
-            var skills = await db.Skills.AsNoTracking()
-                .Where(s => empIds.Contains(s.EmployeeId) && s.IsActive == true)
-                .Include(s => s.SkillType)
-                .ToListAsync(ct);
-
-            var histories = await db.EmployeeHistory.AsNoTracking()
-                .Where(h => empIds.Contains(h.EmployeeId) && h.ScheduleRequestId != null)
-                .Select(h => new { h.EmployeeId, h.ScheduleRequestId, h.EffectiveDate })
-                .ToListAsync(ct);
-
-            var latestScheduleMap = histories
-                .GroupBy(h => h.EmployeeId)
-                .Select(g => g.OrderByDescending(x => x.EffectiveDate).First())
-                .ToDictionary(k => k.EmployeeId, v => v.ScheduleRequestId);
-
-            var reqIds = latestScheduleMap.Values.Where(v => v.HasValue).Select(v => v.Value).Distinct().ToList();
-            var schedules = new List<AcrSchedule>();
-            if (reqIds.Any())
-            {
-                schedules = await db.AcrSchedules.AsNoTracking()
-                    .Where(s => reqIds.Contains(s.AcrRequestId) && s.ShiftNumber == 1)
-                    .ToListAsync(ct);
-            }
-
-            foreach (var item in items)
-            {
-                var p = profiles.FirstOrDefault(x => x.EmployeeId == item.Id);
-                if (p != null)
-                {
-                    item.WeekdayProfile = p.WeekdayProfile?.Name;
-                    item.WeekendProfile = p.WeekendProfile?.Name;
-                }
-
-                item.Skills = skills
-                    .Where(s => s.EmployeeId == item.Id)
-                    .Select(s => s.SkillType?.Name ?? "")
-                    .OrderBy(n => n)
-                    .ToList();
-
-                if (latestScheduleMap.TryGetValue(item.Id, out var reqId) && reqId.HasValue)
-                {
-                    var sched = schedules.FirstOrDefault(s => s.AcrRequestId == reqId.Value);
-                    item.Schedule = FormatSchedule(sched, mode);
-                    item.DailySchedules = BuildDailySchedules(sched, mode);
-                }
-            }
-
-            return items;
-        }
 
         public async Task<EmployeeFilterOptionsDto> GetFilterOptionsAsync()
         {
-            using var ctx = await _factory.CreateDbContextAsync();
+            using var context = await _contextFactory.CreateDbContextAsync();
 
-            var managers = await ctx.Managers.AsNoTracking()
+            var managers = await context.Managers
                 .Where(x => x.IsActive == true)
-                .Select(x => ctx.Employees.Where(e => e.Id == x.EmployeeId)
-                                          .Select(e => e.LastName + ", " + e.FirstName)
-                                          .FirstOrDefault())
-                .Where(x => x != null)
+                .Select(x => x.Employee.LastName + ", " + x.Employee.FirstName)
+                .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync();
 
-            var supervisors = await ctx.Supervisors.AsNoTracking()
+            var supervisors = await context.Supervisors
                 .Where(x => x.IsActive == true)
-                .Select(x => ctx.Employees.Where(e => e.Id == x.EmployeeId)
-                                          .Select(e => e.LastName + ", " + e.FirstName)
-                                          .FirstOrDefault())
-                .Where(x => x != null)
+                .Select(x => x.Employee.LastName + ", " + x.Employee.FirstName)
+                .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync();
 
-            var orgs = await ctx.Organizations.AsNoTracking()
-                .Where(x => x.IsActive == true && x.Name != null)
+            var orgs = await context.Organizations
+                .Where(x => x.IsActive == true)
                 .Select(x => x.Name)
+                .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync();
 
-            var subOrgs = await ctx.SubOrganizations.AsNoTracking()
-                .Where(x => x.IsActive == true && x.Name != null)
+            var subOrgs = await context.SubOrganizations
+                .Where(x => x.IsActive == true)
                 .Select(x => x.Name)
+                .Distinct()
                 .OrderBy(x => x)
                 .ToListAsync();
 
             return new EmployeeFilterOptionsDto
             {
-                Managers = managers!,
-                Supervisors = supervisors!,
-                Organizations = orgs!,
-                SubOrganizations = subOrgs!
+                Managers = managers,
+                Supervisors = supervisors,
+                Organizations = orgs,
+                SubOrganizations = subOrgs
             };
         }
+
+        public async Task<List<EmployeeDto>> SearchAsync(string searchText, bool activeOnly = true)
+        {
+            return await GetEmployeesAsync(new EmployeesFilterDto { SearchText = searchText, IncludeInactive = !activeOnly });
+        }
+
+        public async Task<List<EmployeeListItem>> SearchAsync(string searchText, bool activeOnly, object? mode, int take, CancellationToken ct)
+        {
+            using var context = await _contextFactory.CreateDbContextAsync();
+
+            // Construct query using EmployeeHistory to find the latest record for each employee
+            var latestHistoryIds = context.EmployeeHistory
+                .GroupBy(h => h.EmployeeId)
+                .Select(g => g.OrderByDescending(x => x.EffectiveDate).Select(x => x.Id).FirstOrDefault());
+
+            var query = context.EmployeeHistory
+                .Where(h => latestHistoryIds.Contains(h.Id))
+                .Include(x => x.Employee)
+                .Include(x => x.Organization)
+                .Include(x => x.SubOrganization)
+                .Include(x => x.Supervisor).ThenInclude(s => s.Employee)
+                .Include(x => x.Manager).ThenInclude(m => m.Employee)
+                .Include(x => x.ScheduleRequest).ThenInclude(s => s.AcrSchedules)
+                .AsQueryable();
+
+            if (activeOnly)
+            {
+                query = query.Where(x => x.Employee.IsActive);
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var terms = searchText.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var term in terms)
+                {
+                    query = query.Where(x => x.Employee.FirstName.Contains(term) ||
+                                             x.Employee.LastName.Contains(term) ||
+                                             x.Employee.MiddleInitial.Contains(term) ||
+                                             x.Employee.Id.ToString().Contains(term));
+                }
+            }
+
+            if (take > 0)
+            {
+                query = query.Take(take);
+            }
+
+            var items = await query.ToListAsync(ct); // Materialize to fetch related entities efficiently
+
+            var empIds = items.Select(x => x.EmployeeId).ToList();
+            var routingProfiles = await context.EmployeeRoutingProfiles
+                .Where(rp => empIds.Contains(rp.EmployeeId))
+                .Include(rp => rp.WeekdayProfile)
+                .Include(rp => rp.WeekendProfile)
+                .ToListAsync(ct);
+
+            var skills = await context.Skills
+                .Where(s => empIds.Contains(s.EmployeeId) && s.IsActive == true)
+                .Include(s => s.SkillType)
+                .ToListAsync(ct);
+
+            var result = new List<EmployeeListItem>();
+
+            foreach (var h in items)
+            {
+                var rp = routingProfiles.FirstOrDefault(p => p.EmployeeId == h.EmployeeId);
+                var empSkills = skills.Where(s => s.EmployeeId == h.EmployeeId).Select(s => s.SkillType.Name).ToList();
+
+                string scheduleStr = "-";
+                if (h.ScheduleRequest != null && h.ScheduleRequest.AcrSchedules != null)
+                {
+                    // Assuming mode is passed as TimeDisplayMode, let's cast it or default to Eastern
+                    var timeMode = mode is TimeDisplayMode tm ? tm : TimeDisplayMode.Eastern;
+                    scheduleStr = FormatSchedule(h.ScheduleRequest.AcrSchedules.FirstOrDefault(s => s.ShiftNumber == 1), timeMode);
+                }
+
+                result.Add(new EmployeeListItem
+                {
+                    Id = h.EmployeeId,
+                    FirstName = h.Employee.FirstName,
+                    LastName = h.Employee.LastName,
+                    MiddleInitial = h.Employee.MiddleInitial,
+                    IsActive = h.Employee.IsActive,
+                    Organization = h.Organization != null ? h.Organization.Name : null,
+                    SubOrganization = h.SubOrganization != null ? h.SubOrganization.Name : null,
+                    Supervisor = h.Supervisor != null ? $"{h.Supervisor.Employee.LastName}, {h.Supervisor.Employee.FirstName}" : null,
+                    Manager = h.Manager != null ? $"{h.Manager.Employee.LastName}, {h.Manager.Employee.FirstName}" : null,
+                    Skills = empSkills,
+                    WeekdayProfile = rp?.WeekdayProfile?.Name,
+                    WeekendProfile = rp?.WeekendProfile?.Name,
+                    Schedule = scheduleStr
+                });
+            }
+
+            return result;
+        }
+
+        public async Task<List<EmployeeDto>> GetEmployeesAsync(EmployeesFilterDto filter)
+        {
+            using var context = await _contextFactory.CreateDbContextAsync();
+
+            var latestHistoryIds = context.EmployeeHistory
+                .GroupBy(h => h.EmployeeId)
+                .Select(g => g.OrderByDescending(x => x.EffectiveDate).Select(x => x.Id).FirstOrDefault());
+
+            var query = context.EmployeeHistory
+                .Where(h => latestHistoryIds.Contains(h.Id))
+                .Include(x => x.Employee)
+                .Include(x => x.Organization)
+                .Include(x => x.SubOrganization)
+                .Include(x => x.Site)
+                .Include(x => x.Supervisor).ThenInclude(s => s.Employee)
+                .Include(x => x.Manager).ThenInclude(m => m.Employee)
+                .AsQueryable();
+
+            if (!filter.IncludeInactive)
+            {
+                query = query.Where(x => x.Employee.IsActive);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.SearchText))
+            {
+                var terms = filter.SearchText.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var term in terms)
+                {
+                    query = query.Where(x => x.Employee.FirstName.Contains(term) ||
+                                             x.Employee.LastName.Contains(term) ||
+                                             x.Employee.MiddleInitial.Contains(term) ||
+                                             x.Employee.Id.ToString().Contains(term));
+                }
+            }
+
+            if (filter.OrganizationIds != null && filter.OrganizationIds.Any())
+            {
+                query = query.Where(x => x.OrganizationId.HasValue && filter.OrganizationIds.Contains(x.OrganizationId.Value));
+            }
+
+            if (filter.SubOrganizationIds != null && filter.SubOrganizationIds.Any())
+            {
+                query = query.Where(x => x.SubOrganizationId.HasValue && filter.SubOrganizationIds.Contains(x.SubOrganizationId.Value));
+            }
+
+            if (filter.SiteIds != null && filter.SiteIds.Any())
+            {
+                query = query.Where(x => x.SiteId.HasValue && filter.SiteIds.Contains(x.SiteId.Value));
+            }
+
+            if (filter.SupervisorIds != null && filter.SupervisorIds.Any())
+            {
+                query = query.Where(x => x.SupervisorId.HasValue && filter.SupervisorIds.Contains(x.SupervisorId.Value));
+            }
+
+            if (filter.ManagerIds != null && filter.ManagerIds.Any())
+            {
+                query = query.Where(x => x.ManagerId.HasValue && filter.ManagerIds.Contains(x.ManagerId.Value));
+            }
+
+            var items = await query.ToListAsync();
+            var empIds = items.Select(x => x.EmployeeId).ToList();
+            var skills = await context.Skills
+                .Where(s => empIds.Contains(s.EmployeeId) && s.IsActive == true)
+                .Include(s => s.SkillType)
+                .ToListAsync();
+
+            return items.Select(x =>
+            {
+                var fullName = $"{x.Employee.LastName}, {x.Employee.FirstName}";
+                if (!string.IsNullOrEmpty(x.Employee.MiddleInitial)) fullName += $" {x.Employee.MiddleInitial}";
+                fullName += $" ({x.Employee.Id})";
+
+                return new EmployeeDto
+                {
+                    Id = x.EmployeeId,
+                    Name = fullName,
+                    Organization = x.Organization?.Name,
+                    OrganizationId = x.OrganizationId ?? 0,
+                    SubOrganization = x.SubOrganization?.Name,
+                    SubOrganizationId = x.SubOrganizationId ?? 0,
+                    Site = x.Site?.SiteCode,
+                    SiteId = x.SiteId ?? 0,
+                    Supervisor = x.Supervisor != null ? $"{x.Supervisor.Employee.LastName}, {x.Supervisor.Employee.FirstName}" : null,
+                    SupervisorId = x.SupervisorId,
+                    Manager = x.Manager != null ? $"{x.Manager.Employee.LastName}, {x.Manager.Employee.FirstName}" : null,
+                    ManagerId = x.ManagerId,
+                    IsActive = x.Employee.IsActive,
+             
+                    Skills = skills.Where(s => s.EmployeeId == x.EmployeeId).Select(s => s.SkillType.Name).ToList()
+                };
+            }).ToList();
+        }
+
+        public async Task<List<OrganizationDto>> GetOrganizationsAsync()
+        {
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.Organizations
+                .Where(x => x.IsActive == true)
+                .Select(x => new OrganizationDto { Id = x.Id, Name = x.Name })
+                .OrderBy(x => x.Name)
+                .ToListAsync();
+        }
+
+        public async Task<List<SubOrganizationDto>> GetSubOrganizationsAsync(IEnumerable<int>? organizationIds = null)
+        {
+            using var context = await _contextFactory.CreateDbContextAsync();
+
+            var query = context.SubOrganizations
+                .Where(x => x.IsActive == true);
+
+            if (organizationIds != null && organizationIds.Any())
+            {
+                query = query.Where(x => x.OrganizationId == null || organizationIds.Contains(x.OrganizationId.Value));
+            }
+
+            return await query
+                .Select(x => new SubOrganizationDto
+                {
+                    Id = x.Id,
+                    OrganizationId = x.OrganizationId ?? 0,
+                    Name = x.Name
+                })
+                .OrderBy(x => x.Name)
+                .ToListAsync();
+        }
+
+        public async Task<List<SiteDto>> GetSitesAsync()
+        {
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.Sites
+                .Where(x => x.IsActive == true)
+                .Select(x => new SiteDto { Id = x.Id, Name = x.SiteCode })
+                .OrderBy(x => x.Name)
+                .ToListAsync();
+        }
+
+        public async Task<List<SupervisorDto>> GetSupervisorsAsync()
+        {
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.Supervisors
+                .Where(x => x.IsActive == true)
+                .Select(x => new SupervisorDto { Id = x.Id, Name = x.Employee.LastName + ", " + x.Employee.FirstName })
+                .OrderBy(x => x.Name)
+                .ToListAsync();
+        }
+
+        public async Task<List<ManagerDto>> GetManagersAsync()
+        {
+            using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.Managers
+                .Where(x => x.IsActive == true)
+                .Select(x => new ManagerDto { Id = x.Id, Name = x.Employee.LastName + ", " + x.Employee.FirstName })
+                .OrderBy(x => x.Name)
+                .ToListAsync();
+        }
+
         public async Task UpdateProfileAsync(EmployeeProfileUpdateDto dto)
         {
-            using var ctx = await _factory.CreateDbContextAsync();
-            // Include Aws to check current state if needed
+            using var ctx = await _contextFactory.CreateDbContextAsync();
             var emp = await ctx.Employees
                 .Include(e => e.Aws)
                 .FirstOrDefaultAsync(e => e.Id == dto.Id);
 
             if (emp != null)
             {
-                // Update standard profile fields
                 emp.FirstName = dto.FirstName;
                 emp.LastName = dto.LastName;
                 emp.MiddleInitial = dto.MiddleInitial;
@@ -411,19 +544,14 @@ namespace MyApplication.Components.Service.Employee
                 emp.CorporateId = dto.CorporateId;
                 emp.DomainLoginName = dto.DomainLoginName;
 
-                // --- FIX: Handle AWS Relationship Sync ---
-                // If the selection has changed (or if we need to enforce self-healing)
                 if (emp.AwsId != dto.AwsId)
                 {
-                    // 1. Unlink any Identifier currently pointing to this employee
-                    // We query Identifiers directly because emp.Aws might be null if data is inconsistent
                     var oldLinks = await ctx.Identifiers.Where(i => i.EmployeeId == emp.Id).ToListAsync();
                     foreach (var link in oldLinks)
                     {
                         link.EmployeeId = null;
                     }
 
-                    // 2. Link the new Identifier (if one is selected)
                     if (dto.AwsId.HasValue)
                     {
                         var newLink = await ctx.Identifiers.FindAsync(dto.AwsId.Value);
@@ -433,12 +561,10 @@ namespace MyApplication.Components.Service.Employee
                         }
                     }
 
-                    // 3. Update the local column on Employees (to keep the bidirectional ref in sync)
                     emp.AwsId = dto.AwsId;
                 }
                 else if (dto.AwsId.HasValue && emp.Aws == null)
                 {
-                    // Edge Case: AWS ID is set on Employee, but the Identifier doesn't point back (Data Mismatch)
                     var link = await ctx.Identifiers.FindAsync(dto.AwsId.Value);
                     if (link != null && link.EmployeeId != emp.Id)
                     {
@@ -452,7 +578,7 @@ namespace MyApplication.Components.Service.Employee
 
         public async Task<List<AwsIdentifierLookupDto>> SearchAwsIdentifiersAsync(string query, CancellationToken ct = default)
         {
-            using var ctx = await _factory.CreateDbContextAsync(ct);
+            using var ctx = await _contextFactory.CreateDbContextAsync(ct);
             return await ctx.Identifiers.AsNoTracking()
                 .Where(x => EF.Functions.Like(x.AwsUsername, $"%{query}%"))
                 .Take(20)
@@ -462,24 +588,19 @@ namespace MyApplication.Components.Service.Employee
 
         public async Task<AwsIdentifierLookupDto?> GetAwsIdentifierAsync(int id)
         {
-            using var ctx = await _factory.CreateDbContextAsync();
+            using var ctx = await _contextFactory.CreateDbContextAsync();
             return await ctx.Identifiers.Where(x => x.Id == id)
                .Select(x => new AwsIdentifierLookupDto { Id = x.Id, AwsUsername = x.AwsUsername })
                .FirstOrDefaultAsync();
         }
 
-        // ====================================================================
-        // UPDATED: GetDailySchedulesAsync 
-        // - Uses Subtractive Logic for Valid Work Windows
-        // - Merges Actuals to handle short segments
-        // - Clips future alerts based on "Now" in target timezone
-        // ====================================================================
         public async Task<ScheduleDashboardVm> GetDailySchedulesAsync(
             DateOnly date,
             TimeDisplayMode mode,
             string? query,
             bool activeOnly,
             bool agentsOnly,
+            bool hideLoa,
             string? manager,
             string? supervisor,
             string? org,
@@ -488,7 +609,7 @@ namespace MyApplication.Components.Service.Employee
         {
             if (date == DateOnly.MinValue) return new ScheduleDashboardVm { Date = date };
 
-            using var ctx = await _factory.CreateDbContextAsync();
+            using var ctx = await _contextFactory.CreateDbContextAsync();
 
             var rawData = await ctx.DetailedSchedule.AsNoTracking()
                 .Where(x => x.ScheduleDate == date)
@@ -516,10 +637,15 @@ namespace MyApplication.Components.Service.Employee
             var filteredHistory = bestHistory.Where(h =>
             {
                 if (activeOnly && h.IsActive != true) return false;
+                if (hideLoa && (h.IsLoa == true || h.IsIntLoa == true)) return false;
 
                 if (agentsOnly)
                 {
-                    if (h.SubOrganization?.AwsStatusId == null || h.SubOrganization.AwsStatusId == 1) return false;
+                    var allowedOrgIds = new[] { 2, 3, 4 };
+                    if (h.Organization == null || !allowedOrgIds.Contains(h.Organization.Id)) return false;
+
+                    var excludedSubOrgIds = new[] { 2, 3 };
+                    if (h.SubOrganization != null && excludedSubOrgIds.Contains(h.SubOrganization.Id)) return false;
                 }
 
                 if (!string.IsNullOrEmpty(manager))
@@ -527,13 +653,11 @@ namespace MyApplication.Components.Service.Employee
                     var mName = h.Manager?.Employee != null ? $"{h.Manager.Employee.LastName}, {h.Manager.Employee.FirstName}" : "";
                     if (!mName.Contains(manager, StringComparison.OrdinalIgnoreCase)) return false;
                 }
-
                 if (!string.IsNullOrEmpty(supervisor))
                 {
                     var sName = h.Supervisor?.Employee != null ? $"{h.Supervisor.Employee.LastName}, {h.Supervisor.Employee.FirstName}" : "";
                     if (!sName.Contains(supervisor, StringComparison.OrdinalIgnoreCase)) return false;
                 }
-
                 if (!string.IsNullOrEmpty(org) && h.Organization?.Name != org) return false;
                 if (!string.IsNullOrEmpty(subOrg) && h.SubOrganization?.Name != subOrg) return false;
 
@@ -541,6 +665,7 @@ namespace MyApplication.Components.Service.Employee
             }).ToList();
 
             var visibleEmpIds = filteredHistory.Select(x => x.EmployeeId).Distinct().ToList();
+
             var awsMappingsRaw = await ctx.Identifiers.AsNoTracking()
                 .Where(x => visibleEmpIds.Contains(x.EmployeeId ?? 0) && !string.IsNullOrEmpty(x.Guid))
                 .Select(x => new { x.EmployeeId, x.Guid })
@@ -568,11 +693,10 @@ namespace MyApplication.Components.Service.Employee
                 .ToLookup(a => guidToEmpMap[a.AwsGuid]);
 
             var dashboard = new ScheduleDashboardVm { Date = date };
+            var groupedBySite = filteredHistory.GroupBy(x => x.Site?.SiteCode ?? "Unknown").OrderBy(g => g.Key);
 
             var globalDayStart = date.ToDateTime(TimeOnly.MinValue);
             var globalDayEnd = globalDayStart.AddHours(30);
-
-            var groupedBySite = filteredHistory.GroupBy(x => x.Site?.SiteCode ?? "Unknown").OrderBy(g => g.Key);
 
             foreach (var siteGroup in groupedBySite)
             {
@@ -588,17 +712,13 @@ namespace MyApplication.Components.Service.Employee
                     _ => siteTz
                 };
 
-                // Determine "Now" cutoff in target Timezone to prevent future alerts
                 DateTime nowInTarget;
                 try
                 {
                     var targetZone = TimeZoneInfo.FindSystemTimeZoneById(targetTzId);
                     nowInTarget = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, targetZone);
                 }
-                catch
-                {
-                    nowInTarget = DateTime.MaxValue; // Fail safe
-                }
+                catch { nowInTarget = DateTime.MaxValue; }
 
                 foreach (var hist in siteGroup)
                 {
@@ -629,36 +749,22 @@ namespace MyApplication.Components.Service.Employee
                         validWindowEndEt = Tz.FromSiteToEt(globalDayEnd, targetTzId);
                     }
 
-                    // Prepare for Alert Logic: 
                     var actualSegmentsForAlerts = new List<(DateTime Start, DateTime End)>();
                     var offlineSegments = new List<(DateTime Start, DateTime End)>();
                     var workingSegments = new List<(DateTime Start, DateTime End)>();
 
-                    // 1. Classify Schedule Segments
                     foreach (var s in empSchedules)
                     {
                         var sStart = Tz.FromEtToSite(s.StartTime, targetTzId);
                         var sEnd = Tz.FromEtToSite(s.EndTime, targetTzId);
 
-                        // If ID=1, it is an Offline Segment (Exceptions, Breaks, etc.)
-                        if (s.AwsStatus?.Id == 1)
-                        {
-                            offlineSegments.Add((sStart, sEnd));
-                        }
-                        else
-                        {
-                            // Otherwise, it is a Working Segment (Shift, Overtime, etc.)
-                            workingSegments.Add((sStart, sEnd));
-                        }
+                        if (s.AwsStatus?.Id == 1) offlineSegments.Add((sStart, sEnd));
+                        else workingSegments.Add((sStart, sEnd));
                     }
 
-                    // 2. Build Valid Work Windows (Working - Offline)
-                    // This handles overlapping segments where an offline activity overrides a shift
                     var validWorkWindows = new List<(DateTime Start, DateTime End)>();
-
                     if (workingSegments.Any())
                     {
-                        // Start with working segments sorted
                         workingSegments.Sort((a, b) => a.Start.CompareTo(b.Start));
                         offlineSegments.Sort((a, b) => a.Start.CompareTo(b.Start));
 
@@ -667,31 +773,17 @@ namespace MyApplication.Components.Service.Employee
                             var currentStart = work.Start;
                             var workEnd = work.End;
 
-                            // Subtract overlapping offline segments
                             foreach (var off in offlineSegments)
                             {
                                 if (off.End <= currentStart) continue;
                                 if (off.Start >= workEnd) break;
-
-                                // Valid Work before the offline segment starts
-                                if (off.Start > currentStart)
-                                {
-                                    validWorkWindows.Add((currentStart, off.Start));
-                                }
-
-                                // Advance start to end of offline segment
+                                if (off.Start > currentStart) validWorkWindows.Add((currentStart, off.Start));
                                 if (off.End > currentStart) currentStart = off.End;
                             }
-
-                            // Remaining work after last offline segment
-                            if (currentStart < workEnd)
-                            {
-                                validWorkWindows.Add((currentStart, workEnd));
-                            }
+                            if (currentStart < workEnd) validWorkWindows.Add((currentStart, workEnd));
                         }
                     }
 
-                    // A. Map Scheduled Segments & Build View
                     DateTime? minDt = null;
                     DateTime? maxDt = null;
 
@@ -703,6 +795,11 @@ namespace MyApplication.Components.Service.Employee
                         if (minDt == null || localStart < minDt) minDt = localStart;
                         if (maxDt == null || localEnd > maxDt) maxDt = localEnd;
 
+                        string colorClass = GetActivityColor(
+                            item.ActivityType?.Name,
+                            item.ActivitySubType?.Name,
+                            item.AwsStatus?.Name);
+
                         empVm.Segments.Add(new ScheduleSegmentVm
                         {
                             ActivityTypeId = item.ActivityTypeId,
@@ -713,12 +810,12 @@ namespace MyApplication.Components.Service.Employee
                             AwsStatusName = item.AwsStatus?.Name ?? "-",
                             Start = localStart,
                             End = localEnd,
-                            IsImpacting = item.IsImpacting ?? false
+                            IsImpacting = item.IsImpacting ?? false,
+                            ColorClass = colorClass
                         });
                     }
                     empVm.ShiftString = (minDt.HasValue && maxDt.HasValue) ? $"{minDt.Value:HH:mm} - {maxDt.Value:HH:mm}" : "OFF";
 
-                    // B. Map Actual Segments (AWS)
                     if (employeeAwsData.Contains(hist.EmployeeId))
                     {
                         foreach (var act in employeeAwsData[hist.EmployeeId])
@@ -728,6 +825,8 @@ namespace MyApplication.Components.Service.Employee
                                 var actStart = Tz.FromEtToSite(act.StartTime, targetTzId);
                                 var actEnd = Tz.FromEtToSite(act.EndTime, targetTzId);
 
+                                string awsColor = GetActivityColor(null, null, act.CurrentAgentStatus);
+
                                 empVm.AwsSegments.Add(new ScheduleSegmentVm
                                 {
                                     ActivityName = "AWS",
@@ -735,7 +834,8 @@ namespace MyApplication.Components.Service.Employee
                                     AwsStatusName = act.CurrentAgentStatus,
                                     Start = actStart,
                                     End = actEnd,
-                                    IsImpacting = true
+                                    IsImpacting = true,
+                                    ColorClass = awsColor
                                 });
 
                                 actualSegmentsForAlerts.Add((actStart, actEnd));
@@ -743,7 +843,6 @@ namespace MyApplication.Components.Service.Employee
                         }
                     }
 
-                    // MERGE ACTUALS
                     var mergedActuals = new List<(DateTime Start, DateTime End)>();
                     if (actualSegmentsForAlerts.Any())
                     {
@@ -767,21 +866,16 @@ namespace MyApplication.Components.Service.Employee
                         mergedActuals.Add((currentStart, currentEnd));
                     }
 
-                    // -----------------------------------------------------------
-                    // ALERT LOGIC 1: Missing Work (> 5 minutes)
-                    // (Schedule says Work, Actual is Missing)
-                    // -----------------------------------------------------------
                     if (empVm.Segments.Any())
                     {
                         var subtractMask = new List<(DateTime Start, DateTime End)>();
                         subtractMask.AddRange(mergedActuals);
-                        subtractMask.AddRange(offlineSegments); // Also subtract authorized offline times
+                        subtractMask.AddRange(offlineSegments);
                         subtractMask.Sort((a, b) => a.Start.CompareTo(b.Start));
 
                         foreach (var plan in empVm.Segments)
                         {
                             if (plan.AwsStatusId == 1) continue;
-
                             var current = plan.Start;
                             var end = plan.End;
 
@@ -789,18 +883,13 @@ namespace MyApplication.Components.Service.Employee
                             {
                                 if (mask.End <= current) continue;
                                 if (mask.Start >= end) break;
-
-                                // Gap detected
                                 if (mask.Start > current)
                                 {
                                     var alertStart = current;
                                     var alertEnd = mask.Start;
-
-                                    // CLIP FUTURE ALERTS
                                     if (alertStart < nowInTarget)
                                     {
                                         if (alertEnd > nowInTarget) alertEnd = nowInTarget;
-
                                         if ((alertEnd - alertStart).TotalMinutes > 5)
                                         {
                                             empVm.AlertSegments.Add(new ScheduleSegmentVm
@@ -816,17 +905,13 @@ namespace MyApplication.Components.Service.Employee
                                 }
                                 if (mask.End > current) current = mask.End;
                             }
-
                             if (current < end)
                             {
                                 var alertStart = current;
                                 var alertEnd = end;
-
-                                // CLIP FUTURE ALERTS
                                 if (alertStart < nowInTarget)
                                 {
                                     if (alertEnd > nowInTarget) alertEnd = nowInTarget;
-
                                     if ((alertEnd - alertStart).TotalMinutes > 5)
                                     {
                                         empVm.AlertSegments.Add(new ScheduleSegmentVm
@@ -843,35 +928,23 @@ namespace MyApplication.Components.Service.Employee
                         }
                     }
 
-                    // -----------------------------------------------------------
-                    // ALERT LOGIC 2: Unexpected Work (> 5 minutes)
-                    // (Actual exists, but Valid Work Window is missing)
-                    // -----------------------------------------------------------
                     if (mergedActuals.Any())
                     {
                         foreach (var act in mergedActuals)
                         {
                             var current = act.Start;
                             var end = act.End;
-
-                            // Subtract VALID WORK windows from Actuals
-                            // If actual remains, it is unexpected
                             foreach (var valid in validWorkWindows)
                             {
                                 if (valid.End <= current) continue;
                                 if (valid.Start >= end) break;
-
-                                // Unexpected Work
                                 if (valid.Start > current)
                                 {
                                     var alertStart = current;
                                     var alertEnd = valid.Start;
-
-                                    // CLIP FUTURE ALERTS
                                     if (alertStart < nowInTarget)
                                     {
                                         if (alertEnd > nowInTarget) alertEnd = nowInTarget;
-
                                         if ((alertEnd - alertStart).TotalMinutes > 5)
                                         {
                                             empVm.AlertSegments.Add(new ScheduleSegmentVm
@@ -887,17 +960,13 @@ namespace MyApplication.Components.Service.Employee
                                 }
                                 if (valid.End > current) current = valid.End;
                             }
-
                             if (current < end)
                             {
                                 var alertStart = current;
                                 var alertEnd = end;
-
-                                // CLIP FUTURE ALERTS
                                 if (alertStart < nowInTarget)
                                 {
                                     if (alertEnd > nowInTarget) alertEnd = nowInTarget;
-
                                     if ((alertEnd - alertStart).TotalMinutes > 5)
                                     {
                                         empVm.AlertSegments.Add(new ScheduleSegmentVm
@@ -922,6 +991,40 @@ namespace MyApplication.Components.Service.Employee
             }
 
             return dashboard;
+        }
+
+        private string GetActivityColor(string? activityName, string? subActivityName, string? awsStatusName)
+        {
+            string nameToCheck = awsStatusName;
+
+            if (string.IsNullOrEmpty(nameToCheck) || nameToCheck == "-")
+            {
+                nameToCheck = !string.IsNullOrEmpty(subActivityName) && subActivityName != "-"
+                              ? subActivityName
+                              : activityName;
+            }
+
+            var name = (nameToCheck ?? "").ToLower();
+
+            if (name.Contains("lunch")) return "activity-lunch";
+            if (name.Contains("engagement") || name.Contains("corp")) return "activity-corporate";
+            if (name.Contains("peer")) return "activity-peer";
+            if (name.Contains("meeting")) return "activity-meeting";
+            if (name.Contains("training")) return "activity-training";
+            if (name.Contains("coaching")) return "activity-coaching";
+
+            if (name.Contains("customer") || name.Contains("phone") ||
+                name.Contains("queue") || name.Contains("chat") ||
+                name.Contains("email")) return "activity-ol-customer";
+
+            if (name.Contains("admin")) return "activity-admin";
+            if (name.Contains("system")) return "activity-system";
+            if (name.Contains("available")) return "activity-available";
+
+            if (name.Contains("break")) return "activity-break";
+            if (name.Contains("offline")) return "activity-offline";
+
+            return "activity-default";
         }
 
         public async Task<EmployeeDetailDto?> GetDetailAsync(int employeeId, CancellationToken ct = default)
@@ -987,7 +1090,6 @@ namespace MyApplication.Components.Service.Employee
 
             var guidList = string.Join("','", visibleEmployeeAwsGuids);
 
-            // Fetch only Online activities (Not 'Offline')
             var sql = $@"
     SELECT CAST([eventId] AS NVARCHAR(36)) as [EventId]
           ,CAST([awsId] AS NVARCHAR(36)) as [AwsId]

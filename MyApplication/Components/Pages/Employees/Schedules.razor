@@ -1,10 +1,10 @@
 ﻿@page "/employees/schedules"
+@page "/employees/schedules/{EmployeeId:int?}"
 @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
 @using MyApplication.Components.Service.Employee
-@using MyApplication.Components.Service.Employee.Dtos
 @using MyApplication.Common.Time
 @using Microsoft.AspNetCore.Components.Authorization
-@inject EmployeesRepository Repository
+@inject EmployeesRepository EmployeeRepo
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthState
@@ -49,6 +49,7 @@
         position: relative;
         height: 100%;
         background-color: #fafafa;
+        border-radius: 4px;
         overflow: hidden;
     }
 
@@ -103,7 +104,7 @@
         background-color: #FF9900 !important;
         color: #000;
     }
-    /* Dark text for light orange */
+
     .activity-peer {
         background-color: #8EBAE2 !important;
         color: #000;
@@ -138,7 +139,6 @@
         background-color: #FFFF00 !important;
         color: #000;
     }
-    /* Black text for yellow */
 
     .activity-default {
         background-color: #9E9E9E !important;
@@ -204,61 +204,6 @@
     </MudStack>
 
     <MudPaper Class="pa-4 d-print-none" Outlined="true">
-        <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center" Class="mb-3">
-            <MudSwitch Value="_activeOnly"
-                       ValueChanged="@(async (bool v) => { _activeOnly = v; await LoadAsync(); })"
-                       Color="Color.Primary"
-                       Class="mr-2" />
-            <MudText Class="mr-4">Active only</MudText>
-
-            <MudSwitch Value="_agentsOnly"
-                       ValueChanged="@(async (bool v) => { _agentsOnly = v; await LoadAsync(); })"
-                       Color="Color.Primary"
-                       Class="mr-2" />
-            <MudText Class="mr-4">Agents only</MudText>
-        </MudStack>
-
-        <MudGrid>
-            <MudItem xs="12" sm="6" md="3">
-                <MudAutocomplete T="string" Label="Manager"
-                                 Value="_selectedManager"
-                                 ValueChanged="@(async (string s) => { _selectedManager = s; await LoadAsync(); })"
-                                 SearchFunc="@((x, ct) => SearchList(x, _options.Managers))"
-                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudAutocomplete T="string" Label="Supervisor"
-                                 Value="_selectedSupervisor"
-                                 ValueChanged="@(async (string s) => { _selectedSupervisor = s; await LoadAsync(); })"
-                                 SearchFunc="@((x, ct) => SearchList(x, _options.Supervisors))"
-                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudAutocomplete T="string" Label="Organization"
-                                 Value="_selectedOrg"
-                                 ValueChanged="@(async (string s) => { _selectedOrg = s; await LoadAsync(); })"
-                                 SearchFunc="@((x, ct) => SearchList(x, _options.Organizations))"
-                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true" />
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudAutocomplete T="string" Label="Sub-Organization"
-                                 Value="_selectedSubOrg"
-                                 ValueChanged="@(async (string s) => { _selectedSubOrg = s; await LoadAsync(); })"
-                                 SearchFunc="@((x, ct) => SearchList(x, _options.SubOrganizations))"
-                                 Clearable="true" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true" />
-            </MudItem>
-        </MudGrid>
-    </MudPaper>
-
-    <MudPaper Class="pa-4 d-print-none" Outlined="true">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4">
             <MudDatePicker Label="Select Date"
                            Date="_date"
@@ -267,26 +212,55 @@
                            Margin="Margin.Dense"
                            Editable="true" />
 
-            <MudTextField T="string"
-                          Value="@_query"
-                          ValueChanged="OnQueryChanged"
-                          Placeholder="Search Employee (Name or ID)..."
-                          Immediate="true"
-                          DebounceInterval="350"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Class="w-64" />
-
             <MudSpacer />
 
             @if (_loading)
             {
                 <MudProgressCircular Indeterminate="true" Size="Size.Small" />
             }
+            <MudCheckBox Value="@_activeOnly" ValueChanged="@((bool v) => { _activeOnly = v; _ = LoadAsync(); })" Label="Active Only" Dense="true" Color="Color.Primary"></MudCheckBox>
+            <MudCheckBox Value="@_agentsOnly" ValueChanged="@((bool v) => { _agentsOnly = v; _ = LoadAsync(); })" Label="Agents Only" Dense="true" Color="Color.Primary"></MudCheckBox>
+            <MudCheckBox Value="@_hideLoa" ValueChanged="@((bool v) => { _hideLoa = v; _ = LoadAsync(); })" Label="Hide LOA" Dense="true" Color="Color.Primary"></MudCheckBox>
+
         </MudStack>
+        
     </MudPaper>
+
+    <!-- Updated Filters Row with Multi-Select -->
+    <MudGrid Class="mb-4 align-center" Spacing="1">
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="string" Label="Organization" MultiSelection="true" SelectedValues="_selectedOrgIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedOrgIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="@(_ => LoadAsync())" SearchFunc="@((string x, CancellationToken ct) => SearchList(x, _options.Organizations))">
+                @foreach (var org in _options.Organizations)
+                {
+                    <MudSelectItem Value="@org">@org</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="string" Label="Sub Organization" MultiSelection="true" SelectedValues="_selectedSubOrgIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedSubOrgIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="@(_ => LoadAsync())" SearchFunc="@((string x, CancellationToken ct) => SearchList(x, _options.SubOrganizations))">
+                @foreach (var subOrg in _options.SubOrganizations)
+                {
+                    <MudSelectItem Value="@subOrg">@subOrg</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="string" Label="Supervisor" MultiSelection="true" SelectedValues="_selectedSupervisorIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedSupervisorIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="@(_ => LoadAsync())" SearchFunc="@((string x, CancellationToken ct) => SearchList(x, _options.Supervisors))">
+                @foreach (var sup in _options.Supervisors)
+                {
+                    <MudSelectItem Value="@sup">@sup</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="string" Label="Manager" MultiSelection="true" SelectedValues="_selectedManagerIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedManagerIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="@(_ => LoadAsync())" SearchFunc="@((string x, CancellationToken ct) => SearchList(x, _options.Managers))">
+                @foreach (var man in _options.Managers)
+                {
+                    <MudSelectItem Value="@man">@man</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        </MudGrid>
 
     @if (_vm != null)
     {
@@ -296,7 +270,8 @@
         }
         else
         {
-            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="mt-4">
+            @* --- Bind ActivePanelIndex to handle Filter Switch --- *@
+            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="mt-4" @bind-ActivePanelIndex="ActiveTabIndex">
 
                 <MudTabPanel Text="List View" Icon="@Icons.Material.Filled.List">
                     <MudExpansionPanels MultiExpansion="true">
@@ -431,7 +406,6 @@
                                         var baseSegments = emp.Segments
                                         .Where(s => s.ActivitySubTypeId.HasValue && baseIds.Contains(s.ActivitySubTypeId.Value))
                                         .ToList();
-
                                         var extraSegments = emp.Segments
                                         .Where(s => !s.ActivitySubTypeId.HasValue || !baseIds.Contains(s.ActivitySubTypeId.Value))
                                         .ToList();
@@ -578,26 +552,55 @@
 </MudStack>
 
 @code {
+    [Parameter] public int? EmployeeId { get; set; } // --- ADDED PROPERTY TO FIX ROUTING ERROR ---
+
     public enum SortOption { Name, StartTime }
 
     private DateTime? _date = DateTime.Today;
     private ScheduleDashboardVm? _vm;
     private bool _loading = false;
     private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
-    private SortOption _sortBy = SortOption.StartTime; // Default sort
+    private SortOption _sortBy = SortOption.StartTime;
     private CancellationTokenSource? _cts;
     private bool _canViewTimeline = false;
+
     // Filter Logic
     private string _query = string.Empty;
     private bool _activeOnly = true;
-    private bool _agentsOnly = true; // Defaulted to true
-    private string? _selectedManager;
-    private string? _selectedSupervisor;
-    private string? _selectedOrg;
-    private string? _selectedSubOrg;
+    private bool _agentsOnly = false;
+    private bool _hideLoa = true;
+
+    // Multi-Select Filters (Using string sets as original filter DTO used strings for names)
+    private IEnumerable<string> _selectedManagerIds = new HashSet<string>();
+    private IEnumerable<string> _selectedSupervisorIds = new HashSet<string>();
+    private IEnumerable<string> _selectedOrgIds = new HashSet<string>();
+    private IEnumerable<string> _selectedSubOrgIds = new HashSet<string>();
+
     private EmployeeFilterOptionsDto _options = new();
 
-    // UPDATED LEGEND ITEMS
+    // --- Tab Switching Logic ---
+    private int _activeTabIndex = 0;
+    private int ActiveTabIndex
+    {
+        get => _activeTabIndex;
+        set
+        {
+            if (_activeTabIndex != value)
+            {
+                _activeTabIndex = value;
+                if (_activeTabIndex == 1)
+                {
+                    _agentsOnly = true;
+                }
+                else
+                {
+                    _agentsOnly = false;
+                }
+                _ = LoadAsync();
+            }
+        }
+    }
+
     private List<(string Name, string Class)> _legendItems = new()
     {
         ("Offline", "activity-offline"),
@@ -644,8 +647,7 @@
                            user.IsInRole("Manager") ||
                            user.IsInRole("Supervisor");
 
-        // Load options
-        _options = await Repository.GetFilterOptionsAsync();
+        _options = await EmployeeRepo.GetFilterOptionsAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -668,6 +670,12 @@
         await LoadAsync();
     }
 
+    private async Task OnFilterChanged(IEnumerable<string> values, Action<IEnumerable<string>> setter)
+    {
+        setter(values);
+        await LoadAsync();
+    }
+
     // Helper for Autocomplete search
     private Task<IEnumerable<string>> SearchList(string value, List<string> list)
     {
@@ -679,6 +687,7 @@
     private async Task LoadAsync()
     {
         if (!_date.HasValue) return;
+
         try
         {
             _cts?.Cancel();
@@ -695,17 +704,33 @@
         try
         {
             var dateOnly = DateOnly.FromDateTime(_date.Value);
-            _vm = await Repository.GetDailySchedulesAsync(
+
+            // Pass the filter values. Note that repo method expects single string for filtering.
+            // We pass null here and rely on client-side filtering below for multi-select.
+            _vm = await EmployeeRepo.GetDailySchedulesAsync(
                 dateOnly,
                 _mode,
                 _query,
                 _activeOnly,
                 _agentsOnly,
-                _selectedManager,
-                _selectedSupervisor,
-                _selectedOrg,
-                _selectedSubOrg,
+                _hideLoa,
+                null,
+                null,
+                null,
+                null,
                 token);
+
+            // Client-side filtering logic for multi-selects
+            if (_vm != null && _vm.Sites != null)
+            {
+                foreach (var site in _vm.Sites)
+                {
+                    site.Employees = site.Employees.Where(e => IsEmployeeVisible(e)).ToList();
+                }
+                // Remove empty sites
+                _vm.Sites = _vm.Sites.Where(s => s.Employees.Any()).ToList();
+            }
+
             // Apply sorting immediately after load
             ApplySort();
         }
@@ -720,9 +745,41 @@
         }
     }
 
+    private bool IsEmployeeVisible(EmployeeDailyScheduleVm emp)
+    {
+        // Organization Filter
+        if (_selectedOrgIds != null && _selectedOrgIds.Any())
+        {
+            if (!_selectedOrgIds.Contains(emp.OrganizationName)) return false;
+        }
+
+        // Sub Organization Filter
+        if (_selectedSubOrgIds != null && _selectedSubOrgIds.Any())
+        {
+            if (!_selectedSubOrgIds.Contains(emp.SubOrganizationName)) return false;
+        }
+
+        // Supervisor Filter
+        if (_selectedSupervisorIds != null && _selectedSupervisorIds.Any())
+        {
+            if (!_selectedSupervisorIds.Contains(emp.SupervisorName)) return false;
+        }
+
+        // Manager Filter - Manager name not currently available in VM, skipping for now to prevent false negatives
+        /*
+        if (_selectedManagerIds != null && _selectedManagerIds.Any())
+        {
+             // Logic would go here if ManagerName was available on VM
+        }
+        */
+
+        return true;
+    }
+
     private void ApplySort()
     {
         if (_vm == null) return;
+
         foreach (var site in _vm.Sites)
         {
             if (_sortBy == SortOption.StartTime)
@@ -730,11 +787,8 @@
                 site.Employees = site.Employees
                     .OrderBy(e =>
                     {
-                        // Get earliest Start time from Plan or Actual
                         var planStart = e.Segments.Any() ? e.Segments.Min(s => s.Start) : (DateTime?)null;
                         var actualStart = e.AwsSegments.Any() ? e.AwsSegments.Min(s => s.Start) : (DateTime?)null;
-
-                        // Use earliest, or MaxValue if no data (puts them at bottom)
                         return planStart ?? actualStart ?? DateTime.MaxValue;
                     })
                     .ThenBy(e => e.EmployeeName)

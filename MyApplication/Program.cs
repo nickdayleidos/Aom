@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using MudBlazor.Services;
 using MyApplication;
@@ -10,6 +11,7 @@ using MyApplication.Components.Service;
 using MyApplication.Components.Service.Acr;
 using MyApplication.Components.Service.Employee;
 using MyApplication.Components.Service.Training;
+using MyApplication.Components.Service.Training.Certifications;
 using MyApplication.Components.Service.Wfm;
 using MyApplication.Components.Services.Email;
 using System.Configuration;
@@ -40,6 +42,7 @@ builder.Services.AddDbContextFactory<AomDbContext>((sp, opts) =>
 {
     var cfg = sp.GetRequiredService<IConfiguration>();
     opts.UseSqlServer(cfg.GetConnectionString("AOM"), sql => sql.EnableRetryOnFailure());
+   // opts.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
     opts.EnableSensitiveDataLogging(false); // Disable in prod
 });
 
@@ -129,6 +132,8 @@ builder.Services.AddScoped<IOiEventRepository, OiEventRepository>();
 builder.Services.AddScoped<OperationalImpactEmailService>();
 
 builder.Services.AddScoped<IProactiveRepository, ProactiveRepository>();
+builder.Services.AddScoped<ICertificationsRepository, CertificationsRepository>();
+
 
 builder.Services.AddScoped<MyApplication.Components.Service.Security.SecurityService>();
 

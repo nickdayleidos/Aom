@@ -3,7 +3,7 @@ using MyApplication.Common.Time;
 using MyApplication.Components.Data;
 using MyApplication.Components.Model.AOM.Employee;
 using MyApplication.Components.Service.Acr;
-using MyApplication.Components.Service.Employee.Dtos;
+using MyApplication.Components.Service.Employee;
 using MyApplication.Migrations;
 using System;
 

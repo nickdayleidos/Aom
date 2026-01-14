@@ -1,44 +1,44 @@
-﻿<MudNavMenu>
-    @* <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink> *@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
-    <MudNavGroup Icon="@Icons.Material.Filled.Badge" Title="Employees" Expanded="false">
-        <MudNavLink Href="/employees" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.List">Directory</MudNavLink>
-        <MudNavLink Href="/employees/schedules" Icon="@Icons.Material.Filled.CalendarMonth">Daily Schedules</MudNavLink>
+<MudNavMenu>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+
+    <MudNavGroup Title="Employees" Icon="@Icons.Material.Filled.People" Expanded="true">
+        <MudNavLink Href="employees" Icon="@Icons.Material.Filled.List">Employee List</MudNavLink>
+        <MudNavLink Href="employees/schedules" Icon="@Icons.Material.Filled.Schedule">Schedules</MudNavLink>
     </MudNavGroup>
 
-    <MudNavGroup Icon="@Icons.Material.Filled.Assignment" Title="ACR" Expanded="false">
-        <MudNavLink Href="/acr" Icon="@Icons.Material.Filled.ManageSearch">ACR Lookup</MudNavLink>
-        <MudNavLink Href="/acr/new" Icon="@Icons.Material.Filled.NoteAdd">New ACR</MudNavLink>
+    <MudNavGroup Title="WFM" Icon="@Icons.Material.Filled.Work" Expanded="false">
+        <MudNavLink Href="wfm/aws/profiles" Icon="@Icons.Material.Filled.Settings">Routing Profiles</MudNavLink>
+        <MudNavLink Href="wfm/aws/queues" Icon="@Icons.Material.Filled.Queue">Queues</MudNavLink>
+        <MudNavLink Href="wfm/aws/assignments" Icon="@Icons.Material.Filled.GroupAdd">Bulk Assignment</MudNavLink>
+        <MudNavLink Href="wfm/breaktemplates" Icon="@Icons.Material.Filled.Timer">Break Templates</MudNavLink>
+        <MudNavLink Href="wfm/staticbreaks" Icon="@Icons.Material.Filled.FreeBreakfast">Static Breaks</MudNavLink>
     </MudNavGroup>
 
-    <MudNavGroup Icon="@Icons.Material.Filled.Assignment" Title="Opera" Expanded="false">
-        <MudNavLink Href="/Opera" Icon="@Icons.Material.Filled.ManageSearch">OPERA Views</MudNavLink>
-        <MudNavLink Href="/Opera/new" Icon="@Icons.Material.Filled.NoteAdd">New Opera</MudNavLink>
+    <MudNavGroup Title="Requests" Icon="@Icons.Material.Filled.Assignment" Expanded="false">
+        <MudNavLink Href="acr" Icon="@Icons.Material.Filled.Approval">ACR Requests</MudNavLink>
+        <MudNavLink Href="opera" Icon="@Icons.Material.Filled.Timer">Opera Requests</MudNavLink>
     </MudNavGroup>
 
-    <MudNavGroup Icon="@Icons.Material.Filled.AccessTime" Title="WFM" Expanded="false">
-        <MudNavLink Href="/wfm/break-templates" Icon="@Icons.Material.Filled.Timer">Break Templates</MudNavLink>
-        <MudNavLink Href="/wfm/static-breaks" Icon="@Icons.Material.Filled.EventNote">Static Breaks</MudNavLink>
-        <MudNavGroup Title="AWS Connect" Icon="@Icons.Material.Filled.CloudQueue" Expanded="false">
-            <MudNavLink Href="/wfm/aws/assignments" Icon="@Icons.Material.Filled.GroupAdd">Employee Profiles</MudNavLink>
-            <MudNavLink Href="/wfm/aws/queues" Icon="@Icons.Material.Filled.FormatListNumbered">Call Queues</MudNavLink>
-            <MudNavLink Href="/wfm/aws/profiles" Icon="@Icons.Material.Filled.AltRoute">Routing Profiles</MudNavLink>
+    <MudNavGroup Title="Training" Icon="@Icons.Material.Filled.School" Expanded="false">
+        <MudNavLink Href="training/skills" Icon="@Icons.Material.Filled.Search">Skill Lookup</MudNavLink>
+        <MudNavLink Href="training/skills/new" Icon="@Icons.Material.Filled.Add">Add Skill</MudNavLink>
+        <MudNavLink Href="training/certifications" Icon="@Icons.Material.Filled.CardMembership">Certifications</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Tools" Icon="@Icons.Material.Filled.Build" Expanded="false">
+        <MudNavLink Href="tools/emailtemplates" Icon="@Icons.Material.Filled.Email">Email Templates</MudNavLink>
+        <MudNavLink Href="tools/intervalsummary" Icon="@Icons.Material.Filled.BarChart">Interval Summary</MudNavLink>
+        <MudNavLink Href="tools/operationalimpact" Icon="@Icons.Material.Filled.Warning">Operational Impact</MudNavLink>
+        <MudNavLink Href="tools/proactive" Icon="@Icons.Material.Filled.Announcement">Proactive Comms</MudNavLink>
+    </MudNavGroup>
+
+    <AuthorizeView Roles="Admin">
+        <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+            <MudNavLink Href="admin/roles" Icon="@Icons.Material.Filled.Security">Role Management</MudNavLink>
+            <MudNavLink Href="admin/debugclaims" Icon="@Icons.Material.Filled.BugReport">Debug Claims</MudNavLink>
         </MudNavGroup>
-    </MudNavGroup>
-
-    <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="false">
-
-        <MudNavLink Href="/tools/intervalsummary" Icon="@Icons.Material.Filled.Timeline">Interval Summary</MudNavLink>
-        <MudNavLink Href="/operationalimpact" Icon="@Icons.Material.Filled.HeadsetOff">Operational Impact</MudNavLink>
-        <MudNavLink Href="/tools/proactive" Icon="@Icons.Material.Filled.Campaign">Proactive</MudNavLink>
-    </MudNavGroup>
-
-    <MudNavGroup Icon="@Icons.Material.Filled.School" Title="Training" Expanded="false">
-        <MudNavLink Href="/training/skills" Icon="@Icons.Material.Filled.WorkspacePremium">Employee Skills</MudNavLink>
-        <MudNavLink Href="/training/skills/new" Icon="@Icons.Material.Filled.PostAdd">Add Skilling</MudNavLink>
-    </MudNavGroup>
-    <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
-        <MudNavLink Href="/admin/roles" Icon="@Icons.Material.Filled.Security">Roles & Permissions</MudNavLink>
-        <MudNavLink Href="/tools/emailtemplates" Icon="@Icons.Material.Filled.Mail">Email Templates</MudNavLink>
-    </MudNavGroup>
+    </AuthorizeView>
 </MudNavMenu>

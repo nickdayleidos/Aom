@@ -19,7 +19,14 @@
                  Hover="true"
                  Bordered="true"
                  Striped="true"
-                 RowsPerPage="25">
+                 RowsPerPage="25"
+                 QuickFilter="@_quickFilter">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Queues</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
         <Columns>
             <PropertyColumn Property="x => x.Name" Title="Queue Name" />
             <PropertyColumn Property="x => x.SkillType.Name" Title="Required Skill" />
@@ -43,6 +50,7 @@
 
 @code {
     private List<CallQueue> _queues = new();
+    private string _searchString;
 
     protected override async Task OnInitializedAsync() => await LoadData();
 
@@ -68,4 +76,19 @@
             await LoadData();
         }
     }
+
+    // Quick filter function to search queues
+    private Func<CallQueue, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.SkillType?.Name != null && x.SkillType.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
 }

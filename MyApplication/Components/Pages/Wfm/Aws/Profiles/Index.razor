@@ -19,7 +19,14 @@
                  Hover="true"
                  Bordered="true"
                  Striped="true"
-                 RowsPerPage="25">
+                 RowsPerPage="25"
+                 QuickFilter="@_quickFilter">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Profiles</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Search (Profile or Queue Name)" Adornment="Adornment.Start" Immediate="true"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
         <Columns>
             <PropertyColumn Property="x => x.Name" Title="Profile Name" />
 
@@ -63,6 +70,8 @@
 
 @code {
     private List<RoutingProfile> _profiles = new();
+    private string _searchString;
+
     protected override async Task OnInitializedAsync() => await LoadData();
     private async Task LoadData() => _profiles = await Service.GetProfilesAsync();
 
@@ -80,4 +89,26 @@
 
         if (!result.Canceled) await LoadData();
     }
+
+    // Quick filter function to search profiles
+    private Func<RoutingProfile, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Search within the associated queues
+        if (x.RoutingProfileQueues != null)
+        {
+            foreach (var q in x.RoutingProfileQueues)
+            {
+                if (q.CallQueue != null && q.CallQueue.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+
+        return false;
+    };
 }

@@ -27,6 +27,12 @@ namespace MyApplication.Components.Service.Aws
                 .ToListAsync();
         }
 
+        public async Task<CallQueue?> GetQueueAsync(int id)
+        {
+            using var ctx = await _factory.CreateDbContextAsync();
+            return await ctx.CallQueues.Include(q => q.SkillType).FirstOrDefaultAsync(q => q.Id == id);
+        }
+
         public async Task SaveQueueAsync(CallQueue queue)
         {
             using var ctx = await _factory.CreateDbContextAsync();
@@ -107,6 +113,13 @@ namespace MyApplication.Components.Service.Aws
             await ctx.SaveChangesAsync();
         }
 
+        public async Task UpdateQueueInProfileAsync(RoutingProfileQueue mapping)
+        {
+            using var ctx = await _factory.CreateDbContextAsync();
+            ctx.RoutingProfileQueues.Update(mapping);
+            await ctx.SaveChangesAsync();
+        }
+
         public async Task RemoveQueueFromProfileAsync(int mappingId)
         {
             using var ctx = await _factory.CreateDbContextAsync();
@@ -184,7 +197,7 @@ namespace MyApplication.Components.Service.Aws
         {
             using var ctx = await _factory.CreateDbContextAsync();
 
-          
+
             return await ctx.SkillType
                 .OrderBy(s => s.Name)
                 .AsNoTracking()

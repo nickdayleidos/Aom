@@ -9,10 +9,8 @@ namespace MyApplication.Components.Model.AOM.Employee
     {
         [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-
         [Column(TypeName = "varchar(64)")]
         public string? Name { get; set; } = string.Empty;
-
         public bool? IsActive { get; set; } = true;
 
     }
@@ -22,15 +20,13 @@ namespace MyApplication.Components.Model.AOM.Employee
     {
         [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-
         public int? OrganizationId { get; set; }
-
         [Column(TypeName = "varchar(64)")]
         public string? Name { get; set; }
         public int? AwsStatusId { get; set; }
         public Status? AwsStatus { get; set; }
         public bool? IsActive { get; set; } = true;
-
-        // 🚫 Removed self-collection
+        public int? IatLevel { get; set; }
+        public int? IamLevel { get; set; }
     }
 }

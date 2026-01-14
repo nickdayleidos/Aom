@@ -68,7 +68,7 @@ namespace MyApplication.Components.Service
             var total = await qry.CountAsync(ct);
 
             var items = await qry
-                .OrderByDescending(x => x.Request.StartTime)
+                .OrderByDescending(x => x.Request.SubmitTime) // <--- UPDATED: Order by SubmitTime
                 .Take(q.Take)
                 .Select(x => x.Request)
                 .ToListAsync(ct);
