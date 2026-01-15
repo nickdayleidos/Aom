@@ -41,40 +41,40 @@ public sealed class IntervalEmailContext
     public int MtdNnpiCallsAnswered { get; init; }
     public double MtdNnpiAsa { get; init; }
 
-    // SLR33 MTD (%)
-    public double Slr33EmLos1 { get; init; }
-    public double Slr33EmLos2 { get; init; }
-    public double Slr33VmLos1 { get; init; }
-    public double Slr33VmLos2 { get; init; }
+    // SLR 3.3
+    public double Slr33EmMtdLos1 { get; init; }
+    public double Slr33EmMtdLos2 { get; init; }
+    public double Slr33VmMtdLos1 { get; init; }
+    public double Slr33VmMtdLos2 { get; init; }
 
-    // Email / Cust Care / SIPR Email / GDA / UAIF
-    public int EmailCount { get; init; }
-    public double EmailOldestHours { get; init; }
-    public int CustCareCount { get; init; }
-    public double CustCareOldestHours { get; init; }
-    public int SiprEmailCount { get; init; }
-    public double SiprEmailOldestHours { get; init; }
-    public int SiprGdaCount { get; init; }
-    public double SiprGdaOldestHours { get; init; }
-    public int SiprUaifCount { get; init; }
-    public double SiprUaifOldestDays { get; init; }
+    // Backlog – Wireless
+    public int CurrentEmailCount { get; init; }
+    public double CurrentEmailOldest { get; init; }
+    public int CurrentCustomerCareCount { get; init; }
+    public double CurrentCustomerCareOldest { get; init; }
+    public int CurrentSiprEmailCount { get; init; }
+    public double CurrentSiprEmailOldest { get; init; }
+    public int CurrentSiprGdaSpreadsheets { get; init; }
+    public double CurrentSiprGdaOldest { get; init; }
+    public int CurrentSiprUaifCount { get; init; }
+    public double CurrentSiprUaifOldest { get; init; }
 
-    // VM / ESS
-    public int VmCount { get; init; }
-    public double VmOldestHours { get; init; }
-    public int EssCount { get; init; }
-    public double EssOldestHours { get; init; }
+    // Backlog – Wireline
+    public int CurrentVmCount { get; init; }
+    public double CurrentVmOldest { get; init; }
+    public int CurrentEssCount { get; init; }
+    public double CurrentEssOldest { get; init; }
 
-    // Backlog – SRM User Admin / Validation / AFU / Incidents
-    public int SrmAutoCount { get; init; }
-    public double SrmAutoAgeHours { get; init; }
-    public int SrmUsnManCount { get; init; }
-    public double SrmUsnManAgeHours { get; init; }
-    public int SrmSocManCount { get; init; }
-    public double SrmSocManAgeHours { get; init; }
+    // Backlog – SRM
+    public int SrmUaAutoCount { get; init; }
+    public double SrmUaAutoAgeHours { get; init; }
+    public int SrmUaUsnManCount { get; init; }
+    public double SrmUaUsnManAgeHours { get; init; }
+    public int SrmUaSocManCount { get; init; }
+    public double SrmUaSocManAgeHours { get; init; }
 
-    public int SrmValLineCount { get; init; }
-    public double SrmValLineAgeDays { get; init; }
+    public int SrmValCount { get; init; }
+    public double SrmValAgeDays { get; init; }
     public int SrmValLineFailCount { get; init; }
     public double SrmValLineFailAgeDays { get; init; }
     public int SrmValEmailCount { get; init; }
@@ -107,19 +107,22 @@ public sealed class IntervalEmailContext
     public int RdmEsdUsnCount { get; init; }
     public double RdmEsdUsnAgeDays { get; init; }
 
-    // Notes
-    public string? FocusArea { get; init; }
-    public string? CirImpactAsa { get; init; }
-    public string? ImpactEvents { get; init; }
-    public string? HpsmStatus { get; init; }
-    public string? ManagementNotes { get; init; }
+    // Other Backlog Queues
+    public int NnpiQueue { get; init; }
+    public int SiprQueue { get; init; }
+    public int NcisQueue { get; init; }
+    public int VipQueue { get; init; }
+    public int RdmNnpiQueue { get; init; }
+    public int RdmSiprQueue { get; init; }
 
-    public string IntervalLabel => $"{IntervalStart:hh\\:mm}–{IntervalEnd:hh\\:mm}";
-}
-public sealed class IntervalRow
-{
-    public string IntervalLabel { get; init; } = "";
-    public int CallsOffered { get; init; }
-    public int Answered { get; init; }
-    public int ASA { get; init; } // seconds
+    // Notes - UPDATED NAMES
+    public string? NaTodaysFocusArea { get; init; }
+    public string? NaMajorCirImpact { get; init; }
+    public string? NaImpactingEvents { get; init; }
+    public string? NaHpsmStatus { get; init; }
+    public string? NaManagementNotes { get; init; }
+
+    // Computed property for formatting interval
+    public string IntervalLabel =>
+        $"{(IntervalStart.Hours):00}:{(IntervalStart.Minutes):00} - {(IntervalEnd.Hours):00}:{(IntervalEnd.Minutes):00} ET";
 }

@@ -1,13 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-
 namespace MyApplication.Components.Model.AOM.Tools
 {
-
     public partial class IntervalSummary
     {
-
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
@@ -37,30 +34,37 @@ namespace MyApplication.Components.Model.AOM.Tools
         public int CurrentNnpiCallsOffered { get; set; }
         public int CurrentNnpiCallsAnswered { get; set; }
 
-        // MTD – USN/VIP/SIPR/NNPI
+        // MTD – SvD/USN
         public int MtdUsnASA { get; set; }
         public int MtdUsnCallsOffered { get; set; }
         public int MtdUsnCallsAnswered { get; set; }
 
+        // MTD – VIP
         public int MtdVipASA { get; set; }
         public int MtdVipCallsOffered { get; set; }
         public int MtdVipCallsAnswered { get; set; }
 
+        // MTD – SIPR
         public int MtdSiprASA { get; set; }
         public int MtdSiprCallsOffered { get; set; }
         public int MtdSiprCallsAnswered { get; set; }
 
+        // MTD – NNPI
         public int MtdNnpiASA { get; set; }
         public int MtdNnpiCallsOffered { get; set; }
         public int MtdNnpiCallsAnswered { get; set; }
 
-        // SLR33 (MTD)
-        public int Slr33EmMtdLos1 { get; set; }
-        public int Slr33EmMtdLos2 { get; set; }
-        public int Slr33VmMtdLos1 { get; set; }
-        public int Slr33VmMtdLos2 { get; set; }
+        // SLR 3.3
+        [Column(TypeName = "decimal")]
+        public decimal? Slr33EmMtdLos1 { get; set; }
+        [Column(TypeName = "decimal")]
+        public decimal? Slr33EmMtdLos2 { get; set; }
+        [Column(TypeName = "decimal")]
+        public decimal? Slr33VmMtdLos1 { get; set; }
+        [Column(TypeName = "decimal")]
+        public decimal? Slr33VmMtdLos2 { get; set; }
 
-        // Email / Cust Care / SIPR Email / GDA / UAIF (decimal? for “oldest”)
+        // Backlog – Wireless
         public int CurrentEmailCount { get; set; }
         [Column(TypeName = "decimal")]
         public decimal? CurrentEmailOldest { get; set; }
@@ -77,7 +81,7 @@ namespace MyApplication.Components.Model.AOM.Tools
         [Column(TypeName = "decimal")]
         public decimal? CurrentSiprUaifOldest { get; set; }
 
-        // VM / ESS
+        // Backlog – Wireline
         public int CurrentVmCount { get; set; }
         [Column(TypeName = "decimal")]
         public decimal? CurrentVmOldest { get; set; }
@@ -85,7 +89,7 @@ namespace MyApplication.Components.Model.AOM.Tools
         [Column(TypeName = "decimal")]
         public decimal? CurrentEssOldest { get; set; }
 
-        // SRM UA / Validation / AFU / Incidents
+        // Backlog – SRM
         public int BlSrmUaAutoCount { get; set; }
         [Column(TypeName = "decimal")]
         public decimal? BlSrmUaAutoOldest { get; set; }
@@ -113,7 +117,7 @@ namespace MyApplication.Components.Model.AOM.Tools
         [Column(TypeName = "decimal")]
         public decimal? BlSrmCxSatOldest { get; set; }
 
-        // OCM (Ready/Hold/Fatal)
+        // OCM
         public int BlOcmNiprReadyCount { get; set; }
         [Column(TypeName = "decimal")]
         public decimal? BlOcmNiprReadyOldest { get; set; }
@@ -143,7 +147,15 @@ namespace MyApplication.Components.Model.AOM.Tools
         [Column(TypeName = "decimal")]
         public decimal? BlRdmUsnEsdOldest { get; set; }
 
-        // Notes
+        // Other Backlog Queues
+        public int? NnpiQueue { get; set; }
+        public int? SiprQueue { get; set; }
+        public int? NcisQueue { get; set; }
+        public int? VipQueue { get; set; }
+        public int? RdmNnpiQueue { get; set; }
+        public int? RdmSiprQueue { get; set; }
+
+        // Notes - UPDATED NAMES
         public string? NaTodaysFocusArea { get; set; }
         public string? NaMajorCirImpact { get; set; }
         public string? NaImpactingEvents { get; set; }

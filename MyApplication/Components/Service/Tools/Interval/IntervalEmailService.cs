@@ -25,11 +25,6 @@ public sealed class IntervalEmailService
         _composer = composer;
     }
 
-    /// <summary>
-    /// Compose the email (from template) AND persist a new IntervalSummary row
-    /// using the same IntervalEmailContext the page shows to the user.
-    /// Returns the composed pieces for the .eml download.
-    /// </summary>
     public async Task<(string Subject, string BodyHtml, string To, string Cc, string From)>
         ComposeAndLogAsync(IntervalEmailContext ctx, CancellationToken ct = default)
     {
@@ -38,98 +33,80 @@ public sealed class IntervalEmailService
 
         // 2) Persist a new IntervalSummary row
         var authState = await _auth.GetAuthenticationStateAsync();
-        var userName = authState.User?.Identity?.Name ?? "unknown";
+        var user = authState.User.Identity?.Name ?? "Unknown";
 
-        var m = MapToModel(ctx, userName);
-        var newId = await _repo.InsertAsync(m, ct);
+        // Helpers to convert double -> decimal?
+        static decimal? D(double val) => val == 0 ? null : (decimal)val;
 
-        _snackbar.Add($"Interval entry saved (ID {newId})", Severity.Success);
-        return (subject, bodyHtml, to, cc, from);
-    }
-
-    // Components/Service/IntervalEmailService.cs (inside MapToModel)
-    private static IntervalSummary MapToModel(IntervalEmailContext ctx, string user)
-    {
-        static int R(double v) => (int)Math.Round((decimal)v);
-        static decimal? D(double v) => decimal.Round((decimal)v, 2);
-
-        return new IntervalSummary
+        var row = new IntervalSummary
         {
             CurrentUser = user,
-            IntervalDate = ctx.DateLocal.Date,
+            IntervalDate = ctx.DateLocal,
             IntervalStart = ctx.IntervalStart,
             IntervalEnd = ctx.IntervalEnd,
 
-            // Current day
-            CurrentUsnASA = R(ctx.UsnAsa),
+            // Current
+            CurrentUsnASA = (int)ctx.UsnAsa,
             CurrentUsnCallsOffered = ctx.UsnCallsOffered,
             CurrentUsnCallsAnswered = ctx.UsnCallsAnswered,
-
-            CurrentVipASA = R(ctx.VipAsa),
+            CurrentVipASA = (int)ctx.VipAsa,
             CurrentVipCallsOffered = ctx.VipCallsOffered,
             CurrentVipCallsAnswered = ctx.VipCallsAnswered,
-
-            CurrentSiprASA = R(ctx.SiprAsa),
+            CurrentSiprASA = (int)ctx.SiprAsa,
             CurrentSiprCallsOffered = ctx.SiprCallsOffered,
             CurrentSiprCallsAnswered = ctx.SiprCallsAnswered,
-
-            // If your DB uses CurrentNNPIAsa/CurrentNNPI* keep those names in the entity:
-            CurrentNnpiASA = R(ctx.NnpiAsa),
+            CurrentNnpiASA = (int)ctx.NnpiAsa,
             CurrentNnpiCallsOffered = ctx.NnpiCallsOffered,
             CurrentNnpiCallsAnswered = ctx.NnpiCallsAnswered,
 
             // MTD
-            MtdUsnASA = R(ctx.MtdUsnAsa),
+            MtdUsnASA = (int)ctx.MtdUsnAsa,
             MtdUsnCallsOffered = ctx.MtdUsnCallsOffered,
             MtdUsnCallsAnswered = ctx.MtdUsnCallsAnswered,
-
-            MtdVipASA = R(ctx.MtdVipAsa),
+            MtdVipASA = (int)ctx.MtdVipAsa,
             MtdVipCallsOffered = ctx.MtdVipCallsOffered,
             MtdVipCallsAnswered = ctx.MtdVipCallsAnswered,
-
-            MtdSiprASA = R(ctx.MtdSiprAsa),
+            MtdSiprASA = (int)ctx.MtdSiprAsa,
             MtdSiprCallsOffered = ctx.MtdSiprCallsOffered,
             MtdSiprCallsAnswered = ctx.MtdSiprCallsAnswered,
-
-            MtdNnpiASA = R(ctx.MtdNnpiAsa),
+            MtdNnpiASA = (int)ctx.MtdNnpiAsa,
             MtdNnpiCallsOffered = ctx.MtdNnpiCallsOffered,
             MtdNnpiCallsAnswered = ctx.MtdNnpiCallsAnswered,
 
-            // SLR33
-            Slr33EmMtdLos1 = R(ctx.Slr33EmLos1),
-            Slr33EmMtdLos2 = R(ctx.Slr33EmLos2),
-            Slr33VmMtdLos1 = R(ctx.Slr33VmLos1),
-            Slr33VmMtdLos2 = R(ctx.Slr33VmLos2),
+            // SLR
+            Slr33EmMtdLos1 = D(ctx.Slr33EmMtdLos1),
+            Slr33EmMtdLos2 = D(ctx.Slr33EmMtdLos2),
+            Slr33VmMtdLos1 = D(ctx.Slr33VmMtdLos1),
+            Slr33VmMtdLos2 = D(ctx.Slr33VmMtdLos2),
 
-            // Email / Cust Care / SIPR Email / GDA / UAIF
-            CurrentEmailCount = ctx.EmailCount,
-            CurrentEmailOldest = D(ctx.EmailOldestHours),
-            CurrentCustomerCareCount = ctx.CustCareCount,
-            CurrentCustomerCareOldest = D(ctx.CustCareOldestHours),
+            // Backlog - Wireless
+            CurrentEmailCount = ctx.CurrentEmailCount,
+            CurrentEmailOldest = D(ctx.CurrentEmailOldest),
+            CurrentCustomerCareCount = ctx.CurrentCustomerCareCount,
+            CurrentCustomerCareOldest = D(ctx.CurrentCustomerCareOldest),
+            CurrentSiprEmailCount = ctx.CurrentSiprEmailCount,
+            CurrentSiprEmailOldest = D(ctx.CurrentSiprEmailOldest),
+            CurrentSiprGdaSpreadsheets = ctx.CurrentSiprGdaSpreadsheets,
+            CurrentSiprGdaOldest = D(ctx.CurrentSiprGdaOldest),
+            CurrentSiprUaifCount = ctx.CurrentSiprUaifCount,
+            CurrentSiprUaifOldest = D(ctx.CurrentSiprUaifOldest),
 
-            CurrentSiprEmailCount = ctx.SiprEmailCount,
-            CurrentSiprEmailOldest = D(ctx.SiprEmailOldestHours),
-            CurrentSiprGdaSpreadsheets = ctx.SiprGdaCount,
-            CurrentSiprGdaOldest = D(ctx.SiprGdaOldestHours),
-            CurrentSiprUaifCount = ctx.SiprUaifCount,
-            CurrentSiprUaifOldest = D(ctx.SiprUaifOldestDays),
+            // Backlog - Wireline
+            CurrentVmCount = ctx.CurrentVmCount,
+            CurrentVmOldest = D(ctx.CurrentVmOldest),
+            CurrentEssCount = ctx.CurrentEssCount,
+            CurrentEssOldest = D(ctx.CurrentEssOldest),
 
-            // VM / ESS
-            CurrentVmCount = ctx.VmCount,
-            CurrentVmOldest = D(ctx.VmOldestHours),
-            CurrentEssCount = ctx.EssCount,
-            CurrentEssOldest = D(ctx.EssOldestHours),
+            // SRM
+            BlSrmUaAutoCount = ctx.SrmUaAutoCount,
+            BlSrmUaAutoOldest = D(ctx.SrmUaAutoAgeHours),
+            BlSrmUaUsnManCount = ctx.SrmUaUsnManCount,
+            BlSrmUaUsnManOldest = D(ctx.SrmUaUsnManAgeHours),
+            BlSrmUaSocManCount = ctx.SrmUaSocManCount,
+            BlSrmUaSocManOldest = D(ctx.SrmUaSocManAgeHours),
 
-            // Backlog – SRM User Admin / Validation / AFU / Incidents
-            BlSrmUaAutoCount = ctx.SrmAutoCount,
-            BlSrmUaAutoOldest = D(ctx.SrmAutoAgeHours),
-            BlSrmUaUsnManCount = ctx.SrmUsnManCount,
-            BlSrmUaUsnManOldest = D(ctx.SrmUsnManAgeHours),
-            BlSrmUaSocManCount = ctx.SrmSocManCount,
-            BlSrmUaSocManOldest = D(ctx.SrmSocManAgeHours),
-
-            BlSrmValidationCount = ctx.SrmValLineCount,
-            BlSrmValidationOldest = D(ctx.SrmValLineAgeDays),
+            BlSrmValidationCount = ctx.SrmValCount,
+            BlSrmValidationOldest = D(ctx.SrmValAgeDays),
             BlSrmValidationFailCount = ctx.SrmValLineFailCount,
             BlSrmValidationFailOldest = D(ctx.SrmValLineFailAgeDays),
             BlSrmEmailBuildoutsCount = ctx.SrmValEmailCount,
@@ -162,13 +139,32 @@ public sealed class IntervalEmailService
             BlRdmUsnEsdCount = ctx.RdmEsdUsnCount,
             BlRdmUsnEsdOldest = D(ctx.RdmEsdUsnAgeDays),
 
-            // Notes
-            NaTodaysFocusArea = ctx.FocusArea,
-            NaMajorCirImpact = ctx.CirImpactAsa,
-            NaImpactingEvents = ctx.ImpactEvents,
-            NaHpsmStatus = ctx.HpsmStatus,
-            NaManagementNotes = ctx.ManagementNotes
-        };
-    }
+            // Other Backlog Queues
+            NnpiQueue = ctx.NnpiQueue,
+            SiprQueue = ctx.SiprQueue,
+            NcisQueue = ctx.NcisQueue,
+            VipQueue = ctx.VipQueue,
+            RdmNnpiQueue = ctx.RdmNnpiQueue,
+            RdmSiprQueue = ctx.RdmSiprQueue,
 
+            // Notes - UPDATED
+            NaTodaysFocusArea = ctx.NaTodaysFocusArea,
+            NaMajorCirImpact = ctx.NaMajorCirImpact,
+            NaImpactingEvents = ctx.NaImpactingEvents,
+            NaHpsmStatus = ctx.NaHpsmStatus,
+            NaManagementNotes = ctx.NaManagementNotes
+        };
+
+        try
+        {
+            await _repo.InsertAsync(row, ct);
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Failed to log interval to DB: {ex.Message}", Severity.Error);
+            throw;
+        }
+
+        return (subject, bodyHtml, to, cc, from);
+    }
 }

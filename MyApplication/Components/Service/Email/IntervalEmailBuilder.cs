@@ -2,7 +2,7 @@
 using System.Globalization;
 using MyApplication.Components.Model.AOM.Tools;
 using MyApplication.Components.Services.Email;
-using static MyApplication.Components.Services.Email.TemplateRenderer;
+using System.Text.RegularExpressions;
 using AomModel = MyApplication.Components.Model.AOM;
 
 namespace MyApplication.Components.Services.Email;
@@ -51,45 +51,47 @@ public static class IntervalEmailBuilder
             ["MtdNnpiCallsAnswered"] = ctx.MtdNnpiCallsAnswered,
             ["MtdNnpiAsa"] = ctx.MtdNnpiAsa,
 
-            // Email / CustCare / SIPR Email
-            ["Slr33EmLos1"] = ctx.Slr33EmLos1,
-            ["Slr33EmLos2"] = ctx.Slr33EmLos2,
-            ["EmailCount"] = ctx.EmailCount,
-            ["EmailOldestHours"] = ctx.EmailOldestHours,
-            ["CustCareCount"] = ctx.CustCareCount,
-            ["CustCareOldestHours"] = ctx.CustCareOldestHours,
-            ["SiprEmailCount"] = ctx.SiprEmailCount,
-            ["SiprEmailOldestHours"] = ctx.SiprEmailOldestHours,
-            ["SiprGdaCount"] = ctx.SiprGdaCount,
-            ["SiprGdaOldestHours"] = ctx.SiprGdaOldestHours,
-            ["SiprUaifCount"] = ctx.SiprUaifCount,
-            ["SiprUaifOldestDays"] = ctx.SiprUaifOldestDays,
-
-            // Voicemail / ESS
-            ["Slr33VmLos1"] = ctx.Slr33VmLos1,
-            ["Slr33VmLos2"] = ctx.Slr33VmLos2,
-            ["VmCount"] = ctx.VmCount,
-            ["VmOldestHours"] = ctx.VmOldestHours,
-            ["EssCount"] = ctx.EssCount,
-            ["EssOldestHours"] = ctx.EssOldestHours,
+            ["Slr33EmMtdLos1"] = ctx.Slr33EmMtdLos1,
+            ["Slr33EmMtdLos2"] = ctx.Slr33EmMtdLos2,
+            ["Slr33VmMtdLos1"] = ctx.Slr33VmMtdLos1,
+            ["Slr33VmMtdLos2"] = ctx.Slr33VmMtdLos2,
 
             // Backlog
-            ["SrmAutoCount"] = ctx.SrmAutoCount,
-            ["SrmAutoAgeHours"] = ctx.SrmAutoAgeHours,
-            ["SrmUsnManCount"] = ctx.SrmUsnManCount,
-            ["SrmUsnManAgeHours"] = ctx.SrmUsnManAgeHours,
-            ["SrmSocManCount"] = ctx.SrmSocManCount,
-            ["SrmSocManAgeHours"] = ctx.SrmSocManAgeHours,
-            ["SrmValLineCount"] = ctx.SrmValLineCount,
-            ["SrmValLineAgeDays"] = ctx.SrmValLineAgeDays,
+            ["CurrentEmailCount"] = ctx.CurrentEmailCount,
+            ["CurrentEmailOldest"] = ctx.CurrentEmailOldest,
+            ["CurrentCustomerCareCount"] = ctx.CurrentCustomerCareCount,
+            ["CurrentCustomerCareOldest"] = ctx.CurrentCustomerCareOldest,
+            ["CurrentSiprEmailCount"] = ctx.CurrentSiprEmailCount,
+            ["CurrentSiprEmailOldest"] = ctx.CurrentSiprEmailOldest,
+            ["CurrentSiprGdaSpreadsheets"] = ctx.CurrentSiprGdaSpreadsheets,
+            ["CurrentSiprGdaOldest"] = ctx.CurrentSiprGdaOldest,
+            ["CurrentSiprUaifCount"] = ctx.CurrentSiprUaifCount,
+            ["CurrentSiprUaifOldest"] = ctx.CurrentSiprUaifOldest,
+
+            ["CurrentVmCount"] = ctx.CurrentVmCount,
+            ["CurrentVmOldest"] = ctx.CurrentVmOldest,
+            ["CurrentEssCount"] = ctx.CurrentEssCount,
+            ["CurrentEssAgeDays"] = ctx.CurrentEssOldest,
+
+            ["SrmUaAutoCount"] = ctx.SrmUaAutoCount,
+            ["SrmUaAutoAgeHours"] = ctx.SrmUaAutoAgeHours,
+            ["SrmUaUsnManCount"] = ctx.SrmUaUsnManCount,
+            ["SrmUaUsnManAgeHours"] = ctx.SrmUaUsnManAgeHours,
+            ["SrmUaSocManCount"] = ctx.SrmUaSocManCount,
+            ["SrmUaSocManAgeHours"] = ctx.SrmUaSocManAgeHours,
+
+            ["SrmValCount"] = ctx.SrmValCount,
+            ["SrmValAgeDays"] = ctx.SrmValAgeDays,
             ["SrmValLineFailCount"] = ctx.SrmValLineFailCount,
             ["SrmValLineFailAgeDays"] = ctx.SrmValLineFailAgeDays,
             ["SrmValEmailCount"] = ctx.SrmValEmailCount,
             ["SrmValEmailAgeDays"] = ctx.SrmValEmailAgeDays,
+
             ["AfuCount"] = ctx.AfuCount,
             ["AfuAgeHours"] = ctx.AfuAgeHours,
             ["CsCount"] = ctx.CsCount,
             ["CsAgeHours"] = ctx.CsAgeHours,
+
             ["OcmNiprReadyCount"] = ctx.OcmNiprReadyCount,
             ["OcmNiprReadyAgeHours"] = ctx.OcmNiprReadyAgeHours,
             ["OcmSiprReadyCount"] = ctx.OcmSiprReadyCount,
@@ -103,18 +105,25 @@ public static class IntervalEmailBuilder
             ["OcmSiprFatalCount"] = ctx.OcmSiprFatalCount,
             ["OcmSiprFatalAgeHours"] = ctx.OcmSiprFatalAgeHours,
 
-            // RDM
             ["RdmUsnCount"] = ctx.RdmUsnCount,
             ["RdmUsnAgeDays"] = ctx.RdmUsnAgeDays,
             ["RdmEsdUsnCount"] = ctx.RdmEsdUsnCount,
             ["RdmEsdUsnAgeDays"] = ctx.RdmEsdUsnAgeDays,
 
-            // Notes
-            ["FocusArea"] = ctx.FocusArea,
-            ["CirImpactAsa"] = ctx.CirImpactAsa,
-            ["ImpactEvents"] = ctx.ImpactEvents,
-            ["HpsmStatus"] = ctx.HpsmStatus,
-            ["ManagementNotes"] = ctx.ManagementNotes
+            // Other Backlog Queues
+            ["NnpiQueue"] = ctx.NnpiQueue,
+            ["SiprQueue"] = ctx.SiprQueue,
+            ["NcisQueue"] = ctx.NcisQueue,
+            ["VipQueue"] = ctx.VipQueue,
+            ["RdmNnpiQueue"] = ctx.RdmNnpiQueue,
+            ["RdmSiprQueue"] = ctx.RdmSiprQueue,
+
+            // Notes - UPDATED
+            ["FocusArea"] = ctx.NaTodaysFocusArea,
+            ["CirImpactAsa"] = ctx.NaMajorCirImpact,
+            ["ImpactEvents"] = ctx.NaImpactingEvents,
+            ["HpsmStatus"] = ctx.NaHpsmStatus,
+            ["ManagementNotes"] = ctx.NaManagementNotes
         };
 
         var subjectTemplate = string.IsNullOrWhiteSpace(tpl.Subject)
@@ -187,6 +196,8 @@ EM Inbox Count: {{EmailCount}}<br/>
 Oldest EM (3hr SLR): {{EmailOldestHours}} hrs<br/>
 Cust Care Count: {{CustCareCount}}<br/>
 Oldest Cust Care (24hr SLR): {{CustCareOldestHours}} hrs<br/>
+
+<h4>SIPR</h4>
 SOC EM Inbox Count: {{SiprEmailCount}}<br/>
 Oldest SOC EM: {{SiprEmailOldestHours}} hrs<br/>
 SIPR GDA Spreadsheets: {{SiprGdaCount}} items<br/>
@@ -206,23 +217,24 @@ Oldest ESS Interaction: {{EssOldestHours}} hrs</p>
 
 <h4>Backlog</h4>
 <p><b>Service Request Management Queues</b><br/>
-SRM User Admin<br/>
-&nbsp;&nbsp;Auto USN: {{SrmAutoCount}} &nbsp;&nbsp; Oldest: {{SrmAutoAgeHours}} Hours<br/>
-&nbsp;&nbsp;Manual USN: {{SrmUsnManCount}} &nbsp;&nbsp; Oldest: {{SrmUsnManAgeHours}} Hours<br/>
-&nbsp;&nbsp;Manual SOC: {{SrmSocManCount}} &nbsp;&nbsp; Oldest: {{SrmSocManAgeHours}} Hours<br/>
+<br/>
+<p><b>SRM User Admin</b><br/>
+&nbsp;&nbsp;&nbsp;Auto USN: {{SrmAutoCount}} &nbsp;&nbsp; Oldest: {{SrmAutoAgeHours}} Hours<br/>
+&nbsp;&nbsp;&nbsp;Manual USN: {{SrmUsnManCount}} &nbsp;&nbsp; Oldest: {{SrmUsnManAgeHours}} Hours<br/>
+&nbsp;&nbsp;&nbsp;Manual SOC: {{SrmSocManCount}} &nbsp;&nbsp; Oldest: {{SrmSocManAgeHours}} Hours<br/>
 SRM Validation<br/>
-&nbsp;&nbsp;Line Items: {{SrmValLineCount}} &nbsp;&nbsp; Oldest: {{SrmValLineAgeDays}} Days<br/>
-&nbsp;&nbsp;Failed Inbound: {{SrmValLineFailCount}} &nbsp;&nbsp; Oldest: {{SrmValLineFailAgeDays}} Days<br/>
-&nbsp;&nbsp;Email Buildouts: {{SrmValEmailCount}} &nbsp;&nbsp; Oldest: {{SrmValEmailAgeDays}} Days<br/>
+&nbsp;&nbsp;&nbsp;Line Items: {{SrmValLineCount}} &nbsp;&nbsp; Oldest: {{SrmValLineAgeDays}} Days<br/>
+&nbsp;&nbsp;&nbsp;Failed Inbound: {{SrmValLineFailCount}} &nbsp;&nbsp; Oldest: {{SrmValLineFailAgeDays}} Days<br/>
+&nbsp;&nbsp;&nbsp;Email Buildouts: {{SrmValEmailCount}} &nbsp;&nbsp; Oldest: {{SrmValEmailAgeDays}} Days<br/>
 SRM Active Follow up (Automated): {{AfuCount}} &nbsp;&nbsp; Oldest: {{AfuAgeHours}} Days<br/>
 SRM Customer Satisfaction: {{CsCount}} &nbsp;&nbsp; Oldest: {{CsAgeHours}} Hours<br/>
 SRM OCM Account Activation Buildouts in Queue<br/>
-&nbsp;&nbsp;NIPR OCM Ready: {{OcmNiprReadyCount}} &nbsp;&nbsp; Oldest: {{OcmNiprReadyAgeHours}} Hours<br/>
-&nbsp;&nbsp;NIPR OCM Hold: {{OcmNiprHoldCount}} &nbsp;&nbsp; Oldest: {{OcmNiprHoldAgeHours}} Hours<br/>
-&nbsp;&nbsp;NIPR Fatal Review: {{OcmNiprFatalCount}} &nbsp;&nbsp; Oldest: {{OcmNiprFatalAgeHours}} Hours<br/>
-&nbsp;&nbsp;SIPR OCM Ready: {{OcmSiprReadyCount}} &nbsp;&nbsp; Oldest: {{OcmSiprReadyAgeHours}} Hours<br/>
-&nbsp;&nbsp;SIPR OCM Hold: {{OcmSiprHoldCount}} &nbsp;&nbsp; Oldest: {{OcmSiprHoldAgeHours}} Hours<br/>
-&nbsp;&nbsp;SIPR Fatal Review: {{OcmSiprFatalCount}} &nbsp;&nbsp; Oldest: {{OcmSiprFatalAgeHours}} Hours</p>
+&nbsp;&nbsp;&nbsp;NIPR OCM Ready: {{OcmNiprReadyCount}} &nbsp;&nbsp; Oldest: {{OcmNiprReadyAgeHours}} Hours<br/>
+&nbsp;&nbsp;&nbsp;NIPR OCM Hold: {{OcmNiprHoldCount}} &nbsp;&nbsp; Oldest: {{OcmNiprHoldAgeHours}} Hours<br/>
+&nbsp;&nbsp;&nbsp;NIPR Fatal Review: {{OcmNiprFatalCount}} &nbsp;&nbsp; Oldest: {{OcmNiprFatalAgeHours}} Hours<br/>
+&nbsp;&nbsp;&nbsp;SIPR OCM Ready: {{OcmSiprReadyCount}} &nbsp;&nbsp; Oldest: {{OcmSiprReadyAgeHours}} Hours<br/>
+&nbsp;&nbsp;&nbsp;SIPR OCM Hold: {{OcmSiprHoldCount}} &nbsp;&nbsp; Oldest: {{OcmSiprHoldAgeHours}} Hours<br/>
+&nbsp;&nbsp;&nbsp;SIPR Fatal Review: {{OcmSiprFatalCount}} &nbsp;&nbsp; Oldest: {{OcmSiprFatalAgeHours}} Hours</p>
 
 <h4>Remote Desktop Management HPSM Queue Status</h4>
 <p>RDM USN: {{RdmUsnCount}} &nbsp;&nbsp; Oldest: {{RdmUsnAgeDays}} Days<br/>

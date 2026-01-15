@@ -29,163 +29,129 @@
     <!-- Interval header -->
     <MudPaper Class="pa-4" Outlined="true">
         <MudGrid Spacing="2">
-            <MudItem xs="6" sm="4">
-                <MudDatePicker Date="State.Header.IntervalDate"
-                               DateChanged="@(d => State.Header.IntervalDate = d ?? State.Header.IntervalDate)"
-                               Label="Interval Date" />
+            <MudItem xs="12" md="2">
+                <MudDatePicker @bind-Date="State.Header.IntervalDate" Label="Date" />
             </MudItem>
-            <MudItem xs="6" sm="4">
+            <MudItem xs="6" sm="2">
                 <MudTextField Class="Header" @bind-Value="State.Header.IntervalStart" Label="Interval Start (HH:mm)" />
             </MudItem>
-            <MudItem xs="6" sm="4">
+            <MudItem xs="6" sm="2">
                 <MudTextField Class="Header" @bind-Value="State.Header.IntervalEnd" Label="Interval End (HH:mm)" />
             </MudItem>
         </MudGrid>
     </MudPaper>
 
-    <!-- Current Day + Month To Date + Intervals (3 columns) -->
-    <MudGrid Spacing="2">
-        <!-- Left: Current Day -->
-        <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4" Outlined="true">
-                <MudText Typo="Typo.h6">Current Day</MudText>
-                <MudGrid Spacing="3">
-                    <!-- SvD Total -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">SvD Total</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.UsnAsa" Label="ASA - SvD Total (sec)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.UsnCallsOffered" Label="SvD Calls Offered" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.UsnCallsAnswered" Label="SvD Calls Handled" /></MudItem>
+    <!-- Main Content Area: Left (Stats) / Right (Interval Grid) -->
+    <MudGrid>
+        <!-- Left Column: Current Day & MTD -->
+        <MudItem xs="12" lg="8">
+            <MudStack Spacing="2">
+                <!-- Current Day Stats -->
+                <MudPaper Class="pa-4" Outlined="true">
+                    <MudText Typo="Typo.h6">Current Day Stats</MudText>
+                    <MudGrid Spacing="2">
+                        <!-- USN -->
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.UsnCallsOffered" Label="SvD/USN Offered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.UsnCallsAnswered" Label="SvD/USN Answered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.UsnAsa" Label="SvD/USN ASA" /></MudItem>
+                        <MudItem xs="12" md="3"></MudItem>
 
-                    <!-- VIP -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">VIP</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.VipAsa" Label="ASA - VIP (sec)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.VipCallsOffered" Label="VIP Calls Offered" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.VipCallsAnswered" Label="VIP Calls Handled" /></MudItem>
+                        <!-- VIP -->
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.VipCallsOffered" Label="VIP Offered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.VipCallsAnswered" Label="VIP Answered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.VipAsa" Label="VIP ASA" /></MudItem>
+                        <MudItem xs="12" md="3"></MudItem>
 
-                    <!-- SIPR -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">SIPR</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprAsa" Label="ASA - SIPR (sec)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprCallsOffered" Label="SIPR Calls Offered" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprCallsAnswered" Label="SIPR Calls Handled" /></MudItem>
+                        <!-- SIPR -->
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprCallsOffered" Label="SIPR Offered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprCallsAnswered" Label="SIPR Answered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprAsa" Label="SIPR ASA" /></MudItem>
+                        <MudItem xs="12" md="3"></MudItem>
 
-                    <!-- NNPI -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">NNPI</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.NnpiAsa" Label="ASA - NNPI (sec)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.NnpiCallsOffered" Label="NNPI Calls Offered" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.NnpiCallsAnswered" Label="NNPI Calls Handled" /></MudItem>
+                        <!-- NNPI -->
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.NnpiCallsOffered" Label="NNPI Offered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.NnpiCallsAnswered" Label="NNPI Answered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.NnpiAsa" Label="NNPI ASA" /></MudItem>
+                        <MudItem xs="12" md="3"></MudItem>
 
-                    <!-- Email / Cust Care / SIPR Email -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">Email / Cust Care</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.EmailCount" Label="Email Inbox Count" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.EmailOldestHours" Label="Oldest Email (hrs)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.CustCareCount" Label="Customer Care Count" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.CustCareOldestHours" Label="Oldest Cust Care (hrs)" /></MudItem>
+                        <!-- Email -->
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentEmailCount" Label="Email Inbox Count" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentEmailAgeHours" Label="Email Oldest (Hours)" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentCustomerCareCount" Label="Cust Care Email Count" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentCustomerCareAgeHours" Label="Cust Care Email Oldest (Hours)" /></MudItem>
+                        
+                        <!-- SIPR -->
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentSiprEmailCount" Label="SIPR Email Count" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentSiprEmailAgeHours" Label="SIPR Email Oldest (Hours)" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentSiprGdaSpreadsheets" Label="SIPR GDA Spreadsheets" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentSiprGdaAgeHours" Label="SIPR GDA Oldest (Hours)" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentSiprUaifCount" Label="SIPR UAIF Count" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentSiprUaifAgeHours" Label="SIPR UAIF Oldest (Hours)" /></MudItem>
+                        <MudItem xs="12" md="6"></MudItem>
 
-                    <!-- SIPR GDA / UAIF -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">SIPR Email GDA / UAIF</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprEmailCount" Label="SIPR Email Inbox Count" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprEmailOldestHours" Label="SIPR Oldest Email (hrs)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprGdaCount" Label="SIPR GDA Spreadsheets (items)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprGdaOldestHours" Label="Oldest SIPR GDA (hrs)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprUaifCount" Label="SIPR UAIF Count (forms)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.SiprUaifOldestDays" Label="Oldest SIPR UAIF (days)" /></MudItem>
+                        <!-- Voicemail/ESS -->
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentVmCount" Label=" VM Count" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentVmAgeHours" Label="VM Oldest (Hours)" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentEssCount" Label="ESS Ticket Count" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentEssAgeHours" Label="ESS Ticket Oldest (Hours)" /></MudItem>
+                    </MudGrid>
+                </MudPaper>
 
-                    <!-- VM / ESS -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">VM / ESS</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.VmCount" Label="Voicemail Inbox Count" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.VmOldestHours" Label="Oldest Voicemail (hrs)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.EssCount" Label="ESS Interaction Count" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="CurrentDay" @bind-Value="State.Current.EssOldestHours" Label="Oldest ESS Interaction (hrs)" /></MudItem>
-                </MudGrid>
-            </MudPaper>
+                <!-- Month To Date -->
+                <MudPaper Class="pa-4" Outlined="true">
+                    <MudText Typo="Typo.h6">Month To Date</MudText>
+                    <MudGrid Spacing="2">
+                        <!-- USN -->
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.UsnCallsOffered" Label="SvD/USN Offered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.UsnCallsAnswered" Label="SvD/USN Answered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.UsnAsa" Label="SvD/USN ASA" /></MudItem>
+                        <MudItem xs="12" md="3"></MudItem>
+
+                        <!-- VIP -->
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.VipCallsOffered" Label="VIP Offered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.VipCallsAnswered" Label="VIP Answered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.VipAsa" Label="VIP ASA" /></MudItem>
+                        <MudItem xs="12" md="3"></MudItem>
+
+                        <!-- SIPR -->
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.SiprCallsOffered" Label="SIPR Offered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.SiprCallsAnswered" Label="SIPR Answered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.SiprAsa" Label="SIPR ASA" /></MudItem>
+                        <MudItem xs="12" md="3"></MudItem>
+
+                        <!-- NNPI -->
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.NnpiCallsOffered" Label="NNPI Offered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.NnpiCallsAnswered" Label="NNPI Answered" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.NnpiAsa" Label="NNPI ASA" /></MudItem>
+                        <MudItem xs="12" md="3"></MudItem>
+
+                        <!-- EMVM SLR -->
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.Slr33EmLos1" Label="Email LOS 1" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.Slr33EmLos2" Label="Email LOS 2" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.Slr33VmLos1" Label="VM LOS 1" /></MudItem>
+                        <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.Slr33VmLos2" Label="VM LOS 2" /></MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudStack>
         </MudItem>
-
-        <!-- Middle: Month To Date -->
-        <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4" Outlined="true">
-                <MudText Typo="Typo.h6">Month To Date</MudText>
-                <MudGrid Spacing="3">
-                    <!-- SvD Total -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">SvD Total</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.UsnAsa" Label="ASA - SvD Total (sec)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.UsnCallsOffered" Label="SvD Calls Offered" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.UsnCallsAnswered" Label="SvD Calls Handled" /></MudItem>
-
-                    <!-- VIP -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">VIP</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.VipAsa" Label="ASA - VIP (sec)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.VipCallsOffered" Label="VIP Calls Offered" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.VipCallsAnswered" Label="VIP Calls Handled" /></MudItem>
-
-                    <!-- SIPR -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">SIPR</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.SiprAsa" Label="ASA - SIPR (sec)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.SiprCallsOffered" Label="SIPR Calls Offered" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.SiprCallsAnswered" Label="SIPR Calls Handled" /></MudItem>
-
-                    <!-- NNPI -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">NNPI</MudText></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.NnpiAsa" Label="ASA - NNPI (sec)" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.NnpiCallsOffered" Label="NNPI Calls Offered" /></MudItem>
-                    <MudItem xs="12" md="4"><MudTextField Class="MonthToDate" @bind-Value="State.Mtd.NnpiCallsAnswered" Label="NNPI Calls Handled" /></MudItem>
-
-                    <!-- SLR33 -->
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">SLR 33 Email</MudText></MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudTextField Class="MonthToDate" @bind-Value="State.Mtd.Slr33EmLos1" Label="SLR33 EM MTD % (LOS1)" InputType="InputType.Number"
-                                      Step="0.01" />
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudTextField Class="MonthToDate" @bind-Value="State.Mtd.Slr33EmLos2" Label="SLR33 EM MTD % (LOS2)" InputType="InputType.Number"
-                                      Step="0.01" />
-                    </MudItem>
-                    <MudItem xs="12"><MudText Typo="Typo.subtitle1">SLR 33 Voicemail</MudText></MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudTextField Class="MonthToDate" @bind-Value="State.Mtd.Slr33VmLos1" Label="SLR33 VM MTD % (LOS1)" InputType="InputType.Number"
-                                      Step="0.01" />
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudTextField Class="MonthToDate" @bind-Value="State.Mtd.Slr33VmLos2" Label="SLR33 VM MTD % (LOS2)" InputType="InputType.Number"
-                                      Step="0.01" />
-                    </MudItem>
-                </MudGrid>
-            </MudPaper>
-        </MudItem>
-
-        <!-- Right: Current Day by Interval -->
-        <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4" Outlined="true">
-                <MudText Typo="Typo.h6">Current Day — By 30-min Interval</MudText>
-
-                <!-- DEBUG: show count and first few labels -->
-                <MudText Class="mt-2" Typo="Typo.caption">
-                    Rows: @_intervalRows?.Count
-                    @if (_intervalRows is { Count: > 0 })
-                    {
-                        <text> | First: @string.Join(", ", _intervalRows.Take(3).Select(x => x.IntervalLabel))</text>
-                    }
-                </MudText>
-
-                <MudTable Items="_intervalRows" Dense="true" Hover="true" Bordered="true" Class="mt-2">
+       
+        <!-- Right Column: Interval Grid -->
+        <MudItem xs="12" lg="4">
+            <MudPaper Class="pa-4 h-100" Outlined="true">
+                <MudText Typo="Typo.h6" Class="mb-2">Intervals (Current Day)</MudText>
+                <MudTable Items="@State.Intervals" Dense="true" Hover="true" Striped="true" FixedHeader="true" Height="775px">
                     <HeaderContent>
                         <MudTh>Interval</MudTh>
-                        <MudTh>Calls Offered</MudTh>
-                        <MudTh>Answered</MudTh>
-                        <MudTh>ASA (s)</MudTh>
+                        <MudTh>Offered</MudTh>
+                        <MudTh>Ans</MudTh>
+                        <MudTh>ASA</MudTh>
                     </HeaderContent>
-
-                    <RowTemplate Context="r">
-                        <MudTd DataLabel="Interval">@r.IntervalLabel</MudTd>
-                        <MudTd DataLabel="Calls Offered">@r.CallsOffered</MudTd>
-                        <MudTd DataLabel="Answered">@r.Answered</MudTd>
-                        <MudTd DataLabel="ASA">@r.ASA</MudTd>
+                    <RowTemplate>
+                        <MudTd DataLabel="Interval">@context.IntervalLabel</MudTd>
+                        <MudTd DataLabel="Offered">@context.CallsOffered</MudTd>
+                        <MudTd DataLabel="Answered">@context.Answered</MudTd>
+                        <MudTd DataLabel="ASA">@context.Asa.ToString("F0")</MudTd>
                     </RowTemplate>
-
-                    <NoRecordsContent>
-                        <MudText Class="px-2" Typo="Typo.body2">
-                            No interval rows. Click <b>Populate</b>.
-                        </MudText>
-                    </NoRecordsContent>
                 </MudTable>
             </MudPaper>
         </MudItem>
@@ -194,55 +160,81 @@
     <!-- Backlog -->
     <MudPaper Class="pa-4" Outlined="true">
         <MudText Typo="Typo.h6">Backlog</MudText>
-        <MudGrid GutterSize="2" Class="mt-2">
-            <!-- SRM – User Admin -->
-            <MudItem xs="12"><MudText Typo="Typo.subtitle1">SRM – User Admin</MudText></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmAutoCount" Label="Auto USN Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmAutoAgeHours" Label="Auto USN Oldest (hrs)" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmUsnManCount" Label="Manual USN Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmUsnManAgeHours" Label="Manual USN Oldest (hrs)" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmSocManCount" Label="Manual SOC Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmSocManAgeHours" Label="Manual SOC Oldest (hrs)" /></MudItem>
+        <MudGrid Spacing="2">
 
-            <!-- SRM – Validation -->
-            <MudItem xs="12"><MudText Typo="Typo.subtitle1">SRM – Validation</MudText></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValLineCount" Label="Line Items Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValLineAgeDays" Label="Line Items Oldest (days)" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValLineFailCount" Label="Failed Inbound Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValLineFailAgeDays" Label="Failed Inbound Oldest (days)" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValEmailCount" Label="Email Buildouts Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValEmailAgeDays" Label="Email Buildouts Oldest (days)" /></MudItem>
+            <!-- SRM UA -->
+            <MudItem xs="12">
+            <MudDivider Class="my-4" />     
+            <MudText Typo="Typo.subtitle2" Class="mb-2"><b>SRM User Admin</b></MudText>
+            </MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmUaAutoCount" Label="SRM UA Auto Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmUaAutoAgeDays" Label="SRM UA Auto Oldest (Days)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmUaUsnManCount" Label="SRM UA USN Man Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmUaUsnManAgeDays" Label="SRM UA USN Man Oldest (Days)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmUaSocManCount" Label="SRM UA SOC Man Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmUaSocManAgeDays" Label="SRM UA SOC Man Oldest (Days)" /></MudItem>
 
-            <!-- SRM – Active Follow Up / Incidents -->
-            <MudItem xs="12"><MudText Typo="Typo.subtitle1">SRM – Active Follow Up / Incidents</MudText></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.AfuCount" Label="AFU Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.AfuAgeHours" Label="AFU Oldest (days)" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.CsCount" Label="Open Incidents Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.CsAgeHours" Label="Open Incidents Oldest (hrs)" /></MudItem>
+            <!-- SRM Validation -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>SRM Validation</b></MudText>
+            </MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValCount" Label="SRM Validation Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValAgeDays" Label="SRM Validation Oldest (Days)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValLineFailCount" Label="SRM Line Fail Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValLineFailAgeDays" Label="SRM Line Fail Oldest (Days)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValEmailCount" Label="SRM Email Buildout Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SrmValEmailAgeDays" Label="SRM Email Buildout Oldest (Days)" /></MudItem>
 
-            <!-- SRM – OCM Activations -->
-            <MudItem xs="12"><MudText Typo="Typo.subtitle1">SRM – OCM Activations</MudText></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprReadyCount" Label="NIPR Ready Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprReadyAgeHours" Label="NIPR Ready Oldest (hrs)" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprReadyCount" Label="SIPR Ready Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprReadyAgeHours" Label="SIPR Ready Oldest (hrs)" /></MudItem>
+            <!-- SRM AFU -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>SRM Active Followup / Incidents</b></MudText>
+            </MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.AfuCount" Label="Active Follow Up Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.AfuAgeDays" Label="Active Follow Up Oldest (Days)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.CsCount" Label="Cust Sat Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.CsAgeDays" Label="Cust Sat Oldest (Days)" /></MudItem>
 
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprHoldCount" Label="NIPR Hold Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprHoldAgeHours" Label="NIPR Hold Oldest (hrs)" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprHoldCount" Label="SIPR Hold Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprHoldAgeHours" Label="SIPR Hold Oldest (hrs)" /></MudItem>
-
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprFatalCount" Label="NIPR Fatal Review Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprFatalAgeHours" Label="NIPR Fatal Review Oldest (hrs)" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprFatalCount" Label="SIPR Fatal Review Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprFatalAgeHours" Label="SIPR Fatal Review Oldest (hrs)" /></MudItem>
+            <!-- SRM OCM -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>SRM OCM Activations</b></MudText>
+            </MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprReadyCount" Label="OCM NIPR Ready Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprReadyAgeHours" Label="OCM NIPR Ready Oldest (hours)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprReadyCount" Label="OCM SIPR Ready Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprReadyAgeHours" Label="OCM SIPR Ready Oldest (hours)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprHoldCount" Label="OCM NIPR Hold Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprHoldAgeHours" Label="OCM NIPR Hold Oldest (hours)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprHoldCount" Label="OCM SIPR Hold Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprHoldAgeHours" Label="OCM SIPR Hold Oldest (hours)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprFatalCount" Label="OCM NIPR Fatal Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprFatalAgeHours" Label="OCM NIPR Fatal Oldest (hours)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprFatalCount" Label="OCM SIPR Fatal Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprFatalAgeHours" Label="OCM SIPR Fatal Oldest (hours)" /></MudItem>
 
             <!-- RDM -->
-            <MudItem xs="12"><MudText Typo="Typo.subtitle1">RDM</MudText></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmUsnCount" Label="RDM USN Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmUsnAgeDays" Label="RDM USN Oldest (days)" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmEsdUsnCount" Label="RDM ESD USN Count" /></MudItem>
-            <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmEsdUsnAgeDays" Label="RDM ESD USN Oldest (days)" /></MudItem>
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>RDM</b></MudText>
+            </MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmUsnCount" Label="RDM USN Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmUsnAgeDays" Label="RDM USN Oldest (days)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmEsdUsnCount" Label="RDM ESD USN Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmEsdUsnAgeDays" Label="RDM ESD USN Oldest (days)" /></MudItem>
+
+            <!-- Other Backlog Queues -->
+            <MudItem xs="12">
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Other Backlog Queues</b></MudText>
+            </MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.NnpiQueue" Label="SVD.NNPI" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.SiprQueue" Label="SVD.SIPR" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.NcisQueue" Label="SVD.NCIS" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.VipQueue" Label="SVD.VIP" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmNnpiQueue" Label="RDM.NNPI" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmSiprQueue" Label="RDM.SIPR" /></MudItem>
         </MudGrid>
     </MudPaper>
 
@@ -250,20 +242,20 @@
     <MudPaper Class="pa-4" Outlined="true">
         <MudText Typo="Typo.h6">Notes / Comments</MudText>
         <MudGrid Spacing="2">
-            <MudItem xs="12">
-                <MudTextField Class="Notes" @bind-Value="State.Notes.FocusArea" Label="Today's Focus Areas" Lines="2" />
+            <MudItem xs="12" md="6">
+                <MudTextField Class="Notes" @bind-Value="State.Notes.NaTodaysFocusArea" Label="Today's Focus Areas" Lines="2" />
             </MudItem>
-            <MudItem xs="12">
-                <MudTextField Class="Notes" @bind-Value="State.Notes.CirImpactAsa" Label="Major CIRs Impacting ASA" Lines="2" />
+            <MudItem xs="12" md="6">
+                <MudTextField Class="Notes" @bind-Value="State.Notes.NaMajorCirImpact" Label="Major CIRs Impacting ASA" Lines="2" />
             </MudItem>
-            <MudItem xs="12">
-                <MudTextField Class="Notes" @bind-Value="State.Notes.ImpactEvents" Label="Impacting Events" Lines="2" />
+            <MudItem xs="12" md="6">
+                <MudTextField Class="Notes" @bind-Value="State.Notes.NaImpactingEvents" Label="Impacting Events" Lines="2" />
             </MudItem>
-            <MudItem xs="12">
-                <MudTextField Class="Notes" @bind-Value="State.Notes.HpsmStatus" Label="HPSM Status" />
+            <MudItem xs="12" md="6">
+                <MudTextField Class="Notes" @bind-Value="State.Notes.NaHpsmStatus" Label="HPSM Status" Lines="2" />
             </MudItem>
-            <MudItem xs="12">
-                <MudTextField Class="Notes" @bind-Value="State.Notes.ManagementNotes" Label="Management Notes" Lines="2" />
+            <MudItem xs="12" >
+                <MudTextField Class="Notes" @bind-Value="State.Notes.NaManagementNotes" Label="Management Notes" Lines="3" />
             </MudItem>
         </MudGrid>
     </MudPaper>
