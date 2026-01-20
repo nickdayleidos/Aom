@@ -79,7 +79,7 @@ public sealed class IntervalEmailService
             Slr33VmMtdLos1 = D(ctx.Slr33VmMtdLos1),
             Slr33VmMtdLos2 = D(ctx.Slr33VmMtdLos2),
 
-            // Backlog - Wireless
+            // Backlog - Email
             CurrentEmailCount = ctx.CurrentEmailCount,
             CurrentEmailOldest = D(ctx.CurrentEmailOldest),
             CurrentCustomerCareCount = ctx.CurrentCustomerCareCount,
@@ -91,7 +91,7 @@ public sealed class IntervalEmailService
             CurrentSiprUaifCount = ctx.CurrentSiprUaifCount,
             CurrentSiprUaifOldest = D(ctx.CurrentSiprUaifOldest),
 
-            // Backlog - Wireline
+            // Backlog - Voicemail
             CurrentVmCount = ctx.CurrentVmCount,
             CurrentVmOldest = D(ctx.CurrentVmOldest),
             CurrentEssCount = ctx.CurrentEssCount,

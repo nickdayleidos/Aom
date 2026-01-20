@@ -38,6 +38,9 @@
             <MudItem xs="6" sm="2">
                 <MudTextField Class="Header" @bind-Value="State.Header.IntervalEnd" Label="Interval End (HH:mm)" />
             </MudItem>
+            <MudItem xs="6" sm="2">
+                <MudTextField Class="Header" @bind-Value="State.Header.PopulateTime" Format="yyyy-MM-dd HH:mm"  Label="Latest Refresh Time (ET)" />
+            </MudItem>
         </MudGrid>
     </MudPaper>
 
@@ -203,17 +206,17 @@
             </MudItem>
             <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprReadyCount" Label="OCM NIPR Ready Count" /></MudItem>
             <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprReadyAgeHours" Label="OCM NIPR Ready Oldest (hours)" /></MudItem>
-            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprReadyCount" Label="OCM SIPR Ready Count" /></MudItem>
-            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprReadyAgeHours" Label="OCM SIPR Ready Oldest (hours)" /></MudItem>
             <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprHoldCount" Label="OCM NIPR Hold Count" /></MudItem>
             <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprHoldAgeHours" Label="OCM NIPR Hold Oldest (hours)" /></MudItem>
-            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprHoldCount" Label="OCM SIPR Hold Count" /></MudItem>
-            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprHoldAgeHours" Label="OCM SIPR Hold Oldest (hours)" /></MudItem>
             <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprFatalCount" Label="OCM NIPR Fatal Count" /></MudItem>
             <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmNiprFatalAgeHours" Label="OCM NIPR Fatal Oldest (hours)" /></MudItem>
+           
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprReadyCount" Label="OCM SIPR Ready Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprReadyAgeHours" Label="OCM SIPR Ready Oldest (hours)" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprHoldCount" Label="OCM SIPR Hold Count" /></MudItem>
+            <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprHoldAgeHours" Label="OCM SIPR Hold Oldest (hours)" /></MudItem>
             <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprFatalCount" Label="OCM SIPR Fatal Count" /></MudItem>
             <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.OcmSiprFatalAgeHours" Label="OCM SIPR Fatal Oldest (hours)" /></MudItem>
-
             <!-- RDM -->
             <MudItem xs="12">
                 <MudDivider Class="my-2" />

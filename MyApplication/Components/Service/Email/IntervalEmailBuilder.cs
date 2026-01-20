@@ -143,107 +143,118 @@ public static class IntervalEmailBuilder
     public static readonly string DefaultBodyTemplate = @"
 <p><b>Alcon,</b></p>
 
-<h4>Highlights</h4>
+<h2>Highlights</h2>
 <p><b>Impacting Events:</b> {{ImpactEvents}}<br/>
 <b>HPSM Status:</b> {{HpsmStatus}}</p>
 
-<h4>Daily Stats</h4>
-<p><b>SvD Total Inbound Calls Today</b><br/>
-Calls Offered: {{UsnCallsOffered}}<br/>
-Calls Handled: {{UsnCallsAnswered}}<br/>
-Daily ASA: {{UsnAsa}} sec</p>
+<h2>Daily Stats</h2>
+<p><b>SvD Total Inbound Calls</b><br/>
+Offered: {{UsnCallsOffered}}
+&nbsp;&nbsp;  Handled: {{UsnCallsAnswered}}
+&nbsp;&nbsp;  ASA: {{UsnAsa}} sec</p>
 
-<p><b>VIP</b><br/>
-Calls Offered: {{VipCallsOffered}}<br/>
-Calls Handled: {{VipCallsAnswered}}<br/>
-Daily ASA: {{VipAsa}} sec</p>
+<p><b>VIP Inbound Calls</b><br/>
+Offered: {{VipCallsOffered}}
+&nbsp;&nbsp;  Handled: {{VipCallsAnswered}}
+&nbsp;&nbsp;  ASA: {{VipAsa}} sec</p>
+
+<p><b>SIPR Inbound Calls</b><br/>
+Offered: {{SiprCallsOffered}}
+&nbsp;&nbsp;  Handled: {{SiprCallsAnswered}}
+&nbsp;&nbsp;  ASA: {{SiprAsa}} sec</p>
+
+<p><b>NNPI Inbound Calls</b><br/>
+Offered: {{NnpiCallsOffered}}
+&nbsp;&nbsp;  Handled: {{NnpiCallsAnswered}}
+&nbsp;&nbsp;  ASA: {{NnpiAsa}} sec</p>
+
+<h2>Month-To-Date Stats</h2>
+<p><b>SvD Total Inbound Calls</b><br/>
+Offered: {{MtdUsnCallsOffered}}
+&nbsp;&nbsp;  Handled: {{MtdUsnCallsAnswered}}
+&nbsp;&nbsp;  ASA: {{MtdUsnAsa}} sec</p>
+
+<p><b>VIP Inbound Calls</b><br/>
+Offered: {{MtdVipCallsOffered}}
+&nbsp;&nbsp;  Handled: {{MtdVipCallsAnswered}}
+&nbsp;&nbsp;  ASA: {{MtdVipAsa}} sec</p>
+
+<p><b>SIPR Inbound Calls</b><br/>
+Offered: {{MtdSiprCallsOffered}}
+&nbsp;&nbsp;  Handled: {{MtdSiprCallsAnswered}}
+&nbsp;&nbsp;  ASA: {{MtdSiprAsa}} sec</p>
+
+<p><b>NNPI Inbound Calls</b><br/>
+Offered: {{MtdNnpiCallsOffered}}
+&nbsp;&nbsp;  Handled: {{MtdNnpiCallsAnswered}}
+&nbsp;&nbsp;  ASA: {{MtdNnpiAsa}} sec</p>
+
+<p><b>E-mail Inbox</b><br/>
+MTD LOS1: {{Slr33EmMtdLos1:0.00}} %
+&nbsp;&nbsp; MTD LOS2: {{Slr33EmMtdLos2:0.00}} %<br/>
+EM Inbox: {{CurrentEmailCount}}
+&nbsp;&nbsp; Oldest: {{CurrentEmailOldest}} hrs<br/>
+Cust Care: {{CurrentCustomerCareCount}}
+&nbsp;&nbsp; Oldest: {{CurrentCustomerCareOldest}} hrs<br/></p>
 
 <p><b>SIPR Stats</b><br/>
-Calls Offered: {{SiprCallsOffered}}<br/>
-Calls Handled: {{SiprCallsAnswered}}<br/>
-Daily ASA: {{SiprAsa}} sec</p>
+SOC EM Inbox: {{CurrentSiprEmailCount}}
+&nbsp;&nbsp; Oldest: {{CurrentSiprEmailOldest}} hrs<br/>
+SIPR GDA: {{CurrentSiprGdaSpreadsheets}} items
+&nbsp;&nbsp; Oldest: {{CurrentSiprGdaOldest}} hrs<br/>
+SIPR UAIF: {{CurrentSiprUaifCount}} forms
+&nbsp;&nbsp; Oldest: {{CurrentSiprUaifOldest}} days</p>
 
-<p><b>NNPI Stats</b><br/>
-Calls Offered: {{NnpiCallsOffered}}<br/>
-Calls Handled: {{NnpiCallsAnswered}}<br/>
-Daily ASA: {{NnpiAsa}} sec</p>
+<p><b>Voicemail Stats</b><br/>
+MTD LOS1: {{Slr33VmMtdLos1:0.00}} %
+&nbsp;&nbsp; MTD LOS2: {{Slr33VmMtdLos2:0.00}} %<br/>
+VM Inbox: {{CurrentVmCount}}
+&nbsp;&nbsp; Oldest: {{CurrentVmOldest}} hrs</p>
 
-<h4>Month-To-Date Stats</h4>
-<p><b>SvD Total Inbound Calls MTD</b><br/>
-Calls Offered: {{MtdUsnCallsOffered}}<br/>
-Calls Handled: {{MtdUsnCallsAnswered}}<br/>
-MTD ASA: {{MtdUsnAsa}} sec</p>
+<p><b>Enterprise Self Service</b><br/>
+ESS Interactions: {{CurrentEssCount}}
+&nbsp;&nbsp; Oldest: {{CurrentEssAgeDays}} hrs</p>
 
-<p><b>VIP</b><br/>
-Calls Offered: {{MtdVipCallsOffered}}<br/>
-Calls Handled: {{MtdVipCallsAnswered}}<br/>
-MTD ASA: {{MtdVipAsa}} sec</p>
+<h2>Backlog</h2>
 
-<p><b>SIPR Stats</b><br/>
-Calls Offered: {{MtdSiprCallsOffered}}<br/>
-Calls Handled: {{MtdSiprCallsAnswered}}<br/>
-MTD ASA: {{MtdSiprAsa}} sec</p>
-
-<p><b>NNPI Stats</b><br/>
-Calls Offered: {{MtdNnpiCallsOffered}}<br/>
-Calls Handled: {{MtdNnpiCallsAnswered}}<br/>
-MTD ASA: {{MtdNnpiAsa}} sec</p>
-
-<h4>E-mail</h4>
-<p>EM MTD SLR (LOS1): {{Slr33EmLos1:0.00}} %<br/>
-EM MTD SLR (LOS2): {{Slr33EmLos2:0.00}} %<br/>
-EM Inbox Count: {{EmailCount}}<br/>
-Oldest EM (3hr SLR): {{EmailOldestHours}} hrs<br/>
-Cust Care Count: {{CustCareCount}}<br/>
-Oldest Cust Care (24hr SLR): {{CustCareOldestHours}} hrs<br/>
-
-<h4>SIPR</h4>
-SOC EM Inbox Count: {{SiprEmailCount}}<br/>
-Oldest SOC EM: {{SiprEmailOldestHours}} hrs<br/>
-SIPR GDA Spreadsheets: {{SiprGdaCount}} items<br/>
-Oldest SIPR Spreadsheet: {{SiprGdaOldestHours}} hrs<br/>
-SIPR UAIF count: {{SiprUaifCount}} forms<br/>
-Oldest SIPR UAIF: {{SiprUaifOldestDays}} days</p>
-
-<h4>Voicemail</h4>
-<p>VM MTD SLR (LOS1): {{Slr33VmLos1:0.00}} %<br/>
-VM MTD SLR (LOS2): {{Slr33VmLos2:0.00}} %<br/>
-VM Inbox Count: {{VmCount}}<br/>
-Oldest VM: {{VmOldestHours}} hrs</p>
-
-<h4>Enterprise Self Service</h4>
-<p>ESS Interaction Count: {{EssCount}}<br/>
-Oldest ESS Interaction: {{EssOldestHours}} hrs</p>
-
-<h4>Backlog</h4>
-<p><b>Service Request Management Queues</b><br/>
-<br/>
+<h4>Service Request Management Queues</h4>
 <p><b>SRM User Admin</b><br/>
-&nbsp;&nbsp;&nbsp;Auto USN: {{SrmAutoCount}} &nbsp;&nbsp; Oldest: {{SrmAutoAgeHours}} Hours<br/>
-&nbsp;&nbsp;&nbsp;Manual USN: {{SrmUsnManCount}} &nbsp;&nbsp; Oldest: {{SrmUsnManAgeHours}} Hours<br/>
-&nbsp;&nbsp;&nbsp;Manual SOC: {{SrmSocManCount}} &nbsp;&nbsp; Oldest: {{SrmSocManAgeHours}} Hours<br/>
-SRM Validation<br/>
-&nbsp;&nbsp;&nbsp;Line Items: {{SrmValLineCount}} &nbsp;&nbsp; Oldest: {{SrmValLineAgeDays}} Days<br/>
-&nbsp;&nbsp;&nbsp;Failed Inbound: {{SrmValLineFailCount}} &nbsp;&nbsp; Oldest: {{SrmValLineFailAgeDays}} Days<br/>
-&nbsp;&nbsp;&nbsp;Email Buildouts: {{SrmValEmailCount}} &nbsp;&nbsp; Oldest: {{SrmValEmailAgeDays}} Days<br/>
-SRM Active Follow up (Automated): {{AfuCount}} &nbsp;&nbsp; Oldest: {{AfuAgeHours}} Days<br/>
-SRM Customer Satisfaction: {{CsCount}} &nbsp;&nbsp; Oldest: {{CsAgeHours}} Hours<br/>
-SRM OCM Account Activation Buildouts in Queue<br/>
-&nbsp;&nbsp;&nbsp;NIPR OCM Ready: {{OcmNiprReadyCount}} &nbsp;&nbsp; Oldest: {{OcmNiprReadyAgeHours}} Hours<br/>
-&nbsp;&nbsp;&nbsp;NIPR OCM Hold: {{OcmNiprHoldCount}} &nbsp;&nbsp; Oldest: {{OcmNiprHoldAgeHours}} Hours<br/>
-&nbsp;&nbsp;&nbsp;NIPR Fatal Review: {{OcmNiprFatalCount}} &nbsp;&nbsp; Oldest: {{OcmNiprFatalAgeHours}} Hours<br/>
-&nbsp;&nbsp;&nbsp;SIPR OCM Ready: {{OcmSiprReadyCount}} &nbsp;&nbsp; Oldest: {{OcmSiprReadyAgeHours}} Hours<br/>
-&nbsp;&nbsp;&nbsp;SIPR OCM Hold: {{OcmSiprHoldCount}} &nbsp;&nbsp; Oldest: {{OcmSiprHoldAgeHours}} Hours<br/>
-&nbsp;&nbsp;&nbsp;SIPR Fatal Review: {{OcmSiprFatalCount}} &nbsp;&nbsp; Oldest: {{OcmSiprFatalAgeHours}} Hours</p>
+Auto USN: {{SrmUaAutoCount}}   &nbsp;&nbsp; Oldest: {{SrmUaAutoAgeHours}} Days<br/>
+Manual USN: {{SrmUaUsnManCount}}   &nbsp;&nbsp; Oldest: {{SrmUaUsnManAgeHours}} Days<br/>
+Manual SOC: {{SrmUaSocManCount}}   &nbsp;&nbsp; Oldest: {{SrmUaSocManAgeHours}} Days</p>
 
-<h4>Remote Desktop Management HPSM Queue Status</h4>
-<p>RDM USN: {{RdmUsnCount}} &nbsp;&nbsp; Oldest: {{RdmUsnAgeDays}} Days<br/>
+
+<p><b>SRM Validation</b><br/>
+Line Items: {{SrmValCount}} &nbsp;&nbsp; Oldest: {{SrmValAgeDays}} Days<br/>
+Failed Inbound: {{SrmValLineFailCount}} &nbsp;&nbsp;  Oldest: {{SrmValLineFailAgeDays}} Days<br/>
+Email Buildouts: {{SrmValEmailCount}}  &nbsp;&nbsp; Oldest: {{SrmValEmailAgeDays}} Days<br/>
+
+<p><b>SRM Followup / Incidents</b><br/>
+SRM Active Follow up: {{AfuCount}}  &nbsp;&nbsp;  Oldest: {{AfuAgeHours}} Days<br/>
+SRM Incidents: {{CsCount}}  &nbsp;&nbsp;  Oldest: {{CsAgeHours}} Days</p>
+
+<p><b>SRM OCM Activation</b><br/>
+NIPR OCM Ready: {{OcmNiprReadyCount}} &nbsp;&nbsp;   Oldest: {{OcmNiprReadyAgeHours}} Hours<br/>
+NIPR OCM Hold: {{OcmNiprHoldCount}}  &nbsp;&nbsp;  Oldest: {{OcmNiprHoldAgeHours}} Hours<br/>
+NIPR Fatal Review: {{OcmNiprFatalCount}}   &nbsp;&nbsp;   Oldest: {{OcmNiprFatalAgeHours}} Hours<br/>
+SIPR OCM Ready: {{OcmSiprReadyCount}}    &nbsp;&nbsp;  Oldest: {{OcmSiprReadyAgeHours}} Hours<br/>
+SIPR OCM Hold: {{OcmSiprHoldCount}}    &nbsp;&nbsp;  Oldest: {{OcmSiprHoldAgeHours}} Hours<br/>
+SIPR Fatal Review: {{OcmSiprFatalCount}}   &nbsp;&nbsp;   Oldest: {{OcmSiprFatalAgeHours}} Hours</p>
+
+<p><b>Remote Desktop Management</b><br/>
+RDM USN: {{RdmUsnCount}} &nbsp;&nbsp; Oldest: {{RdmUsnAgeDays}} Days<br/>
 ESD USN: {{RdmEsdUsnCount}} &nbsp;&nbsp; Oldest: {{RdmEsdUsnAgeDays}} Days</p>
 
-<h4>Notes / Actions</h4>
-<p><b>Today's Focus Areas:</b> {{FocusArea}}<br/>
-<b>Major CIRs impacting ASA:</b> {{CirImpactAsa}}<br/>
-<b>Management Notes:</b> {{ManagementNotes}}</p>
+<p><b>Other HPSM Backlogs</b><br/>
+SVD.NNPI: {{NnpiQueue}}
+&nbsp;&nbsp; SVD.SIPR: {{SiprQueue}}  
+&nbsp;&nbsp; SVD.NCIS: {{NcisQueue}} <br/>
+SVD.VIP: {{VipQueue}} 
+&nbsp;&nbsp; SVD.NNPI: {{RdmNnpiQueue}} 
+&nbsp;&nbsp; SVD.SIPR: {{RdmSiprQueue}} 
 
-<p><i>Interval:</i> {{Date:MMMM d, yyyy}} ({{Interval}})</p>";
+<h4>Notes / Actions</h4>
+<p><b>Today's Focus Areas:</b> {{FocusArea}} <br/>
+<b>Major CIRs impacting ASA:</b> {{CirImpactAsa}} <br/>
+<b>Management Notes:</b> {{ManagementNotes}} </p>";
 }

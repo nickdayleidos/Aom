@@ -26,6 +26,7 @@ namespace MyApplication.Components.Pages.Tools.Interval
             public DateTime? IntervalDate { get; set; } = DateTime.Today;
             public string IntervalStart { get; set; } = "";   // HH:mm
             public string IntervalEnd { get; set; } = "";     // HH:mm
+            public DateTime? PopulateTime { get; set; }
         }
 
         // ===== Notes / Comments - UPDATED NAMES =====

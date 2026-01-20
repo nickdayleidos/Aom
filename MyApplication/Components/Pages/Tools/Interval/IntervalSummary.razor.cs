@@ -27,6 +27,7 @@ namespace MyApplication.Components.Pages.Tools.Interval
         private IntervalSummaryState State { get; set; } = new();
 
         private string _connAws = string.Empty;
+        private readonly CancellationTokenSource _cts = new();
 
         protected override async Task OnInitializedAsync()
         {
@@ -47,10 +48,13 @@ namespace MyApplication.Components.Pages.Tools.Interval
             State.Header.IntervalDate = etNowMinus30.Date;
             State.Header.IntervalStart = $"{startHour:00}:00";
             State.Header.IntervalEnd = $"{endHour:00}:00";
-        
+            State.Header.PopulateTime = TimeZoneInfo.ConvertTimeFromUtc(
+                                                DateTime.UtcNow,
+                                                TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"));
 
-        // 2. Explicitly Re-load Notes (using new property names)
-        await LoadLatestNotesAsync();
+
+            // 2. Explicitly Re-load Notes (using new property names)
+            await LoadLatestNotesAsync();
 
             // 3. Fetch AWS Data
             try
@@ -433,6 +437,10 @@ namespace MyApplication.Components.Pages.Tools.Interval
         private int I(string s) => int.TryParse(s, out var v) ? v : 0;
         private double F(string s) => double.TryParse(s, out var v) ? v : 0.0;
 
-        public void Dispose() { }
+        public void Dispose()
+        {
+            _cts.Cancel();
+            _cts.Dispose();
+        }
     }
 }
