@@ -10,6 +10,7 @@ using MyApplication.Components.Data;
 using MyApplication.Components.Service;
 using MyApplication.Components.Service.Acr;
 using MyApplication.Components.Service.Employee;
+using MyApplication.Components.Service.Tools.OstPassdown;
 using MyApplication.Components.Service.Training;
 using MyApplication.Components.Service.Training.Certifications;
 using MyApplication.Components.Service.Wfm;
@@ -138,6 +139,7 @@ builder.Services.AddScoped<ICertificationsRepository, CertificationsRepository>(
 builder.Services.AddScoped<MyApplication.Components.Service.Security.SecurityService>();
 
 builder.Services.AddScoped<MyApplication.Components.Service.Aws.AwsRoutingService>();
+builder.Services.AddTransient<IOstPassdownService, OstPassdownService>(); // Added
 
 
 

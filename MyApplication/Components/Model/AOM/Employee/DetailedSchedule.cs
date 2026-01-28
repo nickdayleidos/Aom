@@ -27,5 +27,20 @@ namespace MyApplication.Components.Model.AOM.Employee
         public int? Minutes { get; set; }
         public bool? IsImpacting { get; set; }
         public bool? ImpactingOverride { get; set; }
+        public int? ScheduleTypeId { get; set; }
+        public ScheduleType? ScheduleType { get; set; }
+        public int? BreakTemplateId { get; set; }
+        public BreakTemplates? BreakTemplate { get; set; }
+        public int? BreakNumber { get; set; }
+        public DateTime? LastUpdatedTime { get; set; }
+    }
+
+    [Table("ScheduleType", Schema = "Employee")]
+    public class ScheduleType
+    {
+        [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
+        public string Name { get; set; }
+
     }
 }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260123200049_scheduletype")]
+    partial class scheduletype
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -780,12 +783,6 @@ namespace MyApplication.Migrations
                     b.Property<int?>("AwsStatusId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("BreakNumber")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("BreakTemplateId")
-                        .HasColumnType("int");
-
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
@@ -797,9 +794,6 @@ namespace MyApplication.Migrations
 
                     b.Property<bool?>("IsImpacting")
                         .HasColumnType("bit");
-
-                    b.Property<DateTime?>("LastUpdatedTime")
-                        .HasColumnType("datetime2");
 
                     b.Property<int?>("Minutes")
                         .HasColumnType("int");
@@ -826,8 +820,6 @@ namespace MyApplication.Migrations
                     b.HasIndex("ActivityTypeId");
 
                     b.HasIndex("AwsStatusId");
-
-                    b.HasIndex("BreakTemplateId");
 
                     b.HasIndex("EmployeeId");
 
@@ -2440,11 +2432,6 @@ namespace MyApplication.Migrations
                         .WithMany()
                         .HasForeignKey("AwsStatusId");
 
-                    b.HasOne("MyApplication.Components.Model.AOM.Employee.BreakTemplates", "BreakTemplate")
-                        .WithMany()
-                        .HasForeignKey("BreakTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("MyApplication.Components.Model.AOM.Employee.Employees", "Employees")
                         .WithMany()
                         .HasForeignKey("EmployeeId")
@@ -2469,8 +2456,6 @@ namespace MyApplication.Migrations
                     b.Navigation("ActivityType");
 
                     b.Navigation("AwsStatus");
-
-                    b.Navigation("BreakTemplate");
 
                     b.Navigation("Employees");
 

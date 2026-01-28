@@ -1,6 +1,6 @@
 ﻿@page "/employees/{Id:int}"
 @* 1. PAGE ACCESS: Expanded to include OST, WFM, Managers, Supervisors *@
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead")]
 
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Components.Pages.Employees.Dialogs

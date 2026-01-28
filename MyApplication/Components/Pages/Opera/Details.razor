@@ -1,5 +1,5 @@
 ﻿@page "/opera/{RequestId:int}"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead")]
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Common.Time
 @using MyApplication.Components.Service
@@ -79,10 +79,13 @@
                             </MudTooltip>
                         }
 
-                        @* Cancel: All Authorized Roles *@
-                        <MudTooltip Text="Cancel Request">
-                            <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Default" OnClick="@(() => SetStatusAsync(4))" />
-                        </MudTooltip>
+                        @* Cancel: OST, WFM, Admin, Manager, Supervisor *@
+                        @if (_canCancel)
+                        {
+                            <MudTooltip Text="Cancel Request">
+                                <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Default" OnClick="@(() => SetStatusAsync(4))" />
+                            </MudTooltip>
+                        }
                     }
 
                     @* WFM / Admin Specific Actions (Unapprove) *@
@@ -277,6 +280,7 @@
     // Permissions State
     private bool _canApprove = false;
     private bool _canRejectPending = false; // WFM, Admin
+    private bool _canCancel = false;
 
     // Cache raw subtypes for filtering
     private List<ActivitySubType> _rawSubTypes = new();
@@ -289,12 +293,17 @@
         bool isAdmin = user.IsInRole("Admin");
         bool isWfm = user.IsInRole("WFM");
         bool isOst = user.IsInRole("OST");
+        bool isManager = user.IsInRole("Manager");
+        bool isSupervisor = user.IsInRole("Supervisor");
 
         // approve - WFM, OST, Admin
         _canApprove = isAdmin || isWfm || isOst;
 
         // reject/ pending status permissions - WFM, Admin
         _canRejectPending = isAdmin || isWfm;
+
+        // Cancel - ost, wfm, admin, manager, supervisor
+        _canCancel = isAdmin || isWfm || isOst || isManager || isSupervisor;
 
         await LoadDataAsync();
     }

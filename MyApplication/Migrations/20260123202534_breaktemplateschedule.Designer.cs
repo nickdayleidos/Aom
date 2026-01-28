@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MyApplication.Components.Data;
 
@@ -11,9 +12,11 @@ using MyApplication.Components.Data;
 namespace MyApplication.Migrations
 {
     [DbContext(typeof(AomDbContext))]
-    partial class AomDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260123202534_breaktemplateschedule")]
+    partial class breaktemplateschedule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -780,9 +783,6 @@ namespace MyApplication.Migrations
                     b.Property<int?>("AwsStatusId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("BreakNumber")
-                        .HasColumnType("int");
-
                     b.Property<int?>("BreakTemplateId")
                         .HasColumnType("int");
 
@@ -797,9 +797,6 @@ namespace MyApplication.Migrations
 
                     b.Property<bool?>("IsImpacting")
                         .HasColumnType("bit");
-
-                    b.Property<DateTime?>("LastUpdatedTime")
-                        .HasColumnType("datetime2");
 
                     b.Property<int?>("Minutes")
                         .HasColumnType("int");

@@ -1,5 +1,6 @@
 ﻿@page "/employees"
 @using MyApplication.Components.Service.Employee
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead")]
 @inject EmployeesRepository Repository
 @inject NavigationManager Navigation
 

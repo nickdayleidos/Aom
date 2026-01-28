@@ -1,0 +1,138 @@
+﻿@page "/tools/ost-passdown/{Id:int}"
+@attribute [Authorize(Roles = "Admin, OST")]
+@using OstPassdownEntity = MyApplication.Components.Model.AOM.Tools.OstPassdown
+@using MyApplication.Components.Service.Tools.OstPassdown
+@inject IOstPassdownService PassdownService
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <div class="d-flex align-center mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack" Color="Color.Inherit" Class="mr-2" />
+        <MudText Typo="Typo.h4">Passdown Details</MudText>
+    </div>
+
+    @if (_passdown == null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        <MudCard Outlined="true">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Posted: @_passdown.PostedTime.ToString("F") by @_passdown.PostedBy</MudText>
+                    @if (_passdown.UpdateTime.HasValue)
+                    {
+                        <MudText Typo="Typo.caption">Updated: @_passdown.UpdateTime.Value.ToString("F") by @_passdown.UpdatedBy</MudText>
+                    }
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="12" md="6" lg="3">
+                        <MudField Label="New EDL" Variant="Variant.Outlined">@(_passdown.NewEdl?.LastName), @(_passdown.NewEdl?.FirstName)</MudField>
+                    </MudItem>
+                    <MudItem xs="12" md="6" lg="3">
+                        <MudField Label="Previous EDL" Variant="Variant.Outlined">@(_passdown.PrevEdl?.LastName), @(_passdown.PrevEdl?.FirstName)</MudField>
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudField Label="ASA Goal" Variant="Variant.Outlined">@_passdown.AsaGoal</MudField>
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudField Label="Current ASA" Variant="Variant.Outlined">@_passdown.CurrentAsa</MudField>
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudField Label="Calls In Queue" Variant="Variant.Outlined">@_passdown.CurrentAwsQueue</MudField>
+                    </MudItem>
+
+                    <MudItem xs="12"><MudDivider Class="my-4" /></MudItem>
+
+                    <!-- Reskill -->
+                    <MudItem xs="6" md="3">
+                        <MudField Label="Reskill Completed By" Variant="Variant.Outlined">@(_passdown.ReskillBy?.LastName), @(_passdown.ReskillBy?.FirstName)</MudField>
+                    </MudItem>
+                    <MudItem xs="6" md="4">
+                        <MudField Label="Reskill Time" Variant="Variant.Outlined">@(_passdown.ReskillTime?.ToString("g"))</MudField>
+                    </MudItem>
+                    <MudItem xs="12" md="5"></MudItem>
+
+                    <!-- Proactive -->
+                    <MudItem xs="6" md="3">
+                        <MudField Label="Proactive Updated By" Variant="Variant.Outlined">@(_passdown.ProactiveBy?.LastName), @(_passdown.ProactiveBy?.FirstName)</MudField>
+                    </MudItem>
+                    <MudItem xs="6" md="4">
+                        <MudField Label="Proactive Time" Variant="Variant.Outlined">@(_passdown.ProactiveTime?.ToString("g"))</MudField>
+                    </MudItem>
+                    <MudItem xs="12" md="5"></MudItem>
+
+                    <!-- Homeport -->
+                    <MudItem xs="6" md="3">
+                        <MudField Label="Homeport Updated By" Variant="Variant.Outlined">@(_passdown.HomeportBy?.LastName), @(_passdown.HomeportBy?.FirstName)</MudField>
+                    </MudItem>
+                    <MudItem xs="6" md="4">
+                        <MudField Label="Homeport Time" Variant="Variant.Outlined">@(_passdown.HomeportTime?.ToString("g"))</MudField>
+                    </MudItem>
+                    <MudItem xs="12" md="5"></MudItem>
+
+                    <!-- Sharepoint -->
+                    <MudItem xs="6" md="3">
+                        <MudField Label="Sharepoint Checked By" Variant="Variant.Outlined">@(_passdown.SharepointBy?.LastName), @(_passdown.SharepointBy?.FirstName)</MudField>
+                    </MudItem>
+                    <MudItem xs="6" md="4">
+                        <MudField Label="Sharepoint Time" Variant="Variant.Outlined">@(_passdown.SharepointTime?.ToString("g"))</MudField>
+                    </MudItem>
+                    <MudItem xs="12" md="5"></MudItem>
+
+                    <MudItem xs="12"><MudDivider Class="my-4" /></MudItem>
+
+                    <MudItem xs="6" md="1"><MudField Label="Callback Proj" Variant="Variant.Outlined">@_passdown.CallbackProjectCount</MudField></MudItem>
+                    <MudItem xs="12" md="11"><MudField Label="Callback Status" Variant="Variant.Outlined" Lines="2">@_passdown.CallbackProjectStatus</MudField></MudItem>
+
+                    <MudItem xs="6" md="1"><MudField Label="LOS3 Count" Variant="Variant.Outlined">@_passdown.Los3Count</MudField></MudItem>
+                    <MudItem xs="6" md="5"><MudField Label="LOS3 Status" Variant="Variant.Outlined">@_passdown.Los3Status</MudField></MudItem>
+
+                    <MudItem xs="6" md="1"><MudField Label="Open Idle Count" Variant="Variant.Outlined">@_passdown.OpenIdleCount</MudField></MudItem>
+                    <MudItem xs="6" md="5"><MudField Label="Open Idle Status" Variant="Variant.Outlined">@_passdown.OpenIdleStatus</MudField></MudItem>
+
+                    <MudItem xs="6" md="1"><MudField Label="SVD ROC Count" Variant="Variant.Outlined">@_passdown.SvdRocCount</MudField></MudItem>
+                    <MudItem xs="6" md="5"><MudField Label="SVD ROC Status" Variant="Variant.Outlined">@_passdown.SvdRocStatus</MudField></MudItem>
+
+                    <MudItem xs="6" md="1"><MudField Label="SVD ETM Count" Variant="Variant.Outlined">@_passdown.SvdEtmCount</MudField></MudItem>
+                    <MudItem xs="6" md="5"><MudField Label="SVD ETM Status" Variant="Variant.Outlined">@_passdown.SvdEtmStatus</MudField></MudItem>
+
+                    <MudItem xs="12" md="6"><MudField Label="OI Status" Variant="Variant.Outlined" Lines="2">@_passdown.OiStatus</MudField></MudItem>
+                    <MudItem xs="12" md="6"><MudField Label="UI Status" Variant="Variant.Outlined" Lines="2">@_passdown.UiStatus</MudField></MudItem>
+                    <MudItem xs="6" md="6"><MudField Label="UI StAio Status" Variant="Variant.Outlined" Lines="2">@_passdown.AioLongTagStatusatus</MudField></MudItem>
+                    <MudItem xs="6" md="6"><MudField Label="OTM Status" Variant="Variant.Outlined" Lines="2">@_passdown.OtmStatus</MudField></MudItem>
+                    <MudItem xs="12" md="6"><MudField Label="Navy Inbox Junk" Variant="Variant.Outlined" Lines="2">@_passdown.NavyInboxJunkStatus</MudField></MudItem>
+
+                    <MudItem xs="12"><MudDivider Class="my-4" /></MudItem>
+
+                    <MudItem xs="12">
+                        <MudField Label="Manager Comments" Variant="Variant.Outlined" Lines="3">@_passdown.ManagerComments</MudField>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudField Label="Current Issues" Variant="Variant.Outlined" Lines="8">@_passdown.EdlComments</MudField>
+                    </MudItem>
+
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    // Using the alias to avoid conflict with namespace
+    private OstPassdownEntity? _passdown;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _passdown = await PassdownService.GetPassdownByIdAsync(Id);
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/tools/ost-passdown");
+    }
+}

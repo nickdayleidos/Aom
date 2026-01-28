@@ -1,0 +1,353 @@
+﻿@page "/tools/ost-passdown/new"
+@using OstPassdownEntity = MyApplication.Components.Model.AOM.Tools.OstPassdown
+@attribute [Authorize(Roles = "Admin, OST")]
+@using MyApplication.Components.Model.AOM.Employee
+@using MyApplication.Components.Service.Tools.OstPassdown
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IOstPassdownService PassdownService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <div class="d-flex align-center mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack" Color="Color.Inherit" Class="mr-2" />
+        <MudText Typo="Typo.h4">New OST Passdown</MudText>
+    </div>
+
+    @if (_isLoading)
+    {
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    }
+    else
+    {
+        <MudCard>
+            <MudCardContent>
+                <MudGrid>
+                    <!-- EDL Info -->
+                    <MudItem xs="12"><MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mt-2">EDL Information</MudText><MudDivider /></MudItem>
+                    <MudItem xs="12" md="6" lg="3">
+                        <MudSelect T="int" Label="New EDL" @bind-Value="_newPassdown.NewEdlId" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" RequiredError="New EDL is required">
+                            @foreach (var emp in _ostEmployees)
+                            {
+                                <MudSelectItem Value="@emp.Id">@emp.LastName, @emp.FirstName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6" lg="3">
+                        <MudSelect T="int" Label="Previous EDL" @bind-Value="_newPassdown.PrevEdlId" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" RequiredError="Prev EDL is required">
+                            @foreach (var emp in _ostEmployees)
+                            {
+                                <MudSelectItem Value="@emp.Id">@emp.LastName, @emp.FirstName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudTextField @bind-Value="_newPassdown.AsaGoal" Label="ASA Goal" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                     <MudItem xs="6" md="2">
+                        <MudTextField @bind-Value="_newPassdown.CurrentAsa" Label="Current ASA" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" md="2">
+                        <MudTextField @bind-Value="_newPassdown.CurrentAwsQueue" Label="Calls In Queue" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <!-- Assignments -->
+                    <MudItem xs="12"><MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mt-4">Assignments</MudText><MudDivider /></MudItem>
+
+                    <!-- Reskill -->
+                    <MudItem xs="6" md="3">
+                        <MudSelect T="int?" Label="Reskill Completed By" @bind-Value="_newPassdown.ReskillById" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                            @foreach (var emp in _ostEmployees)
+                            {
+                                <MudSelectItem T="int?" Value="@emp.Id">@emp.LastName, @emp.FirstName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="3" md="2">
+                        <MudDatePicker Label="Reskill Date" @bind-Date="_reskillDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="3" md="2">
+                        <MudTimePicker Label="Reskill Time" @bind-Time="_reskillTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" MinuteSelectionStep="5" />
+                    </MudItem>
+                    <MudItem xs="12" md="5"></MudItem>
+
+                    <!-- Proactive -->
+                    <MudItem xs="6" md="3">
+                        <MudSelect T="int?" Label="Proactive Updated By" @bind-Value="_newPassdown.ProactiveById" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                            @foreach (var emp in _ostEmployees)
+                            {
+                                <MudSelectItem T="int?" Value="@emp.Id">@emp.LastName, @emp.FirstName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="3" md="2">
+                        <MudDatePicker Label="Proactive Date" @bind-Date="_proactiveDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="3" md="2">
+                        <MudTimePicker Label="Proactive Time" @bind-Time="_proactiveTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" MinuteSelectionStep="5" />
+                    </MudItem>
+                    <MudItem xs="12" md="5"></MudItem>
+
+                    <!-- Homeport -->
+                    <MudItem xs="6" md="3">
+                        <MudSelect T="int?" Label="Homeport Updated By" @bind-Value="_newPassdown.HomeportById" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                            @foreach (var emp in _ostEmployees)
+                            {
+                                <MudSelectItem T="int?" Value="@emp.Id">@emp.LastName, @emp.FirstName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="3" md="2">
+                        <MudDatePicker Label="Homeport Date" @bind-Date="_homeportDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="3" md="2">
+                        <MudTimePicker Label="Homeport Time" @bind-Time="_homeportTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" MinuteSelectionStep="5" />
+                    </MudItem>
+                    <MudItem xs="12" md="5"></MudItem>
+
+                    <!-- Sharepoint -->
+                    <MudItem xs="6" md="3">
+                        <MudSelect T="int?" Label="Sharepoint Checked By" @bind-Value="_newPassdown.SharepointById" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                            @foreach (var emp in _ostEmployees)
+                            {
+                                <MudSelectItem T="int?" Value="@emp.Id">@emp.LastName, @emp.FirstName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="3" md="2">
+                        <MudDatePicker Label="Sharepoint Date" @bind-Date="_sharepointDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="3" md="2">
+                        <MudTimePicker Label="Sharepoint Time" @bind-Time="_sharepointTime" Variant="Variant.Outlined" Margin="Margin.Dense" Editable="true" MinuteSelectionStep="5" />
+                    </MudItem>
+                    <MudItem xs="12" md="5"></MudItem>
+
+                    <!-- Status & Counts -->
+                    <MudItem xs="12"><MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mt-4">Status & Metrics</MudText><MudDivider /></MudItem>
+
+                    <MudItem xs="6" md="1">
+                        <MudTextField @bind-Value="_newPassdown.CallbackProjectCount" Label="Callback Proj Count" InputType="InputType.Number" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="11">
+                        <MudTextField @bind-Value="_newPassdown.CallbackProjectStatus" Lines="2" Label="Callback Proj Status" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" md="1">
+                        <MudTextField @bind-Value="_newPassdown.Los3Count" Label="LOS3 Count" InputType="InputType.Number" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" md="5">
+                        <MudTextField @bind-Value="_newPassdown.Los3Status" Label="LOS3 Status" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="6" md="1">
+                        <MudTextField @bind-Value="_newPassdown.OpenIdleCount" Label="Open Idle Count" InputType="InputType.Number" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" md="5">
+                        <MudTextField @bind-Value="_newPassdown.OpenIdleStatus" Label="Open Idle Status" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="6" md="1">
+                        <MudTextField @bind-Value="_newPassdown.SvdRocCount" Label="SVD ROC Count" InputType="InputType.Number" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" md="5">
+                        <MudTextField @bind-Value="_newPassdown.SvdRocStatus" Label="SVD ROC Status" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="6" md="1">
+                        <MudTextField @bind-Value="_newPassdown.SvdEtmCount" Label="SVD ETM Count" InputType="InputType.Number" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" md="5">
+                        <MudTextField @bind-Value="_newPassdown.SvdEtmStatus" Label="SVD ETM Status" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_newPassdown.OiStatus" Label="OI Status" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_newPassdown.UiStatus" Label="UI Status" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" md="6">
+                        <MudTextField @bind-Value="_newPassdown.AioLongTagStatusatus" Label="Aio Long Tag Status" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="6" md="6">
+                        <MudTextField @bind-Value="_newPassdown.OtmStatus" Label="OTM Status" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_newPassdown.NavyInboxJunkStatus" Label="Navy Inbox Junk Status" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <!-- Comments -->
+                    <MudItem xs="12"><MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mt-4">Comments</MudText><MudDivider /></MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_newPassdown.ManagerComments" Label="Manager Comments" Lines="3" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_newPassdown.EdlComments" Label="Current Issues" Lines="8" Variant="Variant.Outlined" />
+                    </MudItem>
+
+                </MudGrid>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save Passdown</MudButton>
+            </MudCardActions>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    private OstPassdownEntity _newPassdown = new();
+    private List<Employees> _ostEmployees = new();
+    private bool _isLoading = true;
+    private string _currentUser = "Unknown";
+
+    // Date binding helpers
+    private DateTime? _reskillDate
+    {
+        get => _newPassdown.ReskillTime;
+        set
+        {
+            if (value == null) _newPassdown.ReskillTime = null;
+            else _newPassdown.ReskillTime = value.Value.Date.Add(_newPassdown.ReskillTime?.TimeOfDay ?? TimeSpan.Zero);
+        }
+    }
+    private TimeSpan? _reskillTime
+    {
+        get => _newPassdown.ReskillTime?.TimeOfDay;
+        set
+        {
+            var date = _newPassdown.ReskillTime?.Date ?? DateTime.Today;
+            if (value == null) _newPassdown.ReskillTime = date;
+            else _newPassdown.ReskillTime = date.Add(value.Value);
+        }
+    }
+
+    private DateTime? _proactiveDate
+    {
+        get => _newPassdown.ProactiveTime;
+        set
+        {
+            if (value == null) _newPassdown.ProactiveTime = null;
+            else _newPassdown.ProactiveTime = value.Value.Date.Add(_newPassdown.ProactiveTime?.TimeOfDay ?? TimeSpan.Zero);
+        }
+    }
+    private TimeSpan? _proactiveTime
+    {
+        get => _newPassdown.ProactiveTime?.TimeOfDay;
+        set
+        {
+            var date = _newPassdown.ProactiveTime?.Date ?? DateTime.Today;
+            if (value == null) _newPassdown.ProactiveTime = date;
+            else _newPassdown.ProactiveTime = date.Add(value.Value);
+        }
+    }
+
+    private DateTime? _homeportDate
+    {
+        get => _newPassdown.HomeportTime;
+        set
+        {
+            if (value == null) _newPassdown.HomeportTime = null;
+            else _newPassdown.HomeportTime = value.Value.Date.Add(_newPassdown.HomeportTime?.TimeOfDay ?? TimeSpan.Zero);
+        }
+    }
+    private TimeSpan? _homeportTime
+    {
+        get => _newPassdown.HomeportTime?.TimeOfDay;
+        set
+        {
+            var date = _newPassdown.HomeportTime?.Date ?? DateTime.Today;
+            if (value == null) _newPassdown.HomeportTime = date;
+            else _newPassdown.HomeportTime = date.Add(value.Value);
+        }
+    }
+
+    private DateTime? _sharepointDate
+    {
+        get => _newPassdown.SharepointTime;
+        set
+        {
+            if (value == null) _newPassdown.SharepointTime = null;
+            else _newPassdown.SharepointTime = value.Value.Date.Add(_newPassdown.SharepointTime?.TimeOfDay ?? TimeSpan.Zero);
+        }
+    }
+    private TimeSpan? _sharepointTime
+    {
+        get => _newPassdown.SharepointTime?.TimeOfDay;
+        set
+        {
+            var date = _newPassdown.SharepointTime?.Date ?? DateTime.Today;
+            if (value == null) _newPassdown.SharepointTime = date;
+            else _newPassdown.SharepointTime = date.Add(value.Value);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _currentUser = authState.User.Identity?.Name ?? "Unknown";
+
+        _ostEmployees = await PassdownService.GetOstEmployeesAsync();
+
+        // Populate from current/last
+        var lastPassdown = await PassdownService.GetCurrentPassdownAsync();
+        if (lastPassdown != null)
+        {
+            // Copy properties but reset ID and tracking info
+            _newPassdown = new OstPassdownEntity
+            {
+                NewEdlId = lastPassdown.NewEdlId,
+                PrevEdlId = lastPassdown.PrevEdlId,
+                AsaGoal = lastPassdown.AsaGoal,
+                CallbackProjectCount = lastPassdown.CallbackProjectCount,
+                CallbackProjectStatus = lastPassdown.CallbackProjectStatus,
+                CurrentAsa = lastPassdown.CurrentAsa,
+                CurrentAwsQueue = lastPassdown.CurrentAwsQueue,
+                ReskillById = lastPassdown.ReskillById,
+                ReskillTime = lastPassdown.ReskillTime,
+                ProactiveById = lastPassdown.ProactiveById,
+                ProactiveTime = lastPassdown.ProactiveTime,
+                HomeportById = lastPassdown.HomeportById,
+                HomeportTime = lastPassdown.HomeportTime,
+                SharepointById = lastPassdown.SharepointById,
+                SharepointTime = lastPassdown.SharepointTime,
+                OiStatus = lastPassdown.OiStatus,
+                UiStatus = lastPassdown.UiStatus,
+                AioLongTagStatusatus = lastPassdown.AioLongTagStatusatus,
+                OtmStatus = lastPassdown.OtmStatus,
+                NavyInboxJunkStatus = lastPassdown.NavyInboxJunkStatus,
+                Los3Count = lastPassdown.Los3Count,
+                Los3Status = lastPassdown.Los3Status,
+                OpenIdleCount = lastPassdown.OpenIdleCount,
+                OpenIdleStatus = lastPassdown.OpenIdleStatus,
+                SvdRocCount = lastPassdown.SvdRocCount,
+                SvdRocStatus = lastPassdown.SvdRocStatus,
+                SvdEtmCount = lastPassdown.SvdEtmCount,
+                SvdEtmStatus = lastPassdown.SvdEtmStatus,
+                ManagerComments = lastPassdown.ManagerComments,
+                EdlComments = lastPassdown.EdlComments
+            };
+        }
+        else
+        {
+            _newPassdown = new OstPassdownEntity();
+        }
+
+        _isLoading = false;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/tools/ost-passdown");
+    }
+
+    private async Task Save()
+    {
+        if (_newPassdown.NewEdlId == 0 || _newPassdown.PrevEdlId == 0)
+        {
+            Snackbar.Add("Please select both New and Previous EDLs.", Severity.Error);
+            return;
+        }
+
+        await PassdownService.CreatePassdownAsync(_newPassdown, _currentUser);
+        Snackbar.Add("New passdown created!", Severity.Success);
+        GoBack();
+    }
+}

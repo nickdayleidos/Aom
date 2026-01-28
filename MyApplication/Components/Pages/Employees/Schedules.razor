@@ -1,6 +1,6 @@
 ﻿@page "/employees/schedules"
 @page "/employees/schedules/{EmployeeId:int?}"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead")]
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Common.Time
 @using Microsoft.AspNetCore.Components.Authorization
@@ -223,7 +223,7 @@
             <MudCheckBox Value="@_hideLoa" ValueChanged="@((bool v) => { _hideLoa = v; _ = LoadAsync(); })" Label="Hide LOA" Dense="true" Color="Color.Primary"></MudCheckBox>
 
         </MudStack>
-        
+
     </MudPaper>
 
     <!-- Updated Filters Row with Multi-Select -->
@@ -260,7 +260,7 @@
                 }
             </MudSelect>
         </MudItem>
-        </MudGrid>
+    </MudGrid>
 
     @if (_vm != null)
     {
@@ -522,6 +522,14 @@
                                                     <div class="timeline-track" style="height:100%; background:transparent;">
                                                         @foreach (var seg in emp.AlertSegments)
                                                         {
+                                                            // EXCLUSION LOGIC: Skip alert if there's a scheduled activity with SubTypeId 45 overlapping
+                                                            bool isExcluded = emp.Segments.Any(plan =>
+                                                            plan.ActivitySubTypeId == 45 &&
+                                                            plan.Start < seg.End &&
+                                                            plan.End > seg.Start);
+
+                                                            if (isExcluded) continue;
+
                                                             var startOffset = (seg.Start - referenceTime).TotalMinutes;
                                                             var endOffset = (seg.End - referenceTime).TotalMinutes;
 

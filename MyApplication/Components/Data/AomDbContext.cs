@@ -39,12 +39,14 @@ namespace MyApplication.Components.Data
         public DbSet<AcrOvertimeTypes> AcrOvertimeTypes { get; set; } = default!;
         public DbSet<BreakSchedules> BreakSchedules { get; set; } = default!;
         public DbSet<DetailedSchedule> DetailedSchedule { get; set; } = default!;
+        public DbSet<ScheduleType> ScheduleType { get; set; } = default!;
 
         // Opera (Employee schema)
         public DbSet<ActivityType> ActivityTypes { get; set; } = default!;
         public DbSet<ActivitySubType> ActivitySubTypes { get; set; } = default!;
         public DbSet<OperaStatus> OperaStatuses { get; set; } = default!;
         public DbSet<OperaRequest> OperaRequests { get; set; } = default!;
+        public DbSet<OperaTimeframe> OperaTimeframe { get; set; } = default!;
 
         // ACR (Employee schema)
         public DbSet<AcrType> AcrTypes { get; set; } = default!;
@@ -69,6 +71,7 @@ namespace MyApplication.Components.Data
         public DbSet<OiStatus> OiStatuses { get; set; } = default!;
         public DbSet<ProactiveAnnouncement> ProactiveAnnouncements { get; set; } = default!;
         public DbSet<DailyScheduleRow> DailyScheduleRows { get; set; }
+        public DbSet<OstPassdown> OstPassdown { get; set; }
 
         // =========================
         // AWS schema
@@ -108,6 +111,7 @@ namespace MyApplication.Components.Data
             b.Entity<AcrOvertimeTypes>().ToTable("OvertimeTypes", "Employee").HasKey(x => x.Id);
             b.Entity<BreakSchedules>().ToTable(nameof(BreakSchedules), "Employee").HasKey(x => x.Id);
             b.Entity<DetailedSchedule>().ToTable(nameof(DetailedSchedule), "Employee").HasKey(x => x.Id);
+            b.Entity<ScheduleType>().ToTable(nameof(ScheduleType), "Employee").HasKey(x => x.Id);
 
             b.Entity<ActivityType>().ToTable(nameof(ActivityType), "Employee").HasKey(x => x.Id);
             b.Entity<ActivitySubType>().ToTable(nameof(ActivitySubType), "Employee").HasKey(x => x.Id);
@@ -118,7 +122,7 @@ namespace MyApplication.Components.Data
                      tb.HasTrigger("tr_OperaRequest_ToDetailedSchedule");
                  })
                  .HasKey(x => x.RequestId);
-
+            b.Entity<OperaTimeframe>().ToTable(nameof(OperaTimeframe), "Employee").HasKey(x => x.Id);
             b.Entity<AcrType>().ToTable(nameof(AcrType), "Employee").HasKey(x => x.Id);
             b.Entity<AcrStatus>().ToTable(nameof(AcrStatus), "Employee").HasKey(x => x.Id);
             b.Entity<AcrRequest>().ToTable(nameof(AcrRequest), "Employee", tb =>
@@ -145,6 +149,7 @@ namespace MyApplication.Components.Data
             b.Entity<OiEventUpdate>().ToTable(nameof(OiEventUpdate), "Tools").HasKey(x => x.Id);
             b.Entity<OiStatus>().ToTable(nameof(OiStatus), "Tools").HasKey(x => x.Id);
             b.Entity<ProactiveAnnouncement>().ToTable(nameof(ProactiveAnnouncement), "Tools").HasKey(x => x.Id);
+            b.Entity<OstPassdown>().ToTable(nameof(OstPassdown), "Tools").HasKey(x => x.Id);
 
             b.Entity<Status>().ToTable(nameof(Statuses), "Aws").HasKey(x => x.Id);
 
@@ -225,6 +230,16 @@ namespace MyApplication.Components.Data
                 .WithMany()
                 .HasForeignKey(x => x.EmployeeId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.ScheduleType)
+               .WithMany()
+               .HasForeignKey(x => x.ScheduleTypeId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.BreakTemplate)
+               .WithMany()
+               .HasForeignKey(x => x.BreakTemplateId)
+               .OnDelete(DeleteBehavior.Restrict);
 
                 e.HasOne(x => x.ActivityType)
                 .WithMany()
@@ -312,6 +327,12 @@ namespace MyApplication.Components.Data
              .WithMany()
              .HasForeignKey(r => r.ActivitySubTypeId)
              .OnDelete(DeleteBehavior.Restrict);
+
+            b.Entity<OperaRequest>()
+            .HasOne(r => r.Timeframe)
+            .WithMany()
+            .HasForeignKey(r => r.TimeframeId)
+            .OnDelete(DeleteBehavior.Restrict);
 
             b.Entity<OperaRequest>()
              .HasOne(r => r.Employees)
@@ -418,6 +439,39 @@ namespace MyApplication.Components.Data
                  .WithMany()
                  .HasForeignKey(erp => erp.WeekendProfileId)
                  .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            b.Entity<OstPassdown>(e =>
+            {
+                e.HasOne(x => x.NewEdl)
+                .WithMany()
+                .HasForeignKey(x => x.NewEdlId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.PrevEdl)
+                    .WithMany()
+                    .HasForeignKey(x => x.PrevEdlId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.ReskillBy)
+                    .WithMany()
+                    .HasForeignKey(x => x.ReskillById)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.ProactiveBy)
+                    .WithMany()
+                    .HasForeignKey(x => x.ProactiveById)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.HomeportBy)
+                    .WithMany()
+                    .HasForeignKey(x => x.HomeportById)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.SharepointBy)
+                    .WithMany()
+                    .HasForeignKey(x => x.SharepointById)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             b.Entity<AwsAgentActivityDto>()

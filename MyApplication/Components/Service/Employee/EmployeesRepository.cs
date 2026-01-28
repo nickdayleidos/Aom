@@ -1088,8 +1088,12 @@ namespace MyApplication.Components.Service.Employee
         {
             if (!visibleEmployeeAwsGuids.Any()) return new List<AwsAgentActivityDto>();
 
+            // Join the GUIDs into a string list for the SQL IN clause
             var guidList = string.Join("','", visibleEmployeeAwsGuids);
 
+            // FIX: Use TRY_CAST([AwsGuid] AS UNIQUEIDENTIFIER) in the WHERE clause.
+            // This ensures that the comparison is done as GUIDs, ignoring case (upper/lower) 
+            // and string format differences between the DB and C#.
             var sql = $@"
     SELECT CAST([eventId] AS NVARCHAR(36)) as [EventId]
           ,CAST([awsId] AS NVARCHAR(36)) as [AwsId]
@@ -1099,7 +1103,7 @@ namespace MyApplication.Components.Service.Employee
           ,[duration]
           ,CAST([AwsGuid] AS UNIQUEIDENTIFIER) as [AwsGuid]
       FROM [TODNMCIAWS].[dbo].[awsDetailedAgentData]
-      WHERE [AwsGuid] IN ('{guidList}')
+      WHERE TRY_CAST([AwsGuid] AS UNIQUEIDENTIFIER) IN ('{guidList}')
         AND [eventTimeET] < {{0}} 
         AND [endTime] > {{1}}
         AND [currentAgentStatus] != 'Offline'

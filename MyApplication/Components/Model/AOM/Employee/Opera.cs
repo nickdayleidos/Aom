@@ -74,7 +74,17 @@ namespace MyApplication.Components.Model.AOM.Employee
         public string? RejectedBy { get; set; }
         public DateTime? LastUpdatedTime { get; set; }
         public string? LastUpdatedBy { get; set; }
+        public bool? IsImpacting { get; set; }
+        public int? TimeframeId { get; set; }
+        public OperaTimeframe? Timeframe { get; set; }
 
+    }
 
+    public class OperaTimeframe
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
+        public string Name { get; set; } = default!;
     }
 }
