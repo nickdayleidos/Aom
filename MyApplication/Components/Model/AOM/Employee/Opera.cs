@@ -13,7 +13,6 @@ namespace MyApplication.Components.Model.AOM.Employee
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
         public string Name { get; set; } = default!;
-        
         public ICollection<ActivitySubType> SubTypes { get; set; } = new List<ActivitySubType>();
         public bool? IsActive { get; set; } = true;
     }

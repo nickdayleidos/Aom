@@ -1,7 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using MyApplication.Common.Time;
 using MyApplication.Components.Data;
 using MyApplication.Components.Model.AOM.Employee;
-using MyApplication.Common.Time;
+using System.Linq;
 using System.Text.RegularExpressions;
 using EmployeeEntity = MyApplication.Components.Model.AOM.Employee.Employees;
 
@@ -17,7 +18,7 @@ namespace MyApplication.Components.Service
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
 
-            // 1. Join OperaRequests with EmployeeCurrentDetails
+            // Join OperaRequests with EmployeeCurrentDetails
             var qry = db.OperaRequests
                 .AsNoTracking()
                 .Include(x => x.Employees)
@@ -29,16 +30,42 @@ namespace MyApplication.Components.Service
                       (r, d) => new { Request = r, Details = d })
                 .AsQueryable();
 
-            // 2. Apply Hierarchy Filters
-            if (q.ManagerId.HasValue) qry = qry.Where(x => x.Details.ManagerId == q.ManagerId);
-            if (q.SupervisorId.HasValue) qry = qry.Where(x => x.Details.SupervisorId == q.SupervisorId);
+            // -------------------------
+            // Hierarchy Filters (multi first, then fallback to single)
+            // -------------------------
+            if (q.ManagerIds?.Count > 0)
+                qry = qry.Where(x => x.Details.ManagerId.HasValue && q.ManagerIds.Contains(x.Details.ManagerId.Value));
+            else if (q.ManagerId.HasValue)
+                qry = qry.Where(x => x.Details.ManagerId == q.ManagerId);
 
-            // --- NEW: Apply Type/SubType Filters ---
-            if (q.ActivityTypeId.HasValue) qry = qry.Where(x => x.Request.ActivityTypeId == q.ActivityTypeId);
-            if (q.ActivitySubTypeId.HasValue) qry = qry.Where(x => x.Request.ActivitySubTypeId == q.ActivitySubTypeId);
-            // ---------------------------------------
+            if (q.SupervisorIds?.Count > 0)
+                qry = qry.Where(x => x.Details.SupervisorId.HasValue && q.SupervisorIds.Contains(x.Details.SupervisorId.Value));
+            else if (q.SupervisorId.HasValue)
+                qry = qry.Where(x => x.Details.SupervisorId == q.SupervisorId);
 
-            // 3. Apply Name/ID Search
+
+            // -------------------------
+            // Type/SubType Filters (multi first, then fallback to single)
+            // -------------------------
+            if (q.ActivityTypeIds?.Count > 0)
+                qry = qry.Where(x => q.ActivityTypeIds.Contains(x.Request.ActivityTypeId));
+            else if (q.ActivityTypeId.HasValue)
+                qry = qry.Where(x => x.Request.ActivityTypeId == q.ActivityTypeId);
+
+            if (q.ActivitySubTypeIds?.Count > 0)
+                qry = qry.Where(x => q.ActivitySubTypeIds.Contains(x.Request.ActivitySubTypeId));
+            else if (q.ActivitySubTypeId.HasValue)
+                qry = qry.Where(x => x.Request.ActivitySubTypeId == q.ActivitySubTypeId);
+
+            // -------------------------
+            // SubmittedBy Filter (multi only; if you want a single string later, add it to OperaQuery)
+            // -------------------------
+            if (q.SubmittedBys?.Count > 0)
+                qry = qry.Where(x => x.Request.SubmittedBy != null && q.SubmittedBys.Contains(x.Request.SubmittedBy));
+
+            // -------------------------
+            // Name/ID Search
+            // -------------------------
             if (!string.IsNullOrWhiteSpace(q.NameOrId))
             {
                 var t = q.NameOrId.Trim();
@@ -50,7 +77,8 @@ namespace MyApplication.Components.Service
                 {
                     t = Regex.Replace(t, @"\s+", " ");
                     qry = qry.Where(x =>
-                        (x.Request.Employees.LastName + ", " + x.Request.Employees.FirstName + (x.Request.Employees.MiddleInitial == null ? "" : " " + x.Request.Employees.MiddleInitial)).Contains(t) ||
+                        (x.Request.Employees.LastName + ", " + x.Request.Employees.FirstName +
+                            (x.Request.Employees.MiddleInitial == null ? "" : " " + x.Request.Employees.MiddleInitial)).Contains(t) ||
                         (x.Request.Employees.FirstName + " " + x.Request.Employees.LastName).Contains(t) ||
                         EF.Functions.Like(x.Request.Employees.FirstName, $"%{t}%") ||
                         EF.Functions.Like(x.Request.Employees.LastName, $"%{t}%")
@@ -58,22 +86,245 @@ namespace MyApplication.Components.Service
                 }
             }
 
+            // -------------------------
+            // Status + Date Filters (multi first, then fallback to single)
+            // -------------------------
+            if (q.StatusIds?.Count > 0)
+                qry = qry.Where(x => x.Request.OperaStatusId.HasValue && q.StatusIds.Contains(x.Request.OperaStatusId.Value));
+            else if (q.StatusId.HasValue)
+                qry = qry.Where(x => x.Request.OperaStatusId == q.StatusId.Value);
 
-            // 4. Apply Status and Date Filters
-            if (q.StatusId.HasValue) qry = qry.Where(x => x.Request.OperaStatusId == q.StatusId.Value);
             if (q.FromUtc.HasValue) qry = qry.Where(x => x.Request.StartTime >= q.FromUtc.Value);
             if (q.ToUtc.HasValue) qry = qry.Where(x => x.Request.StartTime < q.ToUtc.Value);
 
-            // 5. Execute
+            // Execute
             var total = await qry.CountAsync(ct);
 
             var items = await qry
-                .OrderByDescending(x => x.Request.SubmitTime) // <--- UPDATED: Order by SubmitTime
+                .OrderByDescending(x => x.Request.SubmitTime)
                 .Take(q.Take)
                 .Select(x => x.Request)
                 .ToListAsync(ct);
 
             return (items, total);
+        }
+
+        private static readonly int[] ImpactingExcludedSubTypeIds = new[] { 1, 4, 7, 9, 10, 12, 13, 14, 47, 53, 54 };
+
+        public async Task<IReadOnlyList<OperaTimeframe>> GetTimeframesAsync(CancellationToken ct = default)
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            return await db.OperaTimeframe.AsNoTracking().OrderBy(t => t.Id).ToListAsync(ct);
+        }
+
+        // NEW: SubmittedBy distinct lookup for filter UI
+        public async Task<IReadOnlyList<string>> GetOperaSubmittersAsync(CancellationToken ct = default)
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+
+            return await db.OperaRequests
+                .AsNoTracking()
+                .Where(x => x.SubmittedBy != null && x.SubmittedBy != "")
+                .Select(x => x.SubmittedBy!)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync(ct);
+        }
+
+        public async Task<DateTime?> GetStartOfShiftAsync(int employeeId, DateTime dateEt, CancellationToken ct = default)
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+
+            var history = await db.EmployeeHistory
+                .AsNoTracking()
+                .Where(h => h.EmployeeId == employeeId && h.EffectiveDate <= dateEt.Date && h.IsActive == true)
+                .OrderByDescending(h => h.EffectiveDate)
+                .ThenByDescending(h => h.Id)
+                .Select(h => new { h.ScheduleRequestId })
+                .FirstOrDefaultAsync(ct);
+
+            if (history?.ScheduleRequestId == null) return null;
+
+            var schedules = await db.AcrSchedules
+                .AsNoTracking()
+                .Where(s => s.AcrRequestId == history.ScheduleRequestId)
+                .ToListAsync(ct);
+
+            if (!schedules.Any()) return null;
+
+            var dayStart = dateEt.Date;
+            var dayEnd = dayStart.AddDays(1);
+
+            var checkDates = new[]
+            {
+                DateOnly.FromDateTime(dayStart.AddDays(-1)),
+                DateOnly.FromDateTime(dayStart)
+            };
+
+            foreach (var date in checkDates)
+            {
+                var dow = date.DayOfWeek;
+
+                foreach (var sched in schedules)
+                {
+                    TimeOnly? s = null, e = null;
+                    switch (dow)
+                    {
+                        case DayOfWeek.Monday: s = sched.MondayStart; e = sched.MondayEnd; break;
+                        case DayOfWeek.Tuesday: s = sched.TuesdayStart; e = sched.TuesdayEnd; break;
+                        case DayOfWeek.Wednesday: s = sched.WednesdayStart; e = sched.WednesdayEnd; break;
+                        case DayOfWeek.Thursday: s = sched.ThursdayStart; e = sched.ThursdayEnd; break;
+                        case DayOfWeek.Friday: s = sched.FridayStart; e = sched.FridayEnd; break;
+                        case DayOfWeek.Saturday: s = sched.SaturdayStart; e = sched.SaturdayEnd; break;
+                        case DayOfWeek.Sunday: s = sched.SundayStart; e = sched.SundayEnd; break;
+                    }
+
+                    if (s.HasValue && e.HasValue)
+                    {
+                        var shiftStart = date.ToDateTime(s.Value);
+                        var shiftEnd = date.ToDateTime(e.Value);
+
+                        if (shiftEnd < shiftStart)
+                            shiftEnd = shiftEnd.AddDays(1);
+
+                        if (shiftStart < dayEnd && shiftEnd > dayStart)
+                            return shiftStart;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        public async Task<DateTime?> GetEndOfShiftAsync(int employeeId, DateTime startEt, CancellationToken ct = default)
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+
+            var history = await db.EmployeeHistory
+                .AsNoTracking()
+                .Where(h => h.EmployeeId == employeeId && h.EffectiveDate <= startEt.Date && (h.IsActive == true))
+                .OrderByDescending(h => h.EffectiveDate)
+                .ThenByDescending(h => h.Id)
+                .Select(h => new { h.ScheduleRequestId })
+                .FirstOrDefaultAsync(ct);
+
+            if (history?.ScheduleRequestId == null) return null;
+
+            var schedules = await db.AcrSchedules
+                .AsNoTracking()
+                .Where(s => s.AcrRequestId == history.ScheduleRequestId)
+                .ToListAsync(ct);
+
+            if (!schedules.Any()) return null;
+
+            var checkDates = new[]
+            {
+                DateOnly.FromDateTime(startEt.Date.AddDays(-1)),
+                DateOnly.FromDateTime(startEt.Date)
+            };
+
+            foreach (var date in checkDates)
+            {
+                var dow = date.DayOfWeek;
+
+                foreach (var sched in schedules)
+                {
+                    TimeOnly? s = null, e = null;
+
+                    switch (dow)
+                    {
+                        case DayOfWeek.Monday: s = sched.MondayStart; e = sched.MondayEnd; break;
+                        case DayOfWeek.Tuesday: s = sched.TuesdayStart; e = sched.TuesdayEnd; break;
+                        case DayOfWeek.Wednesday: s = sched.WednesdayStart; e = sched.WednesdayEnd; break;
+                        case DayOfWeek.Thursday: s = sched.ThursdayStart; e = sched.ThursdayEnd; break;
+                        case DayOfWeek.Friday: s = sched.FridayStart; e = sched.FridayEnd; break;
+                        case DayOfWeek.Saturday: s = sched.SaturdayStart; e = sched.SaturdayEnd; break;
+                        case DayOfWeek.Sunday: s = sched.SundayStart; e = sched.SundayEnd; break;
+                    }
+
+                    if (s.HasValue && e.HasValue)
+                    {
+                        var shiftStart = date.ToDateTime(s.Value);
+                        var shiftEnd = date.ToDateTime(e.Value);
+
+                        if (shiftEnd < shiftStart)
+                            shiftEnd = shiftEnd.AddDays(1);
+
+                        if (shiftStart <= startEt && startEt < shiftEnd)
+                            return shiftEnd;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        public async Task SaveOperaRequestAsync(OperaRequest request, CancellationToken ct = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            ApplyTimeframeRulesAndComputeImpact(request);
+
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            db.OperaRequests.Add(request);
+            await db.SaveChangesAsync(ct);
+        }
+
+        public async Task<OperaRequest> GetRequestByIdAsync(int id, CancellationToken ct = default)
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            return await db.OperaRequests.FindAsync(new object[] { id }, ct);
+        }
+
+        public async Task UpdateRequestAsync(OperaRequest request, CancellationToken ct = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            ApplyTimeframeRulesAndComputeImpact(request);
+
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            db.OperaRequests.Update(request);
+            await db.SaveChangesAsync(ct);
+        }
+
+        private void ApplyTimeframeRulesAndComputeImpact(OperaRequest req)
+        {
+            if (req == null) return;
+
+            switch (req.TimeframeId)
+            {
+                case 1:
+                    break;
+
+                case 2:
+                    req.EndTime = req.StartTime.Date.AddHours(23).AddMinutes(59);
+                    break;
+
+                case 3:
+                    if (req.EndTime < req.StartTime)
+                        throw new ArgumentException("End date must be greater than or equal to start date for Multiple Full day timeframe.");
+                    break;
+
+                case 4:
+                    var candidate = new DateTime(req.StartTime.Year, req.StartTime.Month, req.StartTime.Day,
+                                                 req.EndTime.Hour, req.EndTime.Minute, req.EndTime.Second);
+                    if (candidate <= req.StartTime) candidate = candidate.AddDays(1);
+                    req.EndTime = candidate;
+                    break;
+
+                case 6:
+                    break;
+
+                default:
+                    break;
+            }
+
+            var midnightEt = req.StartTime.Date;
+            var isImpacting = req.ActivityTypeId == 1
+                              && !ImpactingExcludedSubTypeIds.Contains(req.ActivitySubTypeId)
+                              && req.SubmitTime > midnightEt;
+
+            req.IsImpacting = isImpacting;
         }
 
         public async Task<IReadOnlyList<OperaSubTypeDto>> GetSubTypesAsync(CancellationToken ct = default)
@@ -99,6 +350,10 @@ namespace MyApplication.Components.Service
         public async Task<int> CreateManyAsync(IEnumerable<OperaRequest> requests, CancellationToken ct = default)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
+
+            foreach (var r in requests)
+                ApplyTimeframeRulesAndComputeImpact(r);
+
             await db.OperaRequests.AddRangeAsync(requests, ct);
             return await db.SaveChangesAsync(ct);
         }
@@ -110,17 +365,17 @@ namespace MyApplication.Components.Service
             var existing = await db.OperaRequests.FirstOrDefaultAsync(x => x.RequestId == req.RequestId, ct);
             if (existing != null)
             {
-                // Update editable fields
                 existing.StartTime = req.StartTime;
                 existing.EndTime = req.EndTime;
                 existing.ActivityTypeId = req.ActivityTypeId;
                 existing.ActivitySubTypeId = req.ActivitySubTypeId;
                 existing.SubmitterComments = req.SubmitterComments;
 
-                // --- NEW: Update Status and Reset Logic ---
+                existing.TimeframeId = req.TimeframeId;
+                existing.IsImpacting = req.IsImpacting;
+
                 existing.OperaStatusId = req.OperaStatusId;
 
-                // If resetting to Submitted (1) or Pending (6), clear approval/rejection history
                 if (existing.OperaStatusId == 1 || existing.OperaStatusId == 6)
                 {
                     existing.ApproveTime = null;
@@ -130,17 +385,13 @@ namespace MyApplication.Components.Service
                     existing.CancelledTime = null;
                     existing.CancelledBy = null;
                 }
-                // ------------------------------------------
 
-                // Audit
                 existing.LastUpdatedTime = Et.Now;
                 existing.LastUpdatedBy = req.LastUpdatedBy;
 
                 await db.SaveChangesAsync(ct);
             }
         }
-
-        // File: MyApplication/Components/Service/Opera/OperaRepository.cs
 
         public async Task SetStatusAsync(int requestId, int statusId, string actor, CancellationToken ct = default)
         {
@@ -151,8 +402,6 @@ namespace MyApplication.Components.Service
             r.OperaStatusId = statusId;
             var nowEt = Et.Now;
 
-            // --- NEW LOGIC START ---
-            // Clear final state fields if returning to a non-final state (Submitted or Pending)
             if (statusId == 1 || statusId == 6)
             {
                 r.ApproveTime = null;
@@ -162,25 +411,23 @@ namespace MyApplication.Components.Service
                 r.CancelledTime = null;
                 r.CancelledBy = null;
             }
-            // --- NEW LOGIC END ---
 
-            if (statusId == 2) // Approved
+            if (statusId == 2)
             {
                 r.ApproveTime = nowEt;
                 r.ApproveBy = actor;
             }
-            else if (statusId == 5) // Rejected
+            else if (statusId == 5)
             {
                 r.RejectedTime = nowEt;
                 r.RejectedBy = actor;
             }
-            else if (statusId == 4) // Cancelled
+            else if (statusId == 4)
             {
                 r.CancelledTime = nowEt;
                 r.CancelledBy = actor;
             }
 
-            // Always update audit
             r.LastUpdatedTime = nowEt;
             r.LastUpdatedBy = actor;
 
@@ -207,7 +454,6 @@ namespace MyApplication.Components.Service
                 else
                 {
                     term = term.Trim();
-                    // Robust Name Search
                     q = q.Where(e =>
                         (e.LastName + ", " + e.FirstName + (e.MiddleInitial == null ? "" : " " + e.MiddleInitial)).Contains(term)
                         ||
@@ -260,92 +506,10 @@ namespace MyApplication.Components.Service
                 });
         }
 
-        // =========================================================================================
-        // UPDATED: Get End Of Shift (Calculated from ACR Schedule, NOT DetailedSchedule)
-        // =========================================================================================
-        public async Task<DateTime?> GetEndOfShiftAsync(int employeeId, DateTime startEt, CancellationToken ct = default)
-        {
-            await using var db = await _factory.CreateDbContextAsync(ct);
-
-            // 1. Find the history row effective for the given date (and Active)
-            var history = await db.EmployeeHistory
-                .AsNoTracking()
-                .Where(h => h.EmployeeId == employeeId && h.EffectiveDate <= startEt.Date && h.IsActive == true)
-                .OrderByDescending(h => h.EffectiveDate)
-                .ThenByDescending(h => h.Id)
-                .Select(h => new { h.ScheduleRequestId })
-                .FirstOrDefaultAsync(ct);
-
-            if (history?.ScheduleRequestId == null) return null;
-
-            // 2. Fetch the schedule definition(s) associated with that ACR
-            var schedules = await db.AcrSchedules
-                .AsNoTracking()
-                .Where(s => s.AcrRequestId == history.ScheduleRequestId)
-                .ToListAsync(ct);
-
-            if (!schedules.Any()) return null;
-
-            // 3. Determine the shift logic
-            // FIX: Convert DateTime to DateOnly explicitly so .ToDateTime() extension works
-            var checkDates = new[]
-            {
-                DateOnly.FromDateTime(startEt.Date.AddDays(-1)),
-                DateOnly.FromDateTime(startEt.Date)
-            };
-
-            foreach (var date in checkDates)
-            {
-                var dow = date.DayOfWeek;
-
-                foreach (var sched in schedules)
-                {
-                    // Extract times for this DOW
-                    TimeOnly? s = null, e = null;
-                    switch (dow)
-                    {
-                        case DayOfWeek.Monday: s = sched.MondayStart; e = sched.MondayEnd; break;
-                        case DayOfWeek.Tuesday: s = sched.TuesdayStart; e = sched.TuesdayEnd; break;
-                        case DayOfWeek.Wednesday: s = sched.WednesdayStart; e = sched.WednesdayEnd; break;
-                        case DayOfWeek.Thursday: s = sched.ThursdayStart; e = sched.ThursdayEnd; break;
-                        case DayOfWeek.Friday: s = sched.FridayStart; e = sched.FridayEnd; break;
-                        case DayOfWeek.Saturday: s = sched.SaturdayStart; e = sched.SaturdayEnd; break;
-                        case DayOfWeek.Sunday: s = sched.SundayStart; e = sched.SundayEnd; break;
-                    }
-
-                    if (s.HasValue && e.HasValue)
-                    {
-                        // FIX: Now calling ToDateTime on a DateOnly object
-                        var shiftStart = date.ToDateTime(s.Value);
-                        var shiftEnd = date.ToDateTime(e.Value);
-
-                        // Handle overnight wrap (e.g. 22:00 -> 06:00)
-                        if (shiftEnd < shiftStart)
-                        {
-                            shiftEnd = shiftEnd.AddDays(1);
-                        }
-
-                        // Check if startEt is inside this shift window
-                        // (Start <= Time < End)
-                        if (shiftStart <= startEt && startEt < shiftEnd)
-                        {
-                            return shiftEnd;
-                        }
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        // =========================================================================================
-        // UPDATED: Get Employee Weekly Schedule 
-        // =========================================================================================
         public async Task<List<DetailedSchedule>> GetEmployeeWeeklyScheduleAsync(int employeeId, DateOnly weekStart, CancellationToken ct = default)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
 
-            // 1. Find the ScheduleRequestId from the single most recent history row
             var latestHistory = await db.EmployeeHistory
                 .AsNoTracking()
                 .Where(h => h.EmployeeId == employeeId)
@@ -356,15 +520,13 @@ namespace MyApplication.Components.Service
 
             if (latestHistory == null) return new List<DetailedSchedule>();
 
-            // 2. Fetch the ACR Schedule Definition
             var acrSched = await db.AcrSchedules
                 .AsNoTracking()
-                .Where(s => s.AcrRequestId == latestHistory && s.ShiftNumber == 1) // Assuming Shift 1 for summary
+                .Where(s => s.AcrRequestId == latestHistory && s.ShiftNumber == 1)
                 .FirstOrDefaultAsync(ct);
 
             if (acrSched == null) return new List<DetailedSchedule>();
 
-            // 3. Generate 7 days for the requested week based on that static definition
             var result = new List<DetailedSchedule>();
 
             for (int i = 0; i < 7; i++)
@@ -390,11 +552,8 @@ namespace MyApplication.Components.Service
                     var startDt = currentDate.ToDateTime(s.Value);
                     var endDt = currentDate.ToDateTime(e.Value);
 
-                    // Handle overnight shift wrapping
                     if (e.Value < s.Value)
-                    {
                         endDt = endDt.AddDays(1);
-                    }
 
                     result.Add(new DetailedSchedule
                     {
@@ -410,9 +569,6 @@ namespace MyApplication.Components.Service
             return result;
         }
 
-        // =========================================================================================
-        // UPDATED: Hierarchy Lookups (Safe for Translation)
-        // =========================================================================================
         public async Task<List<KeyValuePair<int, string>>> GetManagersAsync(CancellationToken ct = default)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);

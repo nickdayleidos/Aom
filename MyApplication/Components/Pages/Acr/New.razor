@@ -233,6 +233,7 @@
         StateHasChanged();
     }
 
+
     private Task OnVmChanged(object? v)
     {
         if (v is AcrCreateVm c)
@@ -252,6 +253,14 @@
             Snackbar.Add("Effective Date is required.", Severity.Error);
             return;
         }
+        var minDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1));
+
+        if (_vm.EffectiveDate.Value < minDate)
+        {
+            Snackbar.Add($"Effective Date must be {minDate:yyyy-MM-dd} or later.", Severity.Error);
+            return;
+        }
+
 
         // FIX: Just pass _vm directly.
         // The AcrService will handle the conversion from Local -> Eastern.

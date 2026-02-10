@@ -1,6 +1,6 @@
 ﻿@page "/employees/schedules"
 @page "/employees/schedules/{EmployeeId:int?}"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead")]
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")]
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Common.Time
 @using Microsoft.AspNetCore.Components.Authorization

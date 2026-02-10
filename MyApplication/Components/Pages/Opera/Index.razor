@@ -1,5 +1,5 @@
 ﻿@page "/opera"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead")]
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")]
 @using MyApplication.Components.Model.AOM.Employee
 @using Microsoft.EntityFrameworkCore
 @using MudBlazor
@@ -31,102 +31,145 @@
         <MudGrid Spacing="2" Class="mt-2" AlignItems="Center">
 
             <MudItem xs="12" md="3">
-                <MudTextField @bind-Value="_filterText"
+                <MudTextField T="string"
+                              Value="@_filterText"
+                              ValueChanged="OnSearchTextChanged"
                               Placeholder="Search (Name, ID)..."
                               Variant="Variant.Outlined"
                               Margin="Margin.Dense"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Outlined.Search"
-                              Clearable="true" />
+                              Clearable="true"
+                              Immediate="true"
+                              DebounceInterval="500"
+                              OnClearButtonClick="OnAnyClearClicked" />
             </MudItem>
 
             <MudItem xs="6" md="2">
-                <MudAutocomplete T="OperaStatus"
-                                 Label="Status"
-                                 Dense="true"
-                                 Clearable="true"
-                                 MaxItems="null"
-                                 Value="_selectedStatusObj"
-                                 ValueChanged="OnStatusObjChanged"
-                                 SearchFunc="SearchStatuses"
-                                 ToStringFunc="@(s => s?.Name)"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true"
-                                 Variant="Variant.Outlined"
-                                 Margin="Margin.Dense"
-                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+                <MudSelect T="int"
+                           Label="Status"
+                           MultiSelection="true"
+                           SelectedValues="@_selectedStatusIds"
+                           SelectedValuesChanged="@(values => OnFilterChanged(values, list => _selectedStatusIds = list))"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Dense="true"
+                           Clearable="true"
+                           OnClearButtonClick="OnAnyClearClicked"
+                           SearchFunc="SearchStatusIds"
+                           ToStringFunc="@(id => _statuses.FirstOrDefault(s => s.Id == id)?.Name)">
+                    @foreach (var s in _statuses.OrderBy(x => x.Id))
+                    {
+                        <MudSelectItem Value="@s.Id">@s.Name</MudSelectItem>
+                    }
+                </MudSelect>
             </MudItem>
 
             <MudItem xs="6" md="2">
-                <MudAutocomplete T="KeyValuePair<int, string>?"
-                                 Label="Type"
-                                 Dense="true"
-                                 Clearable="true"
-                                 MaxItems="null"
-                                 Value="_selectedTypeKv"
-                                 ValueChanged="OnTypeKvChanged"
-                                 SearchFunc="SearchTypes"
-                                 ToStringFunc="@(kv => kv?.Value)"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true"
-                                 Variant="Variant.Outlined"
-                                 Margin="Margin.Dense"
-                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+                <MudSelect T="int"
+                           Label="Type"
+                           MultiSelection="true"
+                           SelectedValues="@_selectedTypeIds"
+                           SelectedValuesChanged="@(values => OnFilterChanged(values, list => _selectedTypeIds = list, clearSubTypes: true))"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Dense="true"
+                           Clearable="true"
+                           OnClearButtonClick="OnAnyClearClicked"
+                           SearchFunc="SearchTypeIds"
+                           ToStringFunc="@(id => _types.TryGetValue(id, out var n) ? n : id.ToString())">
+                    @foreach (var t in _types.OrderBy(k => k.Key))
+                    {
+                        <MudSelectItem Value="@t.Key">@t.Value</MudSelectItem>
+                    }
+                </MudSelect>
             </MudItem>
 
             <MudItem xs="6" md="2">
-                <MudAutocomplete T="OperaSubTypeDto"
-                                 Label="Sub Type"
-                                 Dense="true"
-                                 Clearable="true"
-                                 MaxItems="null"
-                                 Value="_selectedSubType"
-                                 ValueChanged="OnSubTypeChanged"
-                                 SearchFunc="SearchSubTypes"
-                                 ToStringFunc="@(x => x?.Name)"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true"
-                                 Variant="Variant.Outlined"
-                                 Margin="Margin.Dense"
-                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+                <MudSelect T="int"
+                           Label="Sub Type"
+                           MultiSelection="true"
+                           SelectedValues="@_selectedSubTypeIds"
+                           SelectedValuesChanged="@(values => OnFilterChanged(values, list => _selectedSubTypeIds = list))"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Dense="true"
+                           Clearable="true"
+                           OnClearButtonClick="OnAnyClearClicked"
+                           SearchFunc="SearchSubTypeIds"
+                           ToStringFunc="@(id => _subTypes.FirstOrDefault(x => x.Id == id)?.Name)">
+                    @foreach (var st in GetFilteredSubTypes().OrderBy(x => x.Name))
+                    {
+                        <MudSelectItem Value="@st.Id">@st.Name</MudSelectItem>
+                    }
+                </MudSelect>
             </MudItem>
 
             <MudItem xs="6" md="2">
-                <MudAutocomplete T="KeyValuePair<int, string>?"
-                                 Label="Manager"
-                                 Dense="true"
-                                 Clearable="true"
-                                 MaxItems="null"
-                                 Value="_selectedManagerKv"
-                                 ValueChanged="OnManagerKvChanged"
-                                 SearchFunc="SearchManagers"
-                                 ToStringFunc="@(kv => kv?.Value)"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true"
-                                 Variant="Variant.Outlined"
-                                 Margin="Margin.Dense"
-                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+                <MudSelect T="int"
+                           Label="Manager"
+                           MultiSelection="true"
+                           SelectedValues="@_selectedManagerIds"
+                           SelectedValuesChanged="@(values => OnFilterChanged(values, list => _selectedManagerIds = list))"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Dense="true"
+                           Clearable="true"
+                           OnClearButtonClick="OnAnyClearClicked"
+                           SearchFunc="SearchManagerIds"
+                           ToStringFunc="@(id => _managers.FirstOrDefault(x => x.Key == id).Value)">
+                    @foreach (var m in _managers.OrderBy(x => x.Value))
+                    {
+                        <MudSelectItem Value="@m.Key">@m.Value</MudSelectItem>
+                    }
+                </MudSelect>
             </MudItem>
 
             <MudItem xs="6" md="2">
-                <MudAutocomplete T="KeyValuePair<int, string>?"
-                                 Label="Supervisor"
-                                 Dense="true"
-                                 Clearable="true"
-                                 MaxItems="null"
-                                 Value="_selectedSupervisorKv"
-                                 ValueChanged="OnSupervisorKvChanged"
-                                 SearchFunc="SearchSupervisors"
-                                 ToStringFunc="@(kv => kv?.Value)"
-                                 ResetValueOnEmptyText="true"
-                                 CoerceText="true"
-                                 Variant="Variant.Outlined"
-                                 Margin="Margin.Dense"
-                                 AdornmentIcon="@Icons.Material.Outlined.Search" />
+                <MudSelect T="int"
+                           Label="Supervisor"
+                           MultiSelection="true"
+                           SelectedValues="@_selectedSupervisorIds"
+                           SelectedValuesChanged="@(values => OnFilterChanged(values, list => _selectedSupervisorIds = list))"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Dense="true"
+                           Clearable="true"
+                           OnClearButtonClick="OnAnyClearClicked"
+                           SearchFunc="SearchSupervisorIds"
+                           ToStringFunc="@(id => _supervisors.FirstOrDefault(x => x.Key == id).Value)">
+                    @foreach (var s in _supervisors.OrderBy(x => x.Value))
+                    {
+                        <MudSelectItem Value="@s.Key">@s.Value</MudSelectItem>
+                    }
+                </MudSelect>
             </MudItem>
 
             <MudItem xs="12" md="3">
-                <MudDateRangePicker @bind-DateRange="_range" Label="Date Range (ET)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudSelect T="string"
+                           Label="Submitted By"
+                           MultiSelection="true"
+                           SelectedValues="@_selectedSubmittedBys"
+                           SelectedValuesChanged="@(values => OnFilterChanged(values, list => _selectedSubmittedBys = list))"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Dense="true"
+                           Clearable="true"
+                           OnClearButtonClick="OnAnyClearClicked"
+                           SearchFunc="SearchSubmittedBy"
+                           ToStringFunc="@(s => s)">
+                    @foreach (var sb in _submittedByOptions.OrderBy(x => x))
+                    {
+                        <MudSelectItem Value="@sb">@sb</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudDateRangePicker @bind-DateRange="_range"
+                                    Label="Date Range (ET)"
+                                    Variant="Variant.Outlined"
+                                    Margin="Margin.Dense" />
             </MudItem>
 
             <MudItem xs="12" md="3">
@@ -173,17 +216,16 @@
     private List<KeyValuePair<int, string>> _managers = new();
     private List<KeyValuePair<int, string>> _supervisors = new();
 
-    private OperaStatus? _selectedStatusObj;
-    private KeyValuePair<int, string>? _selectedManagerKv;
-    private KeyValuePair<int, string>? _selectedSupervisorKv;
-    private KeyValuePair<int, string>? _selectedTypeKv;
-    private OperaSubTypeDto? _selectedSubType;
+    // ✅ IMPORTANT: List<> (NOT HashSet<>) to avoid EventCallback<HashSet<T>> generation in Razor/MudBlazor 8.
+    private List<int> _selectedStatusIds = new();
+    private List<int> _selectedTypeIds = new();
+    private List<int> _selectedSubTypeIds = new();
+    private List<int> _selectedManagerIds = new();
+    private List<int> _selectedSupervisorIds = new();
+    private List<string> _selectedSubmittedBys = new();
 
-    private int? _statusId => _selectedStatusObj?.Id;
-    private int? _managerId => _selectedManagerKv?.Key;
-    private int? _supervisorId => _selectedSupervisorKv?.Key;
-    private int? _typeId => _selectedTypeKv?.Key;
-    private int? _subTypeId => _selectedSubType?.Id;
+    private List<string> _submittedByOptions = new();
+
     private string? _filterText;
     private DateRange? _range;
     private int _activeTab;
@@ -194,6 +236,7 @@
     private const int CancelledStatusId = 4;
     private const int RejectedStatusId = 5;
     private const int PendingStatusId = 6;
+
     private enum StatusAction { Approve, Reject, Cancel, SetPending }
 
     private TimeDisplayMode _displayMode = TimeDisplayMode.EmployeeLocal;
@@ -204,6 +247,7 @@
         TimeDisplayMode.EmployeeLocal => "Local (employee site)",
         _ => "Local (employee site)"
     };
+
     private DateTime _todayEt;
     private DateTime _todayMt;
 
@@ -222,6 +266,7 @@
         _isOst = user.IsInRole("OST");
         _isManager = user.IsInRole("Manager");
         _isSupervisor = user.IsInRole("Supervisor");
+
         try
         {
             var tStatus = Repo.GetStatusesAsync();
@@ -229,6 +274,7 @@
             var tSubTypes = Repo.GetSubTypesAsync();
             var tManagers = Repo.GetManagersAsync();
             var tSupervisors = Repo.GetSupervisorsAsync();
+
             await Task.WhenAll(tStatus, tTypes, tSubTypes, tManagers, tSupervisors);
 
             _statuses = (await tStatus).ToList();
@@ -251,22 +297,36 @@
         if (_range?.Start is DateTime s) fromEt = s.Date;
         if (_range?.End is DateTime e) toEt = e.Date.AddDays(1);
 
+        // Tabs still drive their own filtering by status AFTER load (same as your original approach).
+        // So we keep the query as-is, and apply tab views locally.
         var q = new OperaQuery
         {
             NameOrId = _filterText,
-            StatusId = _statusId,
-            ManagerId = _managerId,
-            SupervisorId = _supervisorId,
-            ActivityTypeId = _typeId,
-            ActivitySubTypeId = _subTypeId,
+
+            StatusIds = _selectedStatusIds.Any() ? _selectedStatusIds : null,
+            ManagerIds = _selectedManagerIds.Any() ? _selectedManagerIds : null,
+            SupervisorIds = _selectedSupervisorIds.Any() ? _selectedSupervisorIds : null,
+            ActivityTypeIds = _selectedTypeIds.Any() ? _selectedTypeIds : null,
+            ActivitySubTypeIds = _selectedSubTypeIds.Any() ? _selectedSubTypeIds : null,
+            SubmittedBys = _selectedSubmittedBys.Any() ? _selectedSubmittedBys : null,
+
             FromUtc = fromEt,
             ToUtc = toEt,
-            Take = 5000 // Limit increased to capture older pending items
+            Take = 5000
         };
+
         try
         {
             var (items, _) = await Repo.SearchAsync(q);
             _items = items.ToList();
+
+            // build SubmittedBy options from loaded data (no extra repo method needed)
+            _submittedByOptions = _items
+                .Select(x => x.SubmittedBy)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToList();
 
             var nowUtc = DateTime.UtcNow;
             _todayEt = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Et.Zone).Date;
@@ -294,84 +354,114 @@
     private void ClearFilters()
     {
         _filterText = null;
-        _selectedStatusObj = null;
-        _selectedManagerKv = null;
-        _selectedSupervisorKv = null;
-        _selectedTypeKv = null;
-        _selectedSubType = null;
+        _selectedStatusIds = new();
+        _selectedTypeIds = new();
+        _selectedSubTypeIds = new();
+        _selectedManagerIds = new();
+        _selectedSupervisorIds = new();
+        _selectedSubmittedBys = new();
         _range = null;
-        Reload();
+        _ = LoadAsync();
     }
 
     private void GoSubmit() => Nav.NavigateTo("/opera/new");
 
-    // --- Search Helpers ---
+    // ----------------------------
+    // Generic filter handlers (Employees page style)
+    // ----------------------------
 
-    private Task<IEnumerable<OperaStatus>> SearchStatuses(string value, CancellationToken ct)
+    private async Task OnFilterChanged(IEnumerable<int> values, Action<List<int>> setter, bool clearSubTypes = false)
     {
-        if (string.IsNullOrEmpty(value)) return Task.FromResult<IEnumerable<OperaStatus>>(_statuses);
-        return Task.FromResult(_statuses.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
-    }
+        setter(values?.ToList() ?? new List<int>());
 
-    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchManagers(string value, CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_managers.Select(x => (KeyValuePair<int, string>?)x));
-        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
-            _managers.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
-                      .Select(x => (KeyValuePair<int, string>?)x));
-    }
-
-    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchSupervisors(string value, CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_supervisors.Select(x => (KeyValuePair<int, string>?)x));
-        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
-            _supervisors.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
-                        .Select(x => (KeyValuePair<int, string>?)x));
-    }
-
-    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchTypes(string value, CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_types.Select(x => (KeyValuePair<int, string>?)x));
-        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
-            _types.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
-                  .Select(x => (KeyValuePair<int, string>?)x));
-    }
-
-    private Task<IEnumerable<OperaSubTypeDto>> SearchSubTypes(string value, CancellationToken ct)
-    {
-        var source = _subTypes.AsEnumerable();
-        // Filter by Type if selected
-        if (_typeId.HasValue)
+        if (clearSubTypes)
         {
-            source = source.Where(x => x.ActivityTypeId == _typeId.Value);
+            _selectedSubTypeIds = new();
         }
 
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult(source);
-        return Task.FromResult(
-            source.Where(x => x.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
-        );
+        await LoadAsync();
     }
 
-    // --- Binding Handlers ---
-    private void OnStatusObjChanged(OperaStatus? val) { _selectedStatusObj = val; }
-    private void OnManagerKvChanged(KeyValuePair<int, string>? val) { _selectedManagerKv = val; }
-    private void OnSupervisorKvChanged(KeyValuePair<int, string>? val) { _selectedSupervisorKv = val; }
-
-    private void OnTypeKvChanged(KeyValuePair<int, string>? val)
+    private async Task OnFilterChanged(IEnumerable<string> values, Action<List<string>> setter)
     {
-        _selectedTypeKv = val;
-        // Clear subtype when type changes to ensure consistency
-        _selectedSubType = null;
+        setter(values?.ToList() ?? new List<string>());
+        await LoadAsync();
     }
 
-    private void OnSubTypeChanged(OperaSubTypeDto? val) { _selectedSubType = val; }
+    private async Task OnSearchTextChanged(string text)
+    {
+        _filterText = text;
+        await LoadAsync();
+    }
+
+    private async Task OnAnyClearClicked(MouseEventArgs args)
+    {
+        // When clear button is clicked, MudSelect updates SelectedValues automatically;
+        // we just reload.
+        await LoadAsync();
+    }
+
+    // ----------------------------
+    // Search funcs for MudSelect (MultiSelection)
+    // ----------------------------
+
+    private Task<IEnumerable<int>> SearchStatusIds(string value, CancellationToken token)
+    {
+        var src = _statuses.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(value))
+            src = src.Where(s => s.Name.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(src.Select(s => s.Id));
+    }
+
+    private Task<IEnumerable<int>> SearchTypeIds(string value, CancellationToken token)
+    {
+        var src = _types.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(value))
+            src = src.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(src.Select(x => x.Key));
+    }
+
+    private IEnumerable<OperaSubTypeDto> GetFilteredSubTypes()
+    {
+        if (_selectedTypeIds == null || !_selectedTypeIds.Any())
+            return _subTypes;
+
+        return _subTypes.Where(st => _selectedTypeIds.Contains(st.ActivityTypeId));
+    }
+
+    private Task<IEnumerable<int>> SearchSubTypeIds(string value, CancellationToken token)
+    {
+        var src = GetFilteredSubTypes().AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(value))
+            src = src.Where(s => s.Name.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(src.Select(s => s.Id));
+    }
+
+    private Task<IEnumerable<int>> SearchManagerIds(string value, CancellationToken token)
+    {
+        var src = _managers.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(value))
+            src = src.Where(m => m.Value.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(src.Select(m => m.Key));
+    }
+
+    private Task<IEnumerable<int>> SearchSupervisorIds(string value, CancellationToken token)
+    {
+        var src = _supervisors.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(value))
+            src = src.Where(s => s.Value.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(src.Select(s => s.Key));
+    }
+
+    private Task<IEnumerable<string>> SearchSubmittedBy(string value, CancellationToken token)
+    {
+        var src = _submittedByOptions.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(value))
+            src = src.Where(s => s.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(src);
+    }
 
     // ---------- Helpers for Sorting ----------
-
     private object SortByEmployee(OperaRequest x)
     {
         if (x.Employees != null)
@@ -387,7 +477,6 @@
     }
 
     // ---------- helpers for display time & status ----------
-
     private DateTime ToDisplayTime(DateTime etStored, int employeeId)
     {
         string? tzId = _displayMode switch
@@ -407,13 +496,12 @@
     }
 
     private static int? GetStatusId(OperaRequest r) => r.OperaStatusId;
-    // ---------- Logic for Permissions ----------
 
+    // ---------- Logic for Permissions ----------
     private bool IsPendingPastOrFuture(OperaRequest r)
     {
         var s = GetStatusId(r);
         if (s != SubmittedStatusId && s != PendingStatusId) return false;
-
         return !IsTodayInEtOrMt(r.StartTime);
     }
 
@@ -438,7 +526,6 @@
         if (s != SubmittedStatusId && s != PendingStatusId) return false;
 
         if (IsPendingPastOrFuture(r)) return _isAdmin || _isWfm;
-        // Reject permissions - WFM, Admin
         return _isAdmin || _isWfm;
     }
 
@@ -517,8 +604,8 @@
             StatusAction.SetPending => "Pending",
             _ => ""
         };
-        var status = _statuses.FirstOrDefault(
-            s => s.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+
+        var status = _statuses.FirstOrDefault(s => s.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase));
         if (status is null)
         {
             Snackbar.Add($"Status for '{action}' not found.", Severity.Error);

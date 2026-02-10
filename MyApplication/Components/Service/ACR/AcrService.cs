@@ -209,7 +209,7 @@ namespace MyApplication.Components.Service.Acr
             req.EmployeeId = vm.EmployeeId;
             req.AcrTypeId = effectiveTypeId;
             req.EffectiveDate = vm.EffectiveDate ?? req.EffectiveDate;
-            req.LastUpdateTime = DateTime.UtcNow;
+            req.LastUpdateTime = DateTime.Now;
             req.SubmitterComment = vm.SubmitterComment;
 
             // --- Organization Update ---

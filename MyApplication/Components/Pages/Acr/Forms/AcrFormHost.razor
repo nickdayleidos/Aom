@@ -20,7 +20,9 @@
                                OpenTo="OpenTo.Date"
                                Disabled="@ReadOnly"
                                Immediate="true"
-                               CloseOnOutsideClick="true" />
+                               CloseOnOutsideClick="true"
+                               MinDate="@(IsCreate ? MinEffectiveDate : (DateTime?)null)" />
+
 
             </MudItem>
         </MudGrid>
@@ -226,9 +228,14 @@
     [Parameter] public bool ForceShowSchedule { get; set; }
     [Parameter] public bool ForceShowOvertimeOnly { get; set; }
     [Parameter] public bool ReadOnly { get; set; } = false;
+    [Parameter] public bool CanEditEffectiveDate { get; set; } = true;
+
     private NewHireDto? _newHire;
 
     [Parameter] public TimeDisplayMode Mode { get; set; } = TimeDisplayMode.EmployeeLocal;
+    private DateTime MinEffectiveDate => DateTime.Today.AddDays(1);
+    private bool IsCreate => Value is AcrCreateVm;
+
 
     private DateOnly? _effectiveDate;
 
@@ -240,11 +247,13 @@
             : (DateTime?)null;
         set
         {
+            if (IsCreate && value.HasValue && value.Value.Date < MinEffectiveDate.Date)
+                value = MinEffectiveDate;
+
             _effectiveDate = value.HasValue
                 ? DateOnly.FromDateTime(value.Value.Date)
                 : (DateOnly?)null;
 
-            // Immediately push the change into the parent VM
             if (Value is AcrCreateVm c)
             {
                 if (c.EffectiveDate != _effectiveDate)
@@ -257,6 +266,8 @@
             }
         }
     }
+
+    
 
     private string? _comment;
     private bool _mirrorsInitialized;

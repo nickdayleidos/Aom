@@ -102,8 +102,25 @@
     private async Task SaveAssignment()
     {
         _saving = true;
-        await AwsService.SaveEmployeeAssignmentAsync(_assignment);
-        Snackbar.Add("Routing profiles updated successfully.", Severity.Success);
-        _saving = false;
+        try
+        {
+            await AwsService.SaveEmployeeAssignmentAsync(_assignment);
+
+            // reload from DB so UI reflects persisted values and has the correct Id
+            var existing = await AwsService.GetEmployeeAssignmentAsync(EmployeeId);
+            _assignment = existing ?? new EmployeeRoutingProfile { EmployeeId = EmployeeId };
+
+            Snackbar.Add("Routing profiles updated successfully.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update routing: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
     }
+
 }

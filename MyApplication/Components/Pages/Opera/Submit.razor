@@ -8,7 +8,6 @@
 @using MyApplication.Components.Service
 @using MyApplication.Common.Time
 @using MyApplication.Components.Common.Time
-
 @inject IOperaRepository Repo
 @inject AomDbContext Db
 @inject ISnackbar Snackbar
@@ -124,15 +123,20 @@
                                 </MudItem>
 
                                 <MudItem xs="12" md="3">
-                                    <MudSelect T="OperaTimeframeMode?" @bind-Value="_timeframeMode" Label="Timeframe" Variant="Variant.Outlined" Dense="true" Required="true">
-                                        <MudSelectItem T="OperaTimeframeMode?" Value="@OperaTimeframeMode.Eos">EOS</MudSelectItem>
-                                        <MudSelectItem T="OperaTimeframeMode?" Value="@OperaTimeframeMode.FullShift">Full Shift</MudSelectItem>
-                                        <MudSelectItem T="OperaTimeframeMode?" Value="@OperaTimeframeMode.Custom">Timeframe</MudSelectItem>
+                                    @* Timeframe: load from OperaTimeframe table *@
+                                    <MudSelect T="int?" @bind-Value="_timeframeId" Label="Timeframe" Variant="Variant.Outlined" Dense="true" Required="true">
+                                        @if (_timeframes != null)
+                                        {
+                                            @foreach (var tf in _timeframes)
+                                            {
+                                                <MudSelectItem T="int?" Value="@tf.Id">@tf.Name</MudSelectItem>
+                                            }
+                                        }
                                     </MudSelect>
                                 </MudItem>
 
                                 <MudItem xs="12" md="3">
-                                    <MudSelect T="SiteZone?" @bind-Value="_zone" Label="Time Zone" Variant="Variant.Outlined" Dense="true" Required="true">
+                                    <MudSelect T="SiteZone?" @bind-Value="_zone"  Label="Time Zone" Variant="Variant.Outlined" Dense="true" Required="true" Disabled="@(_timeframeId == 2 || _timeframeId == 3)">
                                         <MudSelectItem T="SiteZone?" Value="@SiteZone.ET">Eastern</MudSelectItem>
                                         <MudSelectItem T="SiteZone?" Value="@SiteZone.MT">Mountain</MudSelectItem>
                                     </MudSelect>
@@ -144,23 +148,59 @@
 
                             <MudGrid Spacing="2" Class="mt-1">
                                 <MudItem xs="12" md="4">
-                                    <MudDatePicker @bind-Date="_startDateEt" Label="Start Date" Variant="Variant.Outlined" Dense="true" Disabled="@(_timeframeMode is null)" />
+                                    <MudDatePicker @bind-Date="_startDateEt" @bind-Date:after="OnStartDateAfter" Label="Start Date" Variant="Variant.Outlined" Dense="true" Disabled="@(_timeframeId is null)" />
                                 </MudItem>
 
                                 <MudItem xs="12" md="4">
-                                    <MudTimePicker @bind-Time="_startTimeEt" Label="Start Time" Variant="Variant.Outlined" Editable="true" Clearable="true" Dense="true" Disabled="@(_timeframeMode is null || _timeframeMode == OperaTimeframeMode.FullShift)" />
+                                    <MudTimePicker @bind-Time="_startTimeEt" 
+                                    Label="Start Time" 
+                                    Variant="Variant.Outlined" 
+                                    Editable="true" 
+                                    Clearable="true" 
+                                    Dense="true"
+                                                   Disabled="@(_timeframeId is null || _timeframeId == 2 || _timeframeId == 3 || _timeframeId == 6)" />
+                                    @* For Full day single (id==2) we do not require start time selection; keep as-is when null *@
                                 </MudItem>
                             </MudGrid>
 
                             <MudGrid Spacing="2" Class="mt-1">
                                 <MudItem xs="12" md="4">
-                                    <MudDatePicker @bind-Date="_endDateEt" Label="End Date" Variant="Variant.Outlined" Dense="true" Disabled="@(_timeframeMode is null || _timeframeMode == OperaTimeframeMode.Eos)" />
+                                    <MudDatePicker @bind-Date="_endDateEt"
+                                                   Label="End Date"
+                                                   Variant="Variant.Outlined"
+                                                   Dense="true"
+                                                   Disabled="@(_timeframeId is null || _timeframeId == 1 || _timeframeId == 2 || _timeframeId == 4 || _timeframeId == 6)" />
+                                    @* Disabled for:
+                                       1 = EOS (calculated)
+                                       2 = Full day single (auto)
+                                       4 = Timeframe single day (auto-set based on end time)
+                                       Enabled only for 3 (Multiple full day) *@
                                 </MudItem>
 
                                 <MudItem xs="12" md="4">
-                                    <MudTimePicker @bind-Time="_endTimeEt" Label="End Time" Variant="Variant.Outlined" Editable="true" Clearable="true" Dense="true" Disabled="@(_timeframeMode != OperaTimeframeMode.Custom)" />
+                                    <MudTimePicker @bind-Time="_endTimeEt"
+                                                   @bind-Time:after="OnEndTimeAfter"
+                                                   Label="End Time"
+                                                   Variant="Variant.Outlined"
+                                                   Editable="true"
+                                                   Clearable="true"
+                                                   Dense="true"
+                                                   Disabled="@(_timeframeId is null || _timeframeId == 1 || _timeframeId == 2 || _timeframeId == 3)" />
+                                    @* Enabled for:
+                                       3 = Multiple full day (optional, but allowed)
+                                       4 = Timeframe single day (REQUIRED)
+                                       Disabled for:
+                                       1 = EOS
+                                       2 = Full day single (auto end-of-day) *@
                                 </MudItem>
                             </MudGrid>
+
+
+                            @* Overnight message for timeframe 4 *@
+                            @if (_timeframeId == 4 && _overnightWarning)
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true">End time-of-day is earlier than start time — this will be an overnight event; end date will be auto set to the following day.</MudAlert>
+                            }
 
                             <MudDivider Class="my-1" />
                             <MudText Typo="Typo.body2">Comments</MudText>
@@ -196,7 +236,10 @@
     private int? _typeId;
     private int? _subTypeId;
 
-    private OperaTimeframeMode? _timeframeMode;
+    // Timeframe list from DB
+    private List<OperaTimeframe>? _timeframes;
+    private int? _timeframeId; // binds to selected OperaTimeframe.Id
+
     private SiteZone? _zone;
     private DateTime? _startDateEt;
     private TimeSpan? _startTimeEt;
@@ -204,8 +247,7 @@
     private TimeSpan? _endTimeEt;
     private string? _comments;
     private bool _busy;
-
-    private enum OperaTimeframeMode { Eos, FullShift, Custom }
+    private bool _overnightWarning = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -219,6 +261,9 @@
         {
             _types = await Db.ActivityTypes.AsNoTracking().Where(x => x.IsActive == true).OrderBy(x => x.Name).ToListAsync();
             _subTypes = await Db.ActivitySubTypes.AsNoTracking().Where(x => x.IsActive == true).OrderBy(x => x.Name).ToListAsync();
+
+            // load timeframe lookup from repository (OperaTimeframe table)
+            _timeframes = (await Repo.GetTimeframesAsync())?.ToList() ?? new List<OperaTimeframe>();
         }
         catch (Exception ex)
         {
@@ -226,6 +271,67 @@
         }
         await LoadEmployeeOptionsAsync("");
     }
+
+    private void OnStartDateAfter()
+    {
+        if (!_startDateEt.HasValue)
+            return;
+
+        // Safety rule: whenever start date changes, reset end date to match
+        _endDateEt = _startDateEt.Value.Date;
+
+        // Re-apply single-day overnight logic if applicable
+        if (_timeframeId == 4 || _timeframeId == 6)
+        {
+            ApplyAutoEndDateForSingleDayTimeframes();
+        }
+    }
+
+    private void OnEndTimeAfter()
+    {
+        if (_timeframeId == 4 || _timeframeId == 6)
+            ApplyAutoEndDateForSingleDayTimeframes();
+    }
+
+
+    
+
+    private void ApplyAutoEndDateForSingleDayTimeframes()
+    {
+        if (!(_timeframeId == 4 || _timeframeId == 6)) return;
+
+        if (!_startDateEt.HasValue || !_endTimeEt.HasValue)
+        {
+            _overnightWarning = false;
+            return;
+        }
+
+        // start time basis differs:
+        // - TF4 uses selected start time
+        // - TF6 uses computed shift start time (we'll set _startTimeEt during submission, but for UI we may not have it)
+        // For UI, we can only compute overnight if we have _startTimeEt; if not, keep end date = start date until we know.
+        if (!_startTimeEt.HasValue)
+        {
+            _endDateEt = _startDateEt.Value.Date;
+            _overnightWarning = false;
+            return;
+        }
+
+        var startLocal = _startDateEt.Value.Date + _startTimeEt.Value;
+        var endLocal = _startDateEt.Value.Date + _endTimeEt.Value;
+
+        if (endLocal.TimeOfDay <= startLocal.TimeOfDay)
+        {
+            _endDateEt = _startDateEt.Value.Date.AddDays(1);
+            _overnightWarning = true;
+        }
+        else
+        {
+            _endDateEt = _startDateEt.Value.Date;
+            _overnightWarning = false;
+        }
+    }
+
 
     private Task<IEnumerable<ActivityType>> SearchTypes(string value, CancellationToken ct)
     {
@@ -279,51 +385,96 @@
     private bool TryGetStartEndEt(out DateTime startEt, out DateTime endEt)
     {
         startEt = default; endEt = default;
-        if (_timeframeMode is null || _zone is null) return false;
+        if (_timeframeId is null) return false;
 
+        var tf = _timeframeId.Value;
+
+        // TF2 and TF3 do NOT use _zone, so do them first and return
+        if (tf == 2) // Full day (single day) - employee local 00:00 to 23:59
+        {
+            if (!_startDateEt.HasValue) return false;
+
+            // dummy values; real per-employee ET conversion happens in SubmitAsync
+            startEt = _startDateEt.Value.Date;
+            endEt = _startDateEt.Value.Date.AddHours(23).AddMinutes(59);
+            return true;
+        }
+
+        if (tf == 3) // Multiple full day - employee local 00:00 to 23:59 across dates
+        {
+            if (!_startDateEt.HasValue || !_endDateEt.HasValue) return false;
+            if (_endDateEt.Value.Date < _startDateEt.Value.Date) return false;
+
+            startEt = _startDateEt.Value.Date;
+            endEt = _endDateEt.Value.Date.AddHours(23).AddMinutes(59);
+            return true;
+        }
+
+        // For everything else, zone IS required
+        if (_zone is null) return false;
         var zone = _zone.Value;
-        if (_timeframeMode == OperaTimeframeMode.Eos)
+
+        if (tf == 1) // End of shift
         {
             if (!_startDateEt.HasValue || !_startTimeEt.HasValue) return false;
-            // Calculate Start Time in ET.
-            // Even though it's EOS, we start at the time user selected.
             var eosStartLocal = _startDateEt.Value.Date + _startTimeEt.Value;
             startEt = SiteTime.FromSiteToEt(eosStartLocal, zone);
-
-            // Dummy End Time (will be replaced by DB lookup)
             endEt = startEt.AddHours(1);
             return true;
         }
-        if (_timeframeMode == OperaTimeframeMode.FullShift)
+
+        if (tf == 4) // Timeframe single day
         {
-            if (!_startDateEt.HasValue || !_endDateEt.HasValue) return false;
-            // 23:59 Logic for Full Day
-            var fullStartLocal = _startDateEt.Value.Date;
-            var fullEndLocal = _endDateEt.Value.Date.AddHours(23).AddMinutes(59);
-            startEt = SiteTime.FromSiteToEt(fullStartLocal, zone);
-            endEt = SiteTime.FromSiteToEt(fullEndLocal, zone);
+            if (!_startDateEt.HasValue || !_startTimeEt.HasValue || !_endTimeEt.HasValue) return false;
+
+            var startLocal = _startDateEt.Value.Date + _startTimeEt.Value;
+            startEt = SiteTime.FromSiteToEt(startLocal, zone);
+
+            var candidateLocal = _startDateEt.Value.Date + _endTimeEt.Value;
+            if (candidateLocal.TimeOfDay <= startLocal.TimeOfDay)
+            {
+                candidateLocal = candidateLocal.AddDays(1);
+                _overnightWarning = true;
+            }
+            else
+            {
+                _overnightWarning = false;
+            }
+
+            endEt = SiteTime.FromSiteToEt(candidateLocal, zone);
             return true;
         }
-        if (_timeframeMode == OperaTimeframeMode.Custom)
+
+        if (tf == 6) // Beginning of shift: start computed later per employee, end comes from UI
         {
-            if (!_startDateEt.HasValue || !_startTimeEt.HasValue || !_endDateEt.HasValue || !_endTimeEt.HasValue) return false;
-            var startLocal = _startDateEt.Value.Date + _startTimeEt.Value;
-            var endLocal = _endDateEt.Value.Date + _endTimeEt.Value;
-            startEt = SiteTime.FromSiteToEt(startLocal, zone);
-            endEt = SiteTime.FromSiteToEt(endLocal, zone);
-            return endEt > startEt;
+            if (!_startDateEt.HasValue || !_endTimeEt.HasValue) return false;
+
+            var dummyStartLocal = _startDateEt.Value.Date;
+            startEt = SiteTime.FromSiteToEt(dummyStartLocal, zone);
+            endEt = startEt.AddHours(1);
+            return true;
         }
+
         return false;
     }
+
 
     private async Task SubmitAsync()
     {
         _lastError = null;
-        if (_selectedEmployeeIds.Count == 0 || _typeId == null || _subTypeId == null || _timeframeMode == null || _zone == null)
+        if (_selectedEmployeeIds.Count == 0 || _typeId == null || _subTypeId == null || _timeframeId == null)
         {
             Snackbar.Add("Please complete all required fields.", Severity.Warning);
             return;
         }
+
+        // Only require zone for timeframes that actually use it
+        if ((_timeframeId == 1 || _timeframeId == 4 || _timeframeId == 6) && _zone == null)
+        {
+            Snackbar.Add("Please select a Time Zone.", Severity.Warning);
+            return;
+        }
+
 
         if (!TryGetStartEndEt(out var startEt, out var endEt))
         {
@@ -340,26 +491,100 @@
             var requests = new List<OperaRequest>();
             var errorMessages = new List<string>();
 
+            // For TF6 we need these UI values (local), because EndTime will be based on selected end date/time
+            // _endDateEt is already being auto-updated by your form logic.
+            DateTime? endLocal = null;
+            if (_timeframeId == 6)
+            {
+                if (!_startDateEt.HasValue || !_endDateEt.HasValue || !_endTimeEt.HasValue)
+                {
+                    Snackbar.Add("Start date and end time are required for Beginning of Shift.", Severity.Warning);
+                    return;
+                }
+
+                // End local datetime = (auto-updated end date) + end time
+                endLocal = _endDateEt.Value.Date + _endTimeEt.Value;
+            }
+
+            Dictionary<int, string>? tzByEmp = null;
+
+            // For TF2/TF3 we must use each employee's site TZ
+            if (_timeframeId == 2 || _timeframeId == 3)
+            {
+                tzByEmp = await Repo.GetEmployeeSiteTimeZonesAsync(_selectedEmployeeIds.ToArray());
+            }
+
             foreach (var empId in _selectedEmployeeIds)
             {
+                // default values from TryGetStartEndEt
+                DateTime finalStart = startEt;
                 DateTime finalEnd = endEt;
 
-                if (_timeframeMode == OperaTimeframeMode.Eos)
+                if (_timeframeId == 1) // End of shift: ask server for precise end-of-shift per-employee
                 {
-                    // FIX: Database contains ET times. startEt is already ET.
-                    // Pass ET directly to Repo so we compare apples to apples.
                     var eosEt = await Repo.GetEndOfShiftAsync(empId, startEt);
-
                     if (eosEt == null)
                     {
-                        // Convert to Local just for the error message so the user understands
                         var localStart = SiteTime.FromEtToSite(startEt, _zone.Value);
                         errorMessages.Add($"No shift found for emp #{empId} at {localStart:HH:mm} ({_zone})");
                         continue;
                     }
 
-                    // Result is already ET, use directly.
                     finalEnd = eosEt.Value;
+                }
+                else if (_timeframeId == 6) // Beginning of shift: get shift start per-employee
+                {
+                    // We only need a date to locate the shift. Use the selected start date.
+                    // Convert selected date-at-midnight local -> ET for schedule lookup.
+                    var dayLocal = _startDateEt!.Value.Date;
+                    var dayEt = SiteTime.FromSiteToEt(dayLocal, _zone.Value);
+
+                    var bosEt = await Repo.GetStartOfShiftAsync(empId, dayEt);
+                    if (bosEt == null)
+                    {
+                        errorMessages.Add($"No shift found for emp #{empId} on {dayLocal:MM/dd} ({_zone})");
+                        continue;
+                    }
+
+                    finalStart = bosEt.Value;
+
+                    // End time comes from the UI selection (local end date/time) and must be converted to ET
+                    // (_endDateEt already reflects overnight logic based on selected end time)
+                    finalEnd = SiteTime.FromSiteToEt(endLocal!.Value, _zone.Value);
+
+                    // safety check
+                    if (finalEnd <= finalStart)
+                    {
+                        var localStart = SiteTime.FromEtToSite(finalStart, _zone.Value);
+                        errorMessages.Add($"End time must be after beginning-of-shift for emp #{empId} (Shift start {localStart:MM/dd HH:mm} {_zone}).");
+                        continue;
+                    }
+                }
+                else if (_timeframeId == 2 || _timeframeId == 3)
+                {
+                    // Employee-local full day windows:
+                    // Start: 00:00 local on start date
+                    // End:   23:59 local on (start date for TF2) or (end date for TF3)
+                    if (!_startDateEt.HasValue)
+                    {
+                        errorMessages.Add($"Start date is required for emp #{empId}.");
+                        continue;
+                    }
+
+                    if (_timeframeId == 3 && !_endDateEt.HasValue)
+                    {
+                        errorMessages.Add($"End date is required for emp #{empId}.");
+                        continue;
+                    }
+
+                    var startLocal = _startDateEt.Value.Date; // 00:00
+                    var endLocalDate = (_timeframeId == 2) ? _startDateEt.Value.Date : _endDateEt!.Value.Date;
+                    var fullDayEndLocal = endLocalDate.AddHours(23).AddMinutes(59); // 23:59
+
+                    var tzId = (tzByEmp != null && tzByEmp.TryGetValue(empId, out var tz)) ? tz : "Eastern Standard Time";
+
+                    finalStart = Tz.FromSiteToEt(startLocal, tzId);
+                    finalEnd = Tz.FromSiteToEt(fullDayEndLocal, tzId);
                 }
 
                 int initialStatus = (_subTypeId == 11) ? 6 : 1; // 11=Vacation -> Pending, else Submitted
@@ -367,13 +592,14 @@
                 requests.Add(new OperaRequest
                 {
                     EmployeeId = empId,
-                    StartTime = startEt,
+                    StartTime = finalStart,
                     EndTime = finalEnd,
                     SubmittedBy = actor,
                     SubmitTime = nowEt,
                     OperaStatusId = initialStatus,
                     ActivityTypeId = _typeId.Value,
                     ActivitySubTypeId = _subTypeId.Value,
+                    TimeframeId = _timeframeId.Value,
                     SubmitterComments = _comments
                 });
             }
@@ -402,6 +628,7 @@
             _busy = false;
         }
     }
+
 
     public void Dispose()
     {

@@ -172,8 +172,6 @@ namespace MyApplication.Components.Service.Aws
         {
             using var ctx = await _factory.CreateDbContextAsync();
             return await ctx.EmployeeRoutingProfiles
-                .Include(x => x.WeekdayProfile)
-                .Include(x => x.WeekendProfile)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.EmployeeId == employeeId);
         }
@@ -181,16 +179,29 @@ namespace MyApplication.Components.Service.Aws
         public async Task SaveEmployeeAssignmentAsync(EmployeeRoutingProfile assignment)
         {
             using var ctx = await _factory.CreateDbContextAsync();
-            if (assignment.Id == 0)
+
+            // Always update a tracked entity - avoid Update() on detached graphs
+            var existing = await ctx.EmployeeRoutingProfiles
+                .FirstOrDefaultAsync(x => x.EmployeeId == assignment.EmployeeId);
+
+            if (existing == null)
             {
-                ctx.EmployeeRoutingProfiles.Add(assignment);
+                ctx.EmployeeRoutingProfiles.Add(new EmployeeRoutingProfile
+                {
+                    EmployeeId = assignment.EmployeeId,
+                    WeekdayProfileId = assignment.WeekdayProfileId,
+                    WeekendProfileId = assignment.WeekendProfileId
+                });
             }
             else
             {
-                ctx.EmployeeRoutingProfiles.Update(assignment);
+                existing.WeekdayProfileId = assignment.WeekdayProfileId;
+                existing.WeekendProfileId = assignment.WeekendProfileId;
             }
+
             await ctx.SaveChangesAsync();
         }
+
 
         // Helper to get Skills for the Queue Dropdown
         public async Task<List<SkillType>> GetSkillTypesAsync()

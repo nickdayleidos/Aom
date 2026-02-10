@@ -44,6 +44,7 @@
                     @* New Hire: just show the edit form full-width *@
                     <MudItem xs="12" md="12">
                         <AcrFormHost Value="_vm"
+                                     CanEditEffectiveDate="@_canEditEffectiveDate"
                                      ValueChanged="OnVmChanged"
                                      Mode="_mode" />
                     </MudItem>
@@ -77,6 +78,10 @@
     private AcrEditVm? _vm;
     private AcrCreateVm? _mirror;
     private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
+    private bool _canEditEffectiveDate;
+
+
+
 
     protected override async Task OnParametersSetAsync()
     {
@@ -92,6 +97,9 @@
         var authState = await AuthState.GetAuthenticationStateAsync();
         var user = authState.User;
         var isAuth = false;
+
+        _canEditEffectiveDate = user.IsInRole("Admin") || user.IsInRole("WFM");
+
 
         if (statusId.Value == 1) // Submitted
         {

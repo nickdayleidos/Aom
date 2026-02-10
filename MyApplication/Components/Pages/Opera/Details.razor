@@ -1,5 +1,5 @@
 ﻿@page "/opera/{RequestId:int}"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead")]
+@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")]
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Common.Time
 @using MyApplication.Components.Service
@@ -104,7 +104,6 @@
         </MudGrid>
     </MudPaper>
 
-    @* ... (Rest of UI same as before) ... *@
     @if (_item == null)
     {
         <MudProgressLinear Indeterminate="true" />
@@ -182,6 +181,42 @@
                             </MudItem>
                         </MudGrid>
 
+                        @* Timeframe & IsImpacting fields (WFM editable only) *@
+                        <MudGrid>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.caption">Timeframe</MudText>
+                                @if (_isEditing && _canEditTimeframeByWfm)
+                                {
+                                    <MudSelect T="int?" @bind-Value="_item.TimeframeId" Variant="Variant.Outlined">
+                                        @foreach (var tf in _timeframes)
+                                        {
+                                            <MudSelectItem T="int?" Value="@tf.Id">@tf.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                }
+                                else
+                                {
+                                    <MudField Variant="Variant.Outlined">@(_timeframes.FirstOrDefault(t => t.Id == _item.TimeframeId)?.Name ?? _item.TimeframeId.ToString())</MudField>
+                                }
+                            </MudItem>
+
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.caption">Is Impacting</MudText>
+                                @if (_isEditing && _canEditTimeframeByWfm)
+                                {
+                                    <MudSelect T="bool?" @bind-Value="_item.IsImpacting" Variant="Variant.Outlined">
+                                        <MudSelectItem T="bool?" Value="@(null)">-- unset --</MudSelectItem>
+                                        <MudSelectItem T="bool?" Value="true">True</MudSelectItem>
+                                        <MudSelectItem T="bool?" Value="false">False</MudSelectItem>
+                                    </MudSelect>
+                                }
+                                else
+                                {
+                                    <MudField Variant="Variant.Outlined">@(_item.IsImpacting == true ? "True" : _item.IsImpacting == false ? "False" : "Unset")</MudField>
+                                }
+                            </MudItem>
+                        </MudGrid>
+
                         @if (_isEditing)
                         {
                             <MudTextField Label="Comments" @bind-Value="_item.SubmitterComments" Lines="3" Variant="Variant.Outlined" />
@@ -217,7 +252,7 @@
                 </MudPaper>
             </MudItem>
 
-            @* Schedule Block *@
+            @* Schedule Block (unchanged) *@
             <MudItem xs="12" md="6">
                 <MudPaper Class="pa-4 h-100" Outlined="true">
                     <MudStack Spacing="3">
@@ -268,6 +303,7 @@
     private Dictionary<int, string> _subTypes = new();
     private Dictionary<int, string> _filteredSubTypes = new();
 
+    // Injected Db already present in your original; keep for lookups where Repo not used
     [Inject] MyApplication.Components.Data.AomDbContext Db { get; set; } = default!;
 
     // Edit State
@@ -284,6 +320,12 @@
 
     // Cache raw subtypes for filtering
     private List<ActivitySubType> _rawSubTypes = new();
+
+    // timeframes loaded for display/edit
+    private List<OperaTimeframe> _timeframes = new();
+
+    // WFM-only edit gate for timeframe & isimpacting
+    private bool _canEditTimeframeByWfm = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -304,6 +346,8 @@
 
         // Cancel - ost, wfm, admin, manager, supervisor
         _canCancel = isAdmin || isWfm || isOst || isManager || isSupervisor;
+
+        _canEditTimeframeByWfm = isWfm || isAdmin; // only WFM can edit timeframe & isimpacting
 
         await LoadDataAsync();
     }
@@ -327,6 +371,9 @@
 
             var startOfWeek = DateOnly.FromDateTime(_item.StartTime.Date.AddDays(-(int)_item.StartTime.DayOfWeek));
             _schedule = await Repo.GetEmployeeWeeklyScheduleAsync(_item.EmployeeId, startOfWeek);
+
+            // load timeframes for display/edit
+            _timeframes = (await Repo.GetTimeframesAsync())?.ToList() ?? new List<OperaTimeframe>();
         }
     }
 
@@ -409,6 +456,7 @@
         _editEndTime = endDisplay.TimeOfDay;
 
         FilterSubTypes(_item.ActivityTypeId);
+
         _isEditing = true;
     }
 
@@ -434,7 +482,6 @@
         _item.EndTime = FromDisplayTime(endDisplay);
 
         // --- NEW STATUS LOGIC ---
-        // Vacation (11) -> Pending (6), Else -> Submitted (1)
         int newStatus = (_item.ActivitySubTypeId == 11) ? 6 : 1;
         _item.OperaStatusId = newStatus;
         // ------------------------
@@ -443,6 +490,7 @@
         _item.LastUpdatedBy = user.UserName ?? "Unknown";
         try
         {
+            // Only WFM should be allowed to edit TimeframeId/IsImpacting in practice - we rely on server-side checks.
             await Repo.UpdateAsync(_item);
             Snackbar.Add("Request updated and status reset.", Severity.Success);
             _isEditing = false;
