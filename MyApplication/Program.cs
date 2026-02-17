@@ -228,6 +228,9 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
+}
+else
+{
     app.UseMigrationsEndPoint();
 }
 
@@ -235,6 +238,8 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/healthz", () => Results.Ok("ok"));
 
 app.MapStaticAssets();
 app.UseAntiforgery();
