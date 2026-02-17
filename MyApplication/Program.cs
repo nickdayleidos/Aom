@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Hosting.WindowsServices;
+using Microsoft.IdentityModel.Tokens;
 using MudBlazor.Services;
 using MyApplication;
 using MyApplication.Common.Time;
@@ -15,7 +18,6 @@ using MyApplication.Components.Service.Training;
 using MyApplication.Components.Service.Training.Certifications;
 using MyApplication.Components.Service.Wfm;
 using MyApplication.Components.Services.Email;
-using System.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +30,7 @@ if (isWindowsService)
 {
     builder.Host.UseWindowsService();
     builder.Logging.AddEventLog();
-    builder.WebHost.UseKestrel().UseUrls("https://0.0.0.0:8443");
+    builder.WebHost.UseKestrel().UseUrls("http://0.0.0.0:8080");
 
     // Set content root if running as service
     builder.Configuration.SetBasePath(AppContext.BaseDirectory);
@@ -43,7 +45,6 @@ builder.Services.AddDbContextFactory<AomDbContext>((sp, opts) =>
 {
     var cfg = sp.GetRequiredService<IConfiguration>();
     opts.UseSqlServer(cfg.GetConnectionString("AOM"), sql => sql.EnableRetryOnFailure());
-   // opts.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
     opts.EnableSensitiveDataLogging(false); // Disable in prod
 });
 
@@ -59,14 +60,90 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 // 3. Authentication & Authorization
 // ────────────────────────────────────────────────────────────────────────────────
 
-builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
+var authMode = builder.Configuration["Authentication:Mode"]?.Trim();
+var useEntra = string.Equals(authMode, "Entra", StringComparison.OrdinalIgnoreCase);
+var disableAuth = builder.Configuration.GetValue<bool>("Authentication:DisableAuth");
+
+if (disableAuth)
+{
+    builder.Services.AddAuthentication();
+}
+else if (useEntra)
+{
+    var instance = builder.Configuration["AzureAd:Instance"];
+    var tenantId = builder.Configuration["AzureAd:TenantId"];
+    var clientId = builder.Configuration["AzureAd:ClientId"];
+    var clientSecret = builder.Configuration["AzureAd:ClientSecret"];
+
+    if (string.IsNullOrWhiteSpace(instance) ||
+        string.IsNullOrWhiteSpace(tenantId) ||
+        string.IsNullOrWhiteSpace(clientId) ||
+        string.IsNullOrWhiteSpace(clientSecret))
+    {
+        throw new InvalidOperationException(
+            "Entra mode is enabled, but AzureAd configuration is incomplete. " +
+            "Set AzureAd:Instance, AzureAd:TenantId, AzureAd:ClientId, and AzureAd:ClientSecret.");
+    }
+
+    builder.Services
+        .AddAuthentication(options =>
+        {
+            options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+            options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        })
+        .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme)
+        .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, options =>
+        {
+            var authorityInstance = instance!.TrimEnd('/');
+            options.Authority = $"{authorityInstance}/{tenantId}/v2.0";
+            options.ClientId = clientId;
+            options.ClientSecret = clientSecret;
+            options.ResponseType = "code";
+            options.SaveTokens = true;
+            options.GetClaimsFromUserInfoEndpoint = true;
+
+            options.CallbackPath = builder.Configuration["AzureAd:CallbackPath"] ?? "/signin-oidc";
+            options.SignedOutCallbackPath = builder.Configuration["AzureAd:SignedOutCallbackPath"] ?? "/signout-callback-oidc";
+
+            options.Scope.Clear();
+            options.Scope.Add("openid");
+            options.Scope.Add("profile");
+            options.Scope.Add("email");
+
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                NameClaimType = "name",
+                RoleClaimType = "roles"
+            };
+        });
+}
+else
+{
+    // Default/legacy on-prem auth path
+    builder.Services
+        .AddAuthentication(NegotiateDefaults.AuthenticationScheme)
+        .AddNegotiate();
+}
+
 builder.Services.AddHttpContextAccessor();
 
-// This Enricher will now query the DB and add claims like Role="Admin", Role="WFM"
+// Existing enricher remains for Windows mode. In Entra mode it safely no-ops.
 builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, WindowsClaimsEnricher>();
 
 builder.Services.AddAuthorization(options =>
 {
+    if (disableAuth)
+    {
+        var allowAllPolicy = new AuthorizationPolicyBuilder()
+            .RequireAssertion(_ => true)
+            .Build();
+
+        options.DefaultPolicy = allowAllPolicy;
+        options.FallbackPolicy = allowAllPolicy;
+        return;
+    }
+
     // 1. Admin Policy: Requires 'Admin' role from DB
     options.AddPolicy("Admin", policy =>
         policy.RequireRole("Admin"));
@@ -135,13 +212,10 @@ builder.Services.AddScoped<OperationalImpactEmailService>();
 builder.Services.AddScoped<IProactiveRepository, ProactiveRepository>();
 builder.Services.AddScoped<ICertificationsRepository, CertificationsRepository>();
 
-
 builder.Services.AddScoped<MyApplication.Components.Service.Security.SecurityService>();
 
 builder.Services.AddScoped<MyApplication.Components.Service.Aws.AwsRoutingService>();
 builder.Services.AddTransient<IOstPassdownService, OstPassdownService>(); // Added
-
-
 
 // ────────────────────────────────────────────────────────────────────────────────
 // 6. Application Pipeline

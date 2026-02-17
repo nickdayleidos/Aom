@@ -1,0 +1,136 @@
+@page "/entra-user"
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IConfiguration Configuration
+
+<PageTitle>Entra User Test</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-3">Entra User Test</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">Use this page to confirm which identity claims are available after Entra sign-in.</MudText>
+    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+        Authentication mode: <b>@_authMode</b>
+    </MudAlert>
+
+    @if (_isLoading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (_user is null || !(_user.Identity?.IsAuthenticated ?? false))
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-3">
+            No authenticated user context was found for this session.
+        </MudAlert>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Href="@_loginUrl">
+            Sign in with Entra
+        </MudButton>
+    }
+    else
+    {
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Secondary"
+                   Href="@_logoutUrl"
+                   Class="mb-4">
+            Sign out
+        </MudButton>
+
+        <MudPaper Class="pa-4 mb-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">Common Entra Fields</MudText>
+            <MudSimpleTable Dense="true" Hover="false" Elevation="0">
+                <tbody>
+                    <tr><td><b>Name</b></td><td>@GetFirst("name", ClaimTypes.Name)</td></tr>
+                    <tr><td><b>Preferred Username</b></td><td>@GetFirst("preferred_username", "upn")</td></tr>
+                    <tr><td><b>Email</b></td><td>@GetFirst(ClaimTypes.Email, "email")</td></tr>
+                    <tr><td><b>Object Id (oid)</b></td><td>@GetFirst("oid", ClaimTypes.NameIdentifier)</td></tr>
+                    <tr><td><b>Tenant Id (tid)</b></td><td>@GetFirst("tid")</td></tr>
+                    <tr><td><b>Auth Type</b></td><td>@(_user.Identity?.AuthenticationType ?? "(none)")</td></tr>
+                    <tr><td><b>Identity Name</b></td><td>@(_user.Identity?.Name ?? "(none)")</td></tr>
+                </tbody>
+            </MudSimpleTable>
+        </MudPaper>
+
+        <MudPaper Class="pa-4 mb-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">Roles</MudText>
+            @if (_roles.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">No role claims found.</MudAlert>
+            }
+            else
+            {
+                <MudChipSet T="string" ReadOnly="true">
+                    @foreach (var role in _roles)
+                    {
+                        <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">@role</MudChip>
+                    }
+                </MudChipSet>
+            }
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-2">All Claims</MudText>
+            <MudTable Items="_claims" Dense="true" Hover="true" Bordered="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>Type</MudTh>
+                    <MudTh>Value</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Type">@context.Type</MudTd>
+                    <MudTd DataLabel="Value">@context.Value</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private ClaimsPrincipal? _user;
+    private bool _isLoading = true;
+    private List<Claim> _claims = new();
+    private List<string> _roles = new();
+    private string _authMode = "Unknown";
+    private readonly string _returnUrl = "/entra-user";
+
+    private string _loginUrl => $"/account/login?returnUrl={Uri.EscapeDataString(_returnUrl)}";
+    private string _logoutUrl => $"/account/logout?returnUrl={Uri.EscapeDataString(_returnUrl)}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _authMode = Configuration["Authentication:Mode"] ?? "Windows";
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _user = authState.User;
+        _claims = _user.Claims.OrderBy(c => c.Type).ThenBy(c => c.Value).ToList();
+
+        var roleTypes = _user.Identities
+            .Select(i => i.RoleClaimType)
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        roleTypes.Add(ClaimTypes.Role);
+        roleTypes.Add("roles");
+
+        _roles = _claims
+            .Where(c => roleTypes.Contains(c.Type))
+            .Select(c => c.Value)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(v => v)
+            .ToList();
+
+        _isLoading = false;
+    }
+
+    private string GetFirst(params string[] types)
+    {
+        foreach (var type in types)
+        {
+            var value = _user?.FindFirst(type)?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return "(missing)";
+    }
+}

@@ -1,4 +1,4 @@
-﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <MudNavMenu>
@@ -7,6 +7,7 @@
     <MudNavGroup Title="Employees" Icon="@Icons.Material.Filled.People" Expanded="true">
         <MudNavLink Href="employees" Icon="@Icons.Material.Filled.List">Employee List</MudNavLink>
         <MudNavLink Href="employees/schedules" Icon="@Icons.Material.Filled.Schedule">Schedules</MudNavLink>
+        <MudNavLink Href="entra-user" Icon="@Icons.Material.Filled.Badge">Entra User Test</MudNavLink>
     </MudNavGroup>
 
     <MudNavGroup Title="WFM" Icon="@Icons.Material.Filled.Work" Expanded="false">
