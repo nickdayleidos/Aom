@@ -28,7 +28,6 @@ if (isWindowsService)
 {
     builder.Host.UseWindowsService();
     builder.Logging.AddEventLog();
-    builder.WebHost.UseKestrel().UseUrls("https://0.0.0.0:8443");
 
     // Set content root if running as service
     builder.Configuration.SetBasePath(AppContext.BaseDirectory);
