@@ -1,4 +1,4 @@
-﻿@page "/tools/operationalimpact"
+@page "/tools/operationalimpact"
 @using System.IO
 @using MudBlazor
 @using MyApplication.Common
@@ -16,8 +16,7 @@
 @inject AuthenticationStateProvider Auth
 @inject NavigationManager Nav
 @using Microsoft.JSInterop;
-@attribute [Authorize(Roles = "Admin,OST,WFM")]
-
+@* @attribute [Authorize(Roles = "Admin,OST,WFM")] *@
 <MudStack Spacing="2">
     <MudPaper Class="pa-3 d-flex gap-2 align-center" Outlined="true">
         <MudButton OnClick="@LoadAsync" StartIcon="@Icons.Material.Filled.Refresh">Refresh</MudButton>
@@ -299,3 +298,4 @@
     }
 
 }
+

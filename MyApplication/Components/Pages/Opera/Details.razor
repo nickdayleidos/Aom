@@ -1,5 +1,5 @@
-﻿@page "/opera/{RequestId:int}"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")]
+@page "/opera/{RequestId:int}"
+@* @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")] *@
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Common.Time
 @using MyApplication.Components.Service
@@ -502,3 +502,4 @@
         }
     }
 }
+

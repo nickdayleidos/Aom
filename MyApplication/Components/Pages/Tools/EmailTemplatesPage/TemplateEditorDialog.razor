@@ -1,10 +1,9 @@
-﻿@using MudBlazor
+@using MudBlazor
 @using Microsoft.AspNetCore.Components.Forms
 @using Dapper
 @using Microsoft.Data.SqlClient
 @using MyApplication.Components.Pages.Tools <!-- for TemplateEditModel -->
-@attribute [Authorize(Policy = "Admin")]
-
+@* @attribute [Authorize(Policy = "Admin")] *@
 <MudDialog>
     <DialogContent>
         <EditForm EditContext="_edit" OnValidSubmit="SaveAsync">
@@ -76,3 +75,4 @@
 
     private void CancelDialog() => Dialog.Cancel();
 }
+

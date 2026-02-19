@@ -1,5 +1,5 @@
-﻿@page "/tools/ost-passdown/{Id:int}"
-@attribute [Authorize(Roles = "Admin, OST")]
+@page "/tools/ost-passdown/{Id:int}"
+@* @attribute [Authorize(Roles = "Admin, OST")] *@
 @using OstPassdownEntity = MyApplication.Components.Model.AOM.Tools.OstPassdown
 @using MyApplication.Components.Service.Tools.OstPassdown
 @inject IOstPassdownService PassdownService

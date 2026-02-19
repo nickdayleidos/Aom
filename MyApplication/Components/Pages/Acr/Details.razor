@@ -1,5 +1,5 @@
-﻿@page "/acr/{Id:int}"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+@page "/acr/{Id:int}"
+@* @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")] *@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IAcrQueryService Query
 @inject IAcrService Acr

@@ -1,7 +1,6 @@
-﻿@page "/employees/{Id:int}"
+@page "/employees/{Id:int}"
 @* 1. PAGE ACCESS: Expanded to include OST, WFM, Managers, Supervisors *@
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")]
-
+@* @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")] *@
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Components.Pages.Employees.Dialogs
 @using MyApplication.Common.Time

@@ -1,6 +1,5 @@
-﻿@page "/training/skills/new"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Training")]
-
+@page "/training/skills/new"
+@* @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Training")] *@
 @using System.ComponentModel.DataAnnotations
 @using MudBlazor
 @using MyApplication.Components.Model.AOM.Employee
@@ -193,3 +192,4 @@
         public bool IsActive { get; set; } = true;
     }
 }
+

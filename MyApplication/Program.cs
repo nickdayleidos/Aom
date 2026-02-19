@@ -1,4 +1,3 @@
-﻿using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Hosting.WindowsServices;
@@ -19,9 +18,9 @@ using System.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
 // 1. Host Configuration (Windows Service)
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
 var isWindowsService = WindowsServiceHelpers.IsWindowsService();
 
 if (isWindowsService)
@@ -33,9 +32,9 @@ if (isWindowsService)
     builder.Configuration.SetBasePath(AppContext.BaseDirectory);
 }
 
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
 // 2. Database Configuration
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
 
 // AOM Context - Using Factory pattern for Blazor Server concurrency
 builder.Services.AddDbContextFactory<AomDbContext>((sp, opts) =>
@@ -54,55 +53,27 @@ builder.Services.AddDbContext<AwsDbContext>(opt =>
 builder.Services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// ────────────────────────────────────────────────────────────────────────────────
-// 3. Authentication & Authorization
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
+// 3. Authentication & Authorization (Temporary Azure-safe mode)
+// --------------------------------------------------------------------------------
 
-builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme).AddNegotiate();
 builder.Services.AddHttpContextAccessor();
 
-// This Enricher will now query the DB and add claims like Role="Admin", Role="WFM"
-builder.Services.AddScoped<Microsoft.AspNetCore.Authentication.IClaimsTransformation, WindowsClaimsEnricher>();
+builder.Services.AddAuthorization();
 
-builder.Services.AddAuthorization(options =>
-{
-    // 1. Admin Policy: Requires 'Admin' role from DB
-    options.AddPolicy("Admin", policy =>
-        policy.RequireRole("Admin"));
 
-    // 2. OST Policy: Requires 'Admin' OR 'OST' role
-    options.AddPolicy("OST", policy =>
-        policy.RequireRole("Admin", "OST"));
-
-    // 3. Management Policies (Shared access for management roles)
-    // Any of these roles can access pages protected by these policies
-    var managementRoles = new[] { "Admin", "Manager", "Supervisor", "WFM" };
-
-    foreach (var policyName in new[] { "PFM", "WFM", "C&C", "Supervisor", "Manager" })
-    {
-        options.AddPolicy(policyName, policy =>
-            policy.RequireRole(managementRoles));
-    }
-
-    // 4. View Only / General Access
-    options.AddPolicy("ViewOnly", policy =>
-        policy.RequireRole("Admin", "Manager", "Supervisor", "WFM", "OST", "ViewOnly"));
-
-    options.FallbackPolicy = options.DefaultPolicy;
-});
-
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
 // 4. Core & UI Services
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 builder.Services.AddMudServices();
 
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
 // 5. Domain Services
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
 
 // Common / Helpers
 builder.Services.AddScoped<ITimeDisplayService, TimeDisplayService>();
@@ -142,9 +113,9 @@ builder.Services.AddTransient<IOstPassdownService, OstPassdownService>(); // Add
 
 
 
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
 // 6. Application Pipeline
-// ────────────────────────────────────────────────────────────────────────────────
+// --------------------------------------------------------------------------------
 
 var app = builder.Build();
 
@@ -158,15 +129,16 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
 app.UseAntiforgery();
 
 app.MapControllers();
+app.MapGet("/healthz", () => Results.Ok("ok")).AllowAnonymous();
 
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
 
 app.Run();
+

@@ -1,5 +1,5 @@
-﻿@page "/wfm/aws/profiles/{id:int}"
-@attribute [Authorize(Roles = "Admin,WFM")]
+@page "/wfm/aws/profiles/{id:int}"
+@* @attribute [Authorize(Roles = "Admin,WFM")] *@
 @using MyApplication.Components.Model.AOM.Aws
 @using MyApplication.Components.Service.Aws
 @inject AwsRoutingService Service

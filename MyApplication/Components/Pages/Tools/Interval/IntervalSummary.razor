@@ -1,4 +1,4 @@
-﻿@page "/tools/intervalsummary"
+@page "/tools/intervalsummary"
 @using MudBlazor
 @using Dapper
 @using Microsoft.Data.SqlClient
@@ -7,8 +7,7 @@
 @using Microsoft.AspNetCore.Components.Authorization;
 @using System.Security.Claims;
 @using System.Net;
-@attribute [Authorize(Roles = "Admin,OST,WFM")]
-
+@* @attribute [Authorize(Roles = "Admin,OST,WFM")] *@
 <PageTitle>Interval Summary</PageTitle>
 
 <MudStack Spacing="2">

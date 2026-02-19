@@ -1,4 +1,4 @@
-﻿@page "/tools/proactive"
+@page "/tools/proactive"
 @using MyApplication.Common
 @using MyApplication.Components.Service
 @using MyApplication.Components.Services.Email
@@ -8,7 +8,7 @@
 @inject ISnackbar Snackbar
 @inject Microsoft.JSInterop.IJSRuntime JS
 @using AomModel = MyApplication.Components.Model.AOM.Tools
-@attribute [Authorize(Roles = "Admin,OST,WFM")]
+@* @attribute [Authorize(Roles = "Admin,OST,WFM")] *@
 @inject AuthenticationStateProvider Auth
 
 
@@ -182,3 +182,4 @@
 
 
 }
+
