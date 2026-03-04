@@ -1,22 +1,19 @@
 @page "/opera/{RequestId:int}"
-@* @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")] *@
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.FullAccess)]
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Common.Time
 @using MyApplication.Components.Service
 @using Microsoft.EntityFrameworkCore
-@using Microsoft.AspNetCore.Components.Authorization
 @inject IOperaRepository Repo
-@inject NavigationManager Nav
-@inject ISnackbar Snackbar
 @inject UserProfileService UserProfile
-@inject AuthenticationStateProvider AuthStateProvider
 
 <MudStack Spacing="4">
     <MudPaper Class="pa-4" Outlined="true">
         <MudGrid AlignItems="AlignItems.Center">
             <MudItem xs="12" md="5">
                 <MudStack Row="true" AlignItems="AlignItems.Center">
-                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/opera"))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/opera"))" />
                     <MudStack Spacing="0">
                         <MudText Typo="Typo.h5">Opera Request #@RequestId</MudText>
                         @if (_item != null)
@@ -329,25 +326,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-
-        bool isAdmin = user.IsInRole("Admin");
-        bool isWfm = user.IsInRole("WFM");
-        bool isOst = user.IsInRole("OST");
-        bool isManager = user.IsInRole("Manager");
-        bool isSupervisor = user.IsInRole("Supervisor");
+        var roles = await GetUserRolesAsync();
 
         // approve - WFM, OST, Admin
-        _canApprove = isAdmin || isWfm || isOst;
+        _canApprove = roles.IsAdmin || roles.IsWfm || roles.IsOst;
 
         // reject/ pending status permissions - WFM, Admin
-        _canRejectPending = isAdmin || isWfm;
+        _canRejectPending = roles.IsAdmin || roles.IsWfm;
 
         // Cancel - ost, wfm, admin, manager, supervisor
-        _canCancel = isAdmin || isWfm || isOst || isManager || isSupervisor;
+        _canCancel = roles.IsManagement;
 
-        _canEditTimeframeByWfm = isWfm || isAdmin; // only WFM can edit timeframe & isimpacting
+        _canEditTimeframeByWfm = roles.IsWfm || roles.IsAdmin; // only WFM can edit timeframe & isimpacting
 
         await LoadDataAsync();
     }
@@ -389,12 +379,12 @@
         try
         {
             await Repo.SetStatusAsync(_item.RequestId, statusId, actor);
-            Snackbar.Add("Status updated.", Severity.Success);
+            ShowSuccess("Status updated.");
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error updating status: {ex.Message}", Severity.Error);
+            ShowError($"Error updating status: {ex.Message}");
         }
     }
 
@@ -471,7 +461,7 @@
         if (_item == null) return;
         if (!_editStartDate.HasValue || !_editStartTime.HasValue || !_editEndDate.HasValue || !_editEndTime.HasValue)
         {
-            Snackbar.Add("Start and End times are required.", Severity.Warning);
+            ShowWarning("Start and End times are required.");
             return;
         }
 
@@ -492,13 +482,13 @@
         {
             // Only WFM should be allowed to edit TimeframeId/IsImpacting in practice - we rely on server-side checks.
             await Repo.UpdateAsync(_item);
-            Snackbar.Add("Request updated and status reset.", Severity.Success);
+            ShowSuccess("Request updated and status reset.");
             _isEditing = false;
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error updating request: {ex.Message}", Severity.Error);
+            ShowError($"Error updating request: {ex.Message}");
         }
     }
 }

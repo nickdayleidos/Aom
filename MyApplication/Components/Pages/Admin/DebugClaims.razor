@@ -2,12 +2,18 @@
 @using System.Security.Claims
 @using System.Security.Principal
 @using Microsoft.AspNetCore.Components.Authorization
-@inject AuthenticationStateProvider AuthStateProvider
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.Graph
+@using Microsoft.Graph.Models
+@inherits AppComponentBase
+@attribute [Authorize]
+@inject GraphServiceClient GraphClient
 
 <MudStack Spacing="4" Class="pa-4">
-    <MudText Typo="Typo.h5">User Claims Debugger</MudText>
+    <MudText Typo="Typo.h5">User Claims Debugger (Entra ID)</MudText>
     <MudAlert Severity="Severity.Info">
-        If you see a <b>SID</b> (starts with S-1-5...) in the Value column, check the <b>Translated</b> column for the friendly name to copy into the Role Assignment.
+        This page displays all claims from your Entra ID (Azure AD) authentication token.
+        Use this information for troubleshooting authentication and configuring role-based access.
     </MudAlert>
 
     <MudPaper Class="pa-4" Outlined="true">
@@ -22,65 +28,163 @@
     </MudPaper>
 
     <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">Groups (via Microsoft Graph API)</MudText>
+        @if (IsLoading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+            <MudText Typo="Typo.body2" Class="mt-2">Loading groups from Microsoft Graph...</MudText>
+        }
+        else if (!string.IsNullOrEmpty(_groupsError))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true">
+                Error loading groups: @_groupsError
+            </MudAlert>
+        }
+        else if (_groups.Any())
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mb-2">
+                Found @_groups.Count group(s) via Microsoft Graph API
+            </MudAlert>
+            <MudTable Items="_groups" Dense="true" Striped="true" Hover="true">
+                <HeaderContent>
+                    <MudTh>Group Name</MudTh>
+                    <MudTh>Group ID</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudText Typo="Typo.body2" Style="font-weight: 500">@context.DisplayName</MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.caption" Style="font-family: monospace">@context.Id</MudText>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">
+                No groups found for this user.
+            </MudAlert>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Outlined="true">
         <MudText Typo="Typo.h6" Class="mb-2">All Claims</MudText>
-        <MudTable Items="_claims" Dense="true" Striped="true" Hover="true">
+        <MudTable Items="_claims" Dense="true" Striped="true" Hover="true" Filter="new Func<Claim, bool>(FilterClaims)">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_searchString" Placeholder="Search claims..." Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
             <HeaderContent>
                 <MudTh>Type</MudTh>
-                <MudTh>Value (Raw)</MudTh>
-                <MudTh>Translated (Copy This)</MudTh>
+                <MudTh>Value</MudTh>
                 <MudTh>Issuer</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>
-                    <MudText Typo="Typo.caption">@context.Type.Split('/').Last()</MudText>
+                    <MudText Typo="Typo.caption" Style="font-weight: 500">
+                        @GetFriendlyClaimType(context.Type)
+                    </MudText>
                 </MudTd>
                 <MudTd>
-                    <MudText Typo="Typo.body2" Style="font-family: monospace">@context.Value</MudText>
-                </MudTd>
-                <MudTd>
-                    @if (IsSid(context))
-                    {
-                        <MudText Color="Color.Primary" Style="font-weight:bold">@TryTranslateSid(context.Value)</MudText>
-                    }
-                    else
-                    {
+                    <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all">
                         @context.Value
-                    }
+                    </MudText>
                 </MudTd>
-                <MudTd>@context.Issuer</MudTd>
+                <MudTd>
+                    <MudText Typo="Typo.caption">@context.Issuer.Split('/').LastOrDefault()</MudText>
+                </MudTd>
             </RowTemplate>
         </MudTable>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Outlined="true">
+        <MudText Typo="Typo.h6" Class="mb-2">Common Entra ID Claims Reference</MudText>
+        <MudSimpleTable Dense="true" Striped="true">
+            <thead>
+                <tr>
+                    <th>Claim Type</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><b>preferred_username</b></td><td>User's email or UPN</td></tr>
+                <tr><td><b>name</b></td><td>User's display name</td></tr>
+                <tr><td><b>oid</b></td><td>User's unique object ID in Azure AD</td></tr>
+                <tr><td><b>tid</b></td><td>Tenant ID</td></tr>
+                <tr><td><b>roles</b></td><td>App roles assigned to the user</td></tr>
+                <tr><td><b>groups</b></td><td>Group memberships (if configured)</td></tr>
+            </tbody>
+        </MudSimpleTable>
     </MudPaper>
 </MudStack>
 
 @code {
     private ClaimsPrincipal? _user;
     private List<Claim> _claims = new();
+    private List<GroupInfo> _groups = new();
+    private string _searchString = "";
+    private string _groupsError = "";
 
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthStateProvider.GetAuthenticationStateAsync();
         _user = state.User;
-        _claims = _user.Claims.OrderBy(c => c.Type).ToList();
+        _claims = _user.Claims.OrderBy(c => GetFriendlyClaimType(c.Type)).ToList();
+
+        // Fetch groups from Microsoft Graph API
+        await LoadGroupsFromGraphAsync();
     }
 
-    private bool IsSid(Claim c)
+    private async Task LoadGroupsFromGraphAsync()
     {
-        return c.Type == ClaimTypes.GroupSid || c.Type == ClaimTypes.PrimarySid || c.Value.StartsWith("S-1-5-");
-    }
-
-    private string TryTranslateSid(string sid)
-    {
+        _groupsError = "";
         try
         {
-            // Attempt to translate SID -> NTAccount (Domain\Group)
-            // This works if the server can talk to the Domain Controller
-            var securityIdentifier = new SecurityIdentifier(sid);
-            return securityIdentifier.Translate(typeof(NTAccount)).ToString();
+            await RunAsync(async () =>
+            {
+                // Call Microsoft Graph to get user's group memberships
+                var memberOfResult = await GraphClient.Me.MemberOf.GetAsync();
+
+                if (memberOfResult?.Value != null)
+                {
+                    _groups = memberOfResult.Value
+                        .OfType<Group>()
+                        .Select(g => new GroupInfo
+                        {
+                            Id = g.Id ?? "N/A",
+                            DisplayName = g.DisplayName ?? "N/A"
+                        })
+                        .OrderBy(g => g.DisplayName)
+                        .ToList();
+                }
+            });
         }
-        catch
+        catch (Exception ex)
         {
-            return "Translation Failed (Use SID)";
+            _groupsError = $"{ex.GetType().Name}: {ex.Message}";
         }
+    }
+
+    private class GroupInfo
+    {
+        public string Id { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+    }
+
+    private bool FilterClaims(Claim claim)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        return claim.Type.Contains(_searchString, StringComparison.OrdinalIgnoreCase)
+            || claim.Value.Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetFriendlyClaimType(string claimType)
+    {
+        // Extract the last part of the claim type URI for better readability
+        var parts = claimType.Split('/');
+        return parts.Length > 0 ? parts[^1] : claimType;
     }
 }

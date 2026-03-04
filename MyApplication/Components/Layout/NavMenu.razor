@@ -1,5 +1,6 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
 
 <MudNavMenu>
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
@@ -42,4 +43,19 @@
             <MudNavLink Href="admin/debugclaims" Icon="@Icons.Material.Filled.BugReport">Debug Claims</MudNavLink>
         </MudNavGroup>
     </AuthorizeView>
+
+    <MudDivider Class="my-2" />
+
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink OnClick="SignOut" Icon="@Icons.Material.Filled.Logout">Sign Out</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
 </MudNavMenu>
+
+@code {
+    private void SignOut()
+    {
+        Navigation.NavigateTo("/Account/Logout", forceLoad: true);
+    }
+}

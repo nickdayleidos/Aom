@@ -1,10 +1,10 @@
 @page "/wfm/breaktemplates"
-@* @attribute [Authorize(Roles = "Admin,WFM")] *@
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.AdminWfm)]
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Wfm
 @using System.Text.Json
 @inject IWfmService WfmService
-@inject ISnackbar Snackbar
 
 <MudText Typo="Typo.h5" Class="mb-4">Break Templates</MudText>
 
@@ -177,9 +177,9 @@
         await WfmService.SaveBreakTemplateAsync(_newTemplate);
 
         if (_newTemplate.Id == 0)
-            Snackbar.Add("Template Created", Severity.Success);
+            ShowSuccess("Template Created");
         else
-            Snackbar.Add("Template Updated", Severity.Success);
+            ShowSuccess("Template Updated");
 
         // Reset and reload
         ResetForm();

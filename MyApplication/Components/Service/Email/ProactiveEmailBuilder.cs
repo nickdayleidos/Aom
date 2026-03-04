@@ -1,8 +1,8 @@
-ï»¿using System.Net;
+using System.Net;
 using System.Text;
 using MyApplication.Common.Time;   // <-- ET helpers
 
-namespace MyApplication.Components.Services.Email
+namespace MyApplication.Components.Service.Email
 {
     public static class ProactiveEmailBuilder
     {
@@ -30,7 +30,7 @@ namespace MyApplication.Components.Services.Email
                 return enc;
             }
 
-            // Render an Outlook-safe â€œcardâ€ using a simple table + inline styles
+            // Render an Outlook-safe “card” using a simple table + inline styles
             static string RenderCard(string heading, string contentHtml)
             {
                 const string bodyStyle =

@@ -1,11 +1,11 @@
-Ôªø// MyApplication/Components/Services/Email/IntervalEmailBuilder.cs
+// MyApplication/Components/Services/Email/IntervalEmailBuilder.cs
 using System.Globalization;
 using MyApplication.Components.Model.AOM.Tools;
-using MyApplication.Components.Services.Email;
+using MyApplication.Components.Service.Email;
 using System.Text.RegularExpressions;
 using AomModel = MyApplication.Components.Model.AOM;
 
-namespace MyApplication.Components.Services.Email;
+namespace MyApplication.Components.Service.Email;
 
 public static class IntervalEmailBuilder
 {
@@ -127,12 +127,12 @@ public static class IntervalEmailBuilder
         };
 
         var subjectTemplate = string.IsNullOrWhiteSpace(tpl.Subject)
-            ? "Interval Summary ‚Äì {{Date:MMMM d, yyyy}} ({{Interval}})"
+            ? "Interval Summary ñ {{Date:MMMM d, yyyy}} ({{Interval}})"
             : tpl.Subject;
 
         var subject = TemplateRenderer.Render(subjectTemplate, tokens, culture);
 
-        // If template's Body is empty, build an HTML body from the page state (close to your ‚Äúold‚Äù layout)
+        // If template's Body is empty, build an HTML body from the page state (close to your ìoldî layout)
         var bodyTemplate = string.IsNullOrWhiteSpace(tpl.Body) ? DefaultBodyTemplate : tpl.Body!;
         var bodyHtml = TemplateRenderer.Render(bodyTemplate, tokens, culture);
 

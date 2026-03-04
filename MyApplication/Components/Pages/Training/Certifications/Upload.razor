@@ -1,11 +1,10 @@
 ﻿@page "/training/certifications/upload"
+@inherits AppComponentBase
+@using MyApplication.Common.Time
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Training.Certifications
 @using Microsoft.AspNetCore.Components.Authorization
 @inject ICertificationsRepository Repository
-@inject NavigationManager Navigation
-@inject ISnackbar Snackbar
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Upload Certification</PageTitle>
 
@@ -128,7 +127,7 @@
     {
         if (file.ContentType != "application/pdf")
         {
-            Snackbar.Add("Only PDF files are allowed.", Severity.Error);
+            ShowError("Only PDF files are allowed.");
             return;
         }
         _file = file;
@@ -153,7 +152,7 @@
             _cert.CertificationDate = DateOnly.FromDateTime(_certDate.Value);
             _cert.ExpirationDate = DateOnly.FromDateTime(_expDate.Value);
             _cert.CeRegistrationDate = _ceDate.HasValue ? DateOnly.FromDateTime(_ceDate.Value) : null;
-            _cert.UploadDate = DateTime.Now;
+            _cert.UploadDate = Et.Now;
             _cert.UploadedBy = userName;
             _cert.Verified = false;
             _cert.VerifiedBy = "";
@@ -190,12 +189,12 @@
             _cert.FileName = fileName;
             await Repository.AddCertificationAsync(_cert);
 
-            Snackbar.Add("Certification uploaded successfully!", Severity.Success);
+            ShowSuccess("Certification uploaded successfully!");
             Navigation.NavigateTo("/training/certifications");
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error uploading: {ex.Message}", Severity.Error);
+            ShowError($"Error uploading: {ex.Message}");
         }
     }
 }

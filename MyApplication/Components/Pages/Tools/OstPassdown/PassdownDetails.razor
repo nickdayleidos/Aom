@@ -1,9 +1,9 @@
 @page "/tools/ost-passdown/{Id:int}"
-@* @attribute [Authorize(Roles = "Admin, OST")] *@
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.AdminOst)]
 @using OstPassdownEntity = MyApplication.Components.Model.AOM.Tools.OstPassdown
 @using MyApplication.Components.Service.Tools.OstPassdown
 @inject IOstPassdownService PassdownService
-@inject NavigationManager Navigation
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <div class="d-flex align-center mb-4">
@@ -13,7 +13,7 @@
 
     @if (_passdown == null)
     {
-        <MudProgressCircular Indeterminate="true" />
+        <LoadingSpinner />
     }
     else
     {

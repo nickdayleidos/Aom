@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,12 +9,12 @@ using MyApplication.Components.Data;
 using MyApplication.Components.Model.AOM;
 using MyApplication.Components.Model.AOM.Tools;
 
-namespace MyApplication.Components.Services.Email
+namespace MyApplication.Components.Service.Email
 {
     public sealed class EmailComposer : IEmailComposer
     {
-        private readonly AomDbContext _db;
-        public EmailComposer(AomDbContext db) => _db = db;
+        private readonly IDbContextFactory<AomDbContext> _dbFactory;
+        public EmailComposer(IDbContextFactory<AomDbContext> dbFactory) => _dbFactory = dbFactory;
 
         // -------- Interval --------
         public async Task<(string Subject, string BodyHtml, string To, string Cc, string From)>
@@ -85,11 +85,12 @@ namespace MyApplication.Components.Services.Email
 
         private async Task<EmailTemplates> GetTemplateAsync(string templateName, CancellationToken ct)
         {
-            var tpl = await _db.EmailTemplates
-                               .AsNoTracking()
-                               .Where(t => t.TemplateName == templateName && t.IsActive)
-                               .SingleOrDefaultAsync(ct)
-                               .ConfigureAwait(false);
+            await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            var tpl = await db.EmailTemplates
+                              .AsNoTracking()
+                              .Where(t => t.TemplateName == templateName && t.IsActive)
+                              .SingleOrDefaultAsync(ct)
+                              .ConfigureAwait(false);
 
             return tpl ?? throw new InvalidOperationException(
                 $"Email template '{templateName}' not found or inactive.");

@@ -1,16 +1,15 @@
 @page "/employees/{Id:int}"
+@inherits AppComponentBase
 @* 1. PAGE ACCESS: Expanded to include OST, WFM, Managers, Supervisors *@
-@* @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")] *@
+@attribute [Authorize(Roles = RoleConstants.FullAccess)]
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Components.Pages.Employees.Dialogs
 @using MyApplication.Common.Time
-@inject EmployeesRepository Repository
-@inject NavigationManager Nav
-@inject IDialogService DialogService
+@inject EmployeeDetailsService Repository
 
 <MudStack Spacing="4" Class="mb-8">
     <MudStack Row="true" AlignItems="AlignItems.Center">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/employees"))" />
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/employees"))" />
         <MudText Typo="Typo.h5">Employee Details</MudText>
         <MudSpacer />
         <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
@@ -23,9 +22,9 @@
         </MudStack>
     </MudStack>
 
-    @if (_loading)
+    @if (IsLoading)
     {
-        <MudProgressCircular Indeterminate="true" />
+        <LoadingSpinner />
     }
     else if (_vm == null)
     {
@@ -40,7 +39,7 @@
                         <MudText Typo="Typo.h6" Color="Color.Primary">Profile</MudText>
 
                         @* 2. EDIT PROFILE: Allowed for WFM, Manager, Supervisor, Admin *@
-                        <AuthorizeView Roles="Admin,WFM,Manager,Supervisor">
+                        <AuthorizeView Roles="@RoleConstants.Management">
                             <Authorized>
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                                Size="Size.Small"
@@ -239,7 +238,7 @@
                             <MudTd>@context.EffectiveDate</MudTd>
                             <MudTd>@context.Submitted</MudTd>
                             <MudTd>
-                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(() => Nav.NavigateTo($"/acr/{context.Id}"))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(() => Navigation.NavigateTo($"/acr/{context.Id}"))" />
                             </MudTd>
                         </RowTemplate>
                     </MudTable>
@@ -274,7 +273,6 @@
 @code {
     [Parameter] public int Id { get; set; }
     private EmployeeFullDetailsVm _vm;
-    private bool _loading = true;
 
     // Default to Local time (Site)
     private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
@@ -286,10 +284,10 @@
 
     private async Task LoadDataAsync()
     {
-        _loading = true;
-        _vm = await Repository.GetFullDetailsAsync(Id);
-        _loading = false;
-        StateHasChanged();
+        await RunAsync(async () =>
+        {
+            _vm = await Repository.GetFullDetailsAsync(Id);
+        });
     }
 
     private async Task EditProfileAsync()

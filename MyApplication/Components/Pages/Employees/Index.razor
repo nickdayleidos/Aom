@@ -1,8 +1,8 @@
 @page "/employees"
+@inherits AppComponentBase
 @using MyApplication.Components.Service.Employee
 @* @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")] *@
-@inject EmployeesRepository Repository
-@inject NavigationManager Navigation
+@inject EmployeeListService Repository
 
 <PageTitle>Employees</PageTitle>
 
@@ -11,39 +11,43 @@
 
     <MudGrid Class="mb-4 align-center" Spacing="1">
         <MudItem xs="12" sm="6" md="2">
-            <MudTextField T="string" Value="@_filter.SearchText" ValueChanged="@OnSearchTextChanged" Label="Search Name" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="500" Clearable="true" OnClearButtonClick="LoadData" />
+            <SearchBox Value="@_filter.SearchText" ValueChanged="@OnSearchTextChanged" Label="Search Name" Adornment="Adornment.End" DebounceInterval="500" />
         </MudItem>
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="int" Label="Organization" MultiSelection="true" SelectedValues="@_filter.OrganizationIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.OrganizationIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="OnFilterChanged" SearchFunc="@SearchOrganizations" ToStringFunc="@(id => _organizations.FirstOrDefault(x => x.Id == id)?.Name)">
-                @foreach (var org in _organizations)
-                {
-                    <MudSelectItem Value="@org.Id">@org.Name</MudSelectItem>
-                }
-            </MudSelect>
+            <MultiSelectFilter TItem="OrganizationDto" TValue="int"
+                Label="Organization"
+                Items="_organizations"
+                GetValue="@(x => x.Id)"
+                GetDisplayText="@(x => x.Name)"
+                SelectedValues="@_filter.OrganizationIds"
+                SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.OrganizationIds = x))" />
         </MudItem>
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="int" Label="Sub Organization" MultiSelection="true" SelectedValues="@_filter.SubOrganizationIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.SubOrganizationIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="OnFilterChanged" SearchFunc="@SearchSubOrganizations" ToStringFunc="@(id => _subOrganizations.FirstOrDefault(x => x.Id == id)?.Name)">
-                @foreach (var subOrg in GetFilteredSubOrganizations())
-                {
-                    <MudSelectItem Value="@subOrg.Id">@subOrg.Name</MudSelectItem>
-                }
-            </MudSelect>
+            <MultiSelectFilter TItem="SubOrganizationDto" TValue="int"
+                Label="Sub Organization"
+                Items="@GetFilteredSubOrganizations()"
+                GetValue="@(x => x.Id)"
+                GetDisplayText="@(x => x.Name)"
+                SelectedValues="@_filter.SubOrganizationIds"
+                SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.SubOrganizationIds = x))" />
         </MudItem>
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="int" Label="Supervisor" MultiSelection="true" SelectedValues="@_filter.SupervisorIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.SupervisorIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="OnFilterChanged" SearchFunc="@SearchSupervisors" ToStringFunc="@(id => _supervisors.FirstOrDefault(x => x.Id == id)?.Name)">
-                @foreach (var sup in _supervisors)
-                {
-                    <MudSelectItem Value="@sup.Id">@sup.Name</MudSelectItem>
-                }
-            </MudSelect>
+            <MultiSelectFilter TItem="SupervisorDto" TValue="int"
+                Label="Supervisor"
+                Items="_supervisors"
+                GetValue="@(x => x.Id)"
+                GetDisplayText="@(x => x.Name)"
+                SelectedValues="@_filter.SupervisorIds"
+                SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.SupervisorIds = x))" />
         </MudItem>
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="int" Label="Manager" MultiSelection="true" SelectedValues="@_filter.ManagerIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.ManagerIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="OnFilterChanged" SearchFunc="@SearchManagers" ToStringFunc="@(id => _managers.FirstOrDefault(x => x.Id == id)?.Name)">
-                @foreach (var man in _managers)
-                {
-                    <MudSelectItem Value="@man.Id">@man.Name</MudSelectItem>
-                }
-            </MudSelect>
+            <MultiSelectFilter TItem="ManagerDto" TValue="int"
+                Label="Manager"
+                Items="_managers"
+                GetValue="@(x => x.Id)"
+                GetDisplayText="@(x => x.Name)"
+                SelectedValues="@_filter.ManagerIds"
+                SelectedValuesChanged="@(values => OnFilterChanged(values, x => _filter.ManagerIds = x))" />
         </MudItem>
         <MudItem xs="6" sm="3" md="2" Class="d-flex align-center justify-center">
             <MudCheckBox Value="@_filter.IncludeInactive" ValueChanged="@((bool v) => OnIncludeInactiveChanged(v))" Label="Inactive" Dense="true" Color="Color.Primary"></MudCheckBox>
@@ -107,18 +111,9 @@
         await LoadData();
     }
 
-    // Generic handler to update the specific filter property and reload data
     private async Task OnFilterChanged(IEnumerable<int> values, Action<IEnumerable<int>> setter)
     {
-        setter(values);
-        await LoadData();
-    }
-
-    private async Task OnFilterChanged(MouseEventArgs args)
-    {
-        // This is primarily for the Clear button click which might trigger without value change immediately or needs explicit handling if bind-SelectedValues clears it first.
-        // Usually SelectedValuesChanged handles the update, but OnClearButtonClick is an EventCallback<MouseEventArgs>
-        // We just reload data. The binding should have updated the filter to empty.
+        setter(values?.ToList() ?? new List<int>());
         await LoadData();
     }
 
@@ -136,40 +131,7 @@
     private IEnumerable<SubOrganizationDto> GetFilteredSubOrganizations()
     {
         if (_filter.OrganizationIds == null || !_filter.OrganizationIds.Any())
-        {
             return _subOrganizations;
-        }
-
         return _subOrganizations.Where(x => _filter.OrganizationIds.Contains(x.OrganizationId));
-    }
-
-    // Search Functions for MudSelect
-    private Task<IEnumerable<int>> SearchOrganizations(string value, CancellationToken token)
-    {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult(_organizations.Select(x => x.Id));
-        return Task.FromResult(_organizations.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(x => x.Id));
-    }
-
-    private Task<IEnumerable<int>> SearchSubOrganizations(string value, CancellationToken token)
-    {
-        var source = GetFilteredSubOrganizations();
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult(source.Select(x => x.Id));
-        return Task.FromResult(source.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(x => x.Id));
-    }
-
-    private Task<IEnumerable<int>> SearchSupervisors(string value, CancellationToken token)
-    {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult(_supervisors.Select(x => x.Id));
-        return Task.FromResult(_supervisors.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(x => x.Id));
-    }
-
-    private Task<IEnumerable<int>> SearchManagers(string value, CancellationToken token)
-    {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult(_managers.Select(x => x.Id));
-        return Task.FromResult(_managers.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)).Select(x => x.Id));
     }
 }

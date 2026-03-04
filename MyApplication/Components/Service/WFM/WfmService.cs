@@ -6,7 +6,6 @@ namespace MyApplication.Components.Service.Wfm
 {
     public class WfmService : IWfmService
     {
-        // Change from AomDbContext to IDbContextFactory
         private readonly IDbContextFactory<AomDbContext> _factory;
 
         public WfmService(IDbContextFactory<AomDbContext> factory)

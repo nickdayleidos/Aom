@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Data.SqlClient;
@@ -7,18 +7,18 @@ using MudBlazor;
 using MyApplication.Common;
 using MyApplication.Common.Time;
 using MyApplication.Components.Service;
-using MyApplication.Components.Services.Email;
+using MyApplication.Components.Service.Email;
+using MyApplication.Components.Service.Tools.Interval;
+using MyApplication.Components.Shared.Base;
 using System.Data;
 using System.Globalization;
 using System.Text;
 
 namespace MyApplication.Components.Pages.Tools.Interval
 {
-    public partial class IntervalSummary : ComponentBase, IDisposable
+    public partial class IntervalSummary : AppComponentBase, IDisposable
     {
         [Inject] private IConfiguration Config { get; set; } = default!;
-        [Inject] private IJSRuntime JS { get; set; } = default!;
-        [Inject] private ISnackbar Snackbar { get; set; } = default!;
         [Inject] private IEmailComposer EmailComposer { get; set; } = default!;
         [Inject] private IntervalEmailService EmailSvc { get; set; } = default!;
         [Inject] private IIntervalSummaryRepository Repo { get; set; } = default!;
@@ -196,12 +196,12 @@ namespace MyApplication.Components.Pages.Tools.Interval
                     Asa = (double)(decimal)x.ASA
                 }).ToList();
 
-                Snackbar.Add("Interval times and stats populated.", Severity.Success);
+                ShowSuccess("Interval times and stats populated.");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"AWS Fetch Error: {ex.Message}");
-                Snackbar.Add($"Error fetching AWS stats: {ex.Message}. Time updated.", Severity.Warning);
+                ShowWarning($"Error fetching AWS stats: {ex.Message}. Time updated.");
             }
         }
 
@@ -226,7 +226,7 @@ namespace MyApplication.Components.Pages.Tools.Interval
             catch (Exception ex)
             {
                 Console.WriteLine($"Error fetching latest summary: {ex.Message}");
-                Snackbar.Add($"Error loading notes: {ex.Message}", Severity.Warning);
+                ShowWarning($"Error loading notes: {ex.Message}");
             }
         }
 
@@ -251,7 +251,7 @@ namespace MyApplication.Components.Pages.Tools.Interval
             sb.AppendLine($"SIPR: {State.Current.SiprCallsOffered}/{State.Current.SiprCallsAnswered} (ASA: {State.Current.SiprAsa})");
 
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", sb.ToString());
-            Snackbar.Add("Stats copied to clipboard.", Severity.Success);
+            ShowSuccess("Stats copied to clipboard.");
         }
 
         private async Task ClearAsync()
@@ -288,7 +288,7 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 var startHH_colon = ToHH_colon_mm(ctx.IntervalStart);
                 var endHH_colon = ToHH_colon_mm(ctx.IntervalEnd);
 
-                var subjectWithInterval = $"{subject} — {ctx.DateLocal:yyyy-MM-dd} {startHH_colon}-{endHH_colon} ET";
+                var subjectWithInterval = $"{subject} � {ctx.DateLocal:yyyy-MM-dd} {startHH_colon}-{endHH_colon} ET";
 
                 var draft = new EmailDraft
                 {
@@ -306,11 +306,11 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 var fileName = $"IntervalSummary_{ctx.DateLocal:yyyyMMdd}_{startHHmm}-{endHHmm}.oft";
 
                 await JS.InvokeVoidAsync("downloadFileFromBase64", fileName, "application/vnd.ms-outlook", base64);
-                Snackbar.Add("Draft generated — check your downloads.", Severity.Success);
+                ShowSuccess("Draft generated � check your downloads.");
             }
             catch (Exception ex)
             {
-                Snackbar.Add($"Could not generate email: {ex.Message}", Severity.Error);
+                ShowError($"Could not generate email: {ex.Message}");
             }
         }
 

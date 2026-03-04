@@ -1,56 +1,42 @@
 @page "/wfm/aws/queues"
-@* @attribute [Authorize(Roles = "Admin,WFM")] *@
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.AdminWfm)]
 @using MyApplication.Components.Model.AOM.Aws
 @using MyApplication.Components.Service.Aws
 @using MyApplication.Components.Model.AOM.Employee
 @inject AwsRoutingService Service
-@inject IDialogService DialogService
 
 <MudStack Spacing="4">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-        <MudText Typo="Typo.h5">AWS Call Queues</MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => OpenDialog(null))">Add Queue</MudButton>
-    </MudStack>
+    <MudText Typo="Typo.h5">AWS Call Queues</MudText>
 
-    <MudDataGrid Items="_queues"
-                 Filterable="true"
-                 SortMode="SortMode.Multiple"
-                 Dense="true"
-                 Hover="true"
-                 Bordered="true"
-                 Striped="true"
-                 RowsPerPage="25"
-                 QuickFilter="@_quickFilter">
+    <AppDataGrid TItem="CallQueue"
+                 Items="_queues"
+                 Title="Queues"
+                 SearchPlaceholder="Search queues"
+                 SearchFunc="@SearchQueues">
         <ToolBarContent>
-            <MudText Typo="Typo.h6">Queues</MudText>
-            <MudSpacer />
-            <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
-                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => OpenDialog(null))">Add Queue</MudButton>
         </ToolBarContent>
-        <Columns>
-            <PropertyColumn Property="x => x.Name" Title="Queue Name" />
-            <PropertyColumn Property="x => x.SkillType.Name" Title="Required Skill" />
-            <TemplateColumn Title="Active">
+        <ColumnsContent>
+            <PropertyColumn T="CallQueue" TProperty="string" Property="x => x.Name" Title="Queue Name" />
+            <PropertyColumn T="CallQueue" TProperty="string" Property="x => x.SkillType.Name" Title="Required Skill" />
+            <TemplateColumn T="CallQueue" Title="Active">
                 <CellTemplate>
                     <MudCheckBox Value="@context.Item.IsActive" ReadOnly="true" Color="Color.Primary" Dense="true" />
                 </CellTemplate>
             </TemplateColumn>
-            <TemplateColumn CellClass="d-flex justify-end">
+            <TemplateColumn T="CallQueue" CellClass="d-flex justify-end">
                 <CellTemplate>
                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenDialog(context.Item))" />
                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => Delete(context.Item))" />
                 </CellTemplate>
             </TemplateColumn>
-        </Columns>
-        <PagerContent>
-            <MudDataGridPager T="CallQueue" PageSizeOptions="@(new int[] { 25, 50, 100 })" />
-        </PagerContent>
-    </MudDataGrid>
+        </ColumnsContent>
+    </AppDataGrid>
 </MudStack>
 
 @code {
     private List<CallQueue> _queues = new();
-    private string _searchString;
 
     protected override async Task OnInitializedAsync() => await LoadData();
 
@@ -77,18 +63,17 @@
         }
     }
 
-    // Quick filter function to search queues
-    private Func<CallQueue, bool> _quickFilter => x =>
+    private bool SearchQueues(CallQueue queue, string searchString)
     {
-        if (string.IsNullOrWhiteSpace(_searchString))
+        if (string.IsNullOrWhiteSpace(searchString))
             return true;
 
-        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+        if (queue.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
 
-        if (x.SkillType?.Name != null && x.SkillType.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+        if (queue.SkillType?.Name != null && queue.SkillType.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
 
         return false;
-    };
+    }
 }

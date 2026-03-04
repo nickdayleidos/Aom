@@ -1,13 +1,10 @@
 @page "/employees/schedules"
 @page "/employees/schedules/{EmployeeId:int?}"
-@* @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")] *@
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.FullAccess)]
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Common.Time
-@using Microsoft.AspNetCore.Components.Authorization
-@inject EmployeesRepository EmployeeRepo
-@inject NavigationManager Nav
-@inject IJSRuntime JS
-@inject AuthenticationStateProvider AuthState
+@inject EmployeeScheduleService EmployeeRepo
 @implements IDisposable
 
 <style>
@@ -166,7 +163,7 @@
 
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="d-print-none">
         <MudStack Row="true" AlignItems="AlignItems.Center">
-            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/employees"))" />
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/employees"))" />
             <MudText Typo="Typo.h5">Daily Schedules</MudText>
         </MudStack>
 
@@ -216,7 +213,7 @@
 
             @if (_loading)
             {
-                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                <LoadingSpinner Size="Size.Small" />
             }
             <MudCheckBox Value="@_activeOnly" ValueChanged="@((bool v) => { _activeOnly = v; _ = LoadAsync(); })" Label="Active Only" Dense="true" Color="Color.Primary"></MudCheckBox>
             <MudCheckBox Value="@_agentsOnly" ValueChanged="@((bool v) => { _agentsOnly = v; _ = LoadAsync(); })" Label="Agents Only" Dense="true" Color="Color.Primary"></MudCheckBox>
@@ -226,39 +223,42 @@
 
     </MudPaper>
 
-    <!-- Updated Filters Row with Multi-Select -->
     <MudGrid Class="mb-4 align-center" Spacing="1">
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="string" Label="Organization" MultiSelection="true" SelectedValues="_selectedOrgIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedOrgIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="@(_ => LoadAsync())" SearchFunc="@((string x, CancellationToken ct) => SearchList(x, _options.Organizations))">
-                @foreach (var org in _options.Organizations)
-                {
-                    <MudSelectItem Value="@org">@org</MudSelectItem>
-                }
-            </MudSelect>
+            <MultiSelectFilter TItem="string" TValue="string"
+                Label="Organization"
+                Items="_options.Organizations"
+                GetValue="@(x => x)"
+                GetDisplayText="@(x => x)"
+                SelectedValues="@_selectedOrgIds"
+                SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedOrgIds = x))" />
         </MudItem>
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="string" Label="Sub Organization" MultiSelection="true" SelectedValues="_selectedSubOrgIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedSubOrgIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="@(_ => LoadAsync())" SearchFunc="@((string x, CancellationToken ct) => SearchList(x, _options.SubOrganizations))">
-                @foreach (var subOrg in _options.SubOrganizations)
-                {
-                    <MudSelectItem Value="@subOrg">@subOrg</MudSelectItem>
-                }
-            </MudSelect>
+            <MultiSelectFilter TItem="string" TValue="string"
+                Label="Sub Organization"
+                Items="_options.SubOrganizations"
+                GetValue="@(x => x)"
+                GetDisplayText="@(x => x)"
+                SelectedValues="@_selectedSubOrgIds"
+                SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedSubOrgIds = x))" />
         </MudItem>
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="string" Label="Supervisor" MultiSelection="true" SelectedValues="_selectedSupervisorIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedSupervisorIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="@(_ => LoadAsync())" SearchFunc="@((string x, CancellationToken ct) => SearchList(x, _options.Supervisors))">
-                @foreach (var sup in _options.Supervisors)
-                {
-                    <MudSelectItem Value="@sup">@sup</MudSelectItem>
-                }
-            </MudSelect>
+            <MultiSelectFilter TItem="string" TValue="string"
+                Label="Supervisor"
+                Items="_options.Supervisors"
+                GetValue="@(x => x)"
+                GetDisplayText="@(x => x)"
+                SelectedValues="@_selectedSupervisorIds"
+                SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedSupervisorIds = x))" />
         </MudItem>
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="string" Label="Manager" MultiSelection="true" SelectedValues="_selectedManagerIds" SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedManagerIds = x))" Variant="Variant.Outlined" Margin="Margin.Dense" AnchorOrigin="Origin.BottomCenter" Dense="true" Clearable="true" OnClearButtonClick="@(_ => LoadAsync())" SearchFunc="@((string x, CancellationToken ct) => SearchList(x, _options.Managers))">
-                @foreach (var man in _options.Managers)
-                {
-                    <MudSelectItem Value="@man">@man</MudSelectItem>
-                }
-            </MudSelect>
+            <MultiSelectFilter TItem="string" TValue="string"
+                Label="Manager"
+                Items="_options.Managers"
+                GetValue="@(x => x)"
+                GetDisplayText="@(x => x)"
+                SelectedValues="@_selectedManagerIds"
+                SelectedValuesChanged="@(values => OnFilterChanged(values, x => _selectedManagerIds = x))" />
         </MudItem>
     </MudGrid>
 
@@ -332,7 +332,7 @@
                                         </MudTd>
                                         <MudTd Valign="Valign.Top" Class="d-print-none">
                                             <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
-                                                           OnClick="@(() => Nav.NavigateTo($"/employees/{emp.EmployeeId}"))" />
+                                                           OnClick="@(() => Navigation.NavigateTo($"/employees/{emp.EmployeeId}"))" />
                                         </MudTd>
                                     </RowTemplate>
                                 </MudTable>
@@ -647,13 +647,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var state = await AuthState.GetAuthenticationStateAsync();
-        var user = state.User;
-        _canViewTimeline = user.IsInRole("Admin") ||
-                           user.IsInRole("OST") ||
-                           user.IsInRole("WFM") ||
-                           user.IsInRole("Manager") ||
-                           user.IsInRole("Supervisor");
+        var roles = await GetUserRolesAsync();
+        _canViewTimeline = roles.IsManagement;
 
         _options = await EmployeeRepo.GetFilterOptionsAsync();
     }
@@ -680,16 +675,8 @@
 
     private async Task OnFilterChanged(IEnumerable<string> values, Action<IEnumerable<string>> setter)
     {
-        setter(values);
+        setter(values?.ToList() ?? new List<string>());
         await LoadAsync();
-    }
-
-    // Helper for Autocomplete search
-    private Task<IEnumerable<string>> SearchList(string value, List<string> list)
-    {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult<IEnumerable<string>>(list);
-        return Task.FromResult(list.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
     }
 
     private async Task LoadAsync()

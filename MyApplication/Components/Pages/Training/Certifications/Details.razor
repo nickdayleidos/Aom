@@ -1,20 +1,17 @@
 ﻿@page "/training/certifications/details/{Id:int}"
+@inherits AppComponentBase
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Training.Certifications
 @using Microsoft.AspNetCore.Components.Authorization
 @inject ICertificationsRepository Repository
-@inject NavigationManager Navigation
-@inject ISnackbar Snackbar
-@inject AuthenticationStateProvider AuthStateProvider
-@inject IDialogService DialogService
 
 <PageTitle>Certification Details</PageTitle>
 
-<AuthorizeView Roles="Admin,Manager,Supervisor,WFM,OST,Training">
+<AuthorizeView Roles="@RoleConstants.FullAccess">
     <Authorized Context="authContext">
         @if (_cert == null)
         {
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            <LoadingSpinner Color="Color.Primary" />
         }
         else
         {
@@ -39,7 +36,7 @@
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => _isEditMode = true)">Edit</MudButton>
                         }
 
-                        <AuthorizeView Roles="Training,Admin" Context="verifyContext">
+                        <AuthorizeView Roles="@RoleConstants.AdminTraining" Context="verifyContext">
                             <Authorized>
                                 @if (!_cert.Verified)
                                 {
@@ -167,7 +164,7 @@
         _cert.CeRegistrationDate = _ceDate.HasValue ? DateOnly.FromDateTime(_ceDate.Value) : null;
 
         await Repository.UpdateCertificationAsync(_cert);
-        Snackbar.Add("Changes saved.", Severity.Success);
+        ShowSuccess("Changes saved.");
         _isEditMode = false;
     }
 
@@ -180,7 +177,7 @@
         _cert.VerifiedBy = authState.User.Identity?.Name ?? "Unknown";
 
         await Repository.UpdateCertificationAsync(_cert);
-        Snackbar.Add("Certification Verified.", Severity.Success);
+        ShowSuccess("Certification Verified.");
     }
 
     private async Task Delete()

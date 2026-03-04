@@ -18,6 +18,8 @@ public interface IAcrQueryService
     Task<List<KeyValuePair<int, string>>> GetEmployersAsync(CancellationToken ct = default);
     Task<List<KeyValuePair<int, string>>> GetManagersAsync(CancellationToken ct = default);
     Task<List<KeyValuePair<int, string>>> GetSupervisorsAsync(CancellationToken ct = default);
+    Task<List<KeyValuePair<int, string>>> SearchManagersAsync(string? text, int take = 25, CancellationToken ct = default);
+    Task<List<KeyValuePair<int, string>>> SearchSupervisorsAsync(string? text, int take = 25, CancellationToken ct = default);
     Task<Dictionary<int, string>> GetTypesAsync(CancellationToken ct = default);
     Task<Dictionary<int, string>> GetStatusesAsync(CancellationToken ct = default);
     Task<List<Employees>> GetEmployeesLookupAsync(bool? isActive, CancellationToken ct = default);

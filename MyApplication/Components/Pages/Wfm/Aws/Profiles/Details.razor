@@ -1,15 +1,13 @@
 @page "/wfm/aws/profiles/{id:int}"
-@* @attribute [Authorize(Roles = "Admin,WFM")] *@
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.AdminWfm)]
 @using MyApplication.Components.Model.AOM.Aws
 @using MyApplication.Components.Service.Aws
 @inject AwsRoutingService Service
-@inject IDialogService DialogService
-@inject NavigationManager Nav
-@inject ISnackbar Snackbar
 
 <MudStack Spacing="4">
     <MudStack Row="true" AlignItems="AlignItems.Center">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/wfm/aws/profiles"))" />
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/wfm/aws/profiles"))" />
         <MudText Typo="Typo.h5">@_profile?.Name</MudText>
     </MudStack>
 
@@ -42,7 +40,7 @@
     }
     else
     {
-        <MudProgressCircular Indeterminate="true" />
+        <LoadingSpinner />
     }
 </MudStack>
 
@@ -72,7 +70,7 @@
         if (!result.Canceled)
         {
             await LoadData();
-            Snackbar.Add("Queue added", Severity.Success);
+            ShowSuccess("Queue added");
         }
     }
 
@@ -89,7 +87,7 @@
         if (!result.Canceled)
         {
             await LoadData();
-            Snackbar.Add("Queue assignment updated", Severity.Success);
+            ShowSuccess("Queue assignment updated");
         }
     }
 
@@ -100,7 +98,7 @@
         {
             await Service.RemoveQueueFromProfileAsync(item.Id);
             await LoadData();
-            Snackbar.Add("Queue removed", Severity.Success);
+            ShowSuccess("Queue removed");
         }
     }
 }

@@ -1,11 +1,10 @@
 @page "/wfm/staticbreaks"
-@* @attribute [Authorize(Roles = "Admin,WFM")] *@
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.AdminWfm)]
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Wfm
 @using System.Text.Json
-@inject IWfmService WfmService
-@inject ISnackbar Snackbar
-@inject IDialogService DialogService 
+@inject IWfmService WfmService 
 
 <MudText Typo="Typo.h5" Class="mb-4">Static Break Schedules</MudText>
 
@@ -218,7 +217,7 @@
         if (result == true)
         {
             await WfmService.DeleteBreakScheduleAsync(dto.Schedule.Id);
-            Snackbar.Add("Schedule removed", Severity.Success);
+            ShowSuccess("Schedule removed");
             
             // If we deleted the item currently being edited, reset the form
             if (_newSchedule.Id == dto.Schedule.Id)
@@ -245,7 +244,7 @@
 
         if (_selectedEmployee == null)
         {
-            Snackbar.Add("Please select an employee", Severity.Warning);
+            ShowWarning("Please select an employee");
             return;
         }
 
@@ -253,9 +252,9 @@
         await WfmService.SaveBreakScheduleAsync(_newSchedule);
 
         if (_newSchedule.Id == 0)
-            Snackbar.Add("Schedule Assigned", Severity.Success);
+            ShowSuccess("Schedule Assigned");
         else
-            Snackbar.Add("Schedule Updated", Severity.Success);
+            ShowSuccess("Schedule Updated");
 
         ResetForm();
         await LoadData();

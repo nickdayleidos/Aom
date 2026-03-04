@@ -1,7 +1,7 @@
-﻿// MyApplication/Components/Services/Email/IEmailComposer.cs
+// MyApplication/Components/Services/Email/IEmailComposer.cs
 using System.Threading;
 
-namespace MyApplication.Components.Services.Email
+namespace MyApplication.Components.Service.Email
 {
     public interface IEmailComposer
     {

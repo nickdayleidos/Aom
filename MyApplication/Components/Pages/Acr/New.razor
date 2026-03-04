@@ -1,11 +1,9 @@
 @page "/acr/new"
-@* @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")] *@
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.Management)]
 @inject ITimeDisplayService TimeDisp
-
 @inject IAcrService Acr
 @inject IAcrQueryService Query
-@inject ISnackbar Snackbar
-@inject NavigationManager Nav
 
 <MudPaper Class="pa-2" Outlined="true">
     <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
@@ -119,7 +117,7 @@
     private bool IsSubmitDisabled =>
         _vm.TypeId == 0 || (!IsNewHire && _vm.EmployeeId == 0);
 
-    private void Cancel() => Nav.NavigateTo("/acr");
+    private void Cancel() => Navigation.NavigateTo("/acr");
 
     protected override async Task OnInitializedAsync()
     {
@@ -250,14 +248,14 @@
 
         if (!_vm.EffectiveDate.HasValue)
         {
-            Snackbar.Add("Effective Date is required.", Severity.Error);
+            ShowError("Effective Date is required.");
             return;
         }
         var minDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1));
 
         if (_vm.EffectiveDate.Value < minDate)
         {
-            Snackbar.Add($"Effective Date must be {minDate:yyyy-MM-dd} or later.", Severity.Error);
+            ShowError($"Effective Date must be {minDate:yyyy-MM-dd} or later.");
             return;
         }
 
@@ -266,7 +264,7 @@
         // The AcrService will handle the conversion from Local -> Eastern.
         await Acr.CreateAsync(_vm);
 
-        Snackbar.Add("ACR created.", Severity.Success);
-        Nav.NavigateTo("/acr");
+        ShowSuccess("ACR created.");
+        Navigation.NavigateTo("/acr");
     }
 }

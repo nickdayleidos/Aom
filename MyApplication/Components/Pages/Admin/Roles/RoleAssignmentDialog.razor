@@ -75,9 +75,13 @@
     {
         _selectedEmployee = user;
         // Automatically ensure the correct format
-        if (user != null)
+        if (user != null && !string.IsNullOrEmpty(user.Login))
         {
             _model.Identifier = user.Login.Contains("\\") ? user.Login : $"LEIDOS-CORP\\{user.Login}";
+        }
+        else
+        {
+            _model.Identifier = string.Empty;
         }
     }
 

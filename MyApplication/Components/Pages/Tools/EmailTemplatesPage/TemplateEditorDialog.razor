@@ -1,9 +1,10 @@
+@inherits AppComponentBase
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Forms
 @using Dapper
 @using Microsoft.Data.SqlClient
 @using MyApplication.Components.Pages.Tools <!-- for TemplateEditModel -->
-@* @attribute [Authorize(Policy = "Admin")] *@
+@attribute [Authorize(Roles = RoleConstants.Admin)]
 <MudDialog>
     <DialogContent>
         <EditForm EditContext="_edit" OnValidSubmit="SaveAsync">
@@ -31,7 +32,6 @@
     private EditContext _edit = default!;
 
     [Inject] private IConfiguration Config { get; set; } = default!;
-    [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
     protected override void OnInitialized() => _edit = new EditContext(Model);
 
@@ -50,7 +50,7 @@
                   (TemplateName, Subject, ToAddresses, CcAddresses, SendFromAddress, Body, IsActive)
                   VALUES(@TemplateName, @Subject, @ToAddresses, @CcAddresses, @SendFromAddress, @Body, @IsActive)";
                 await c.ExecuteAsync(ins, Model);
-                Snackbar.Add("Template created.", Severity.Success);
+                ShowSuccess("Template created.");
             }
             else
             {
@@ -59,17 +59,17 @@
                   SendFromAddress=@SendFromAddress, Body=@Body, IsActive=@IsActive
                   WHERE Id=@Id";
                 await c.ExecuteAsync(upd, Model);
-                Snackbar.Add("Template updated.", Severity.Success);
+                ShowSuccess("Template updated.");
             }
             Dialog.Close(DialogResult.Ok(true));
         }
         catch (SqlException ex) when (ex.Number is 2601 or 2627)
         {
-            Snackbar.Add("A template with that name already exists.", Severity.Warning);
+            ShowWarning("A template with that name already exists.");
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Save failed: {ex.Message}", Severity.Error);
+            ShowError($"Save failed: {ex.Message}");
         }
     }
 

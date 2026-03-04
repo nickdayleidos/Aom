@@ -1,9 +1,9 @@
 @page "/admin/roles"
-@* @attribute [Authorize(Policy = "Admin")] *@
+@inherits AppComponentBase
+@attribute [Authorize(Policy = "Admin")]
 @using MyApplication.Components.Model.AOM.Security
 @using MyApplication.Components.Service.Security
 @inject SecurityService SecurityService
-@inject IDialogService DialogService
 
 <MudStack Spacing="4" Class="mb-8">
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
@@ -18,7 +18,7 @@
 
     <MudDataGrid T="RoleAssignmentDto"
                  Items="_assignments"
-                 Loading="_loading"
+                 Loading="@IsLoading"
                  Hover="true"
                  Dense="true"
                  Bordered="true"
@@ -85,7 +85,6 @@
 @code {
     private List<RoleAssignmentDto> _assignments = new();
     private List<AppRole> _roles = new();
-    private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -94,10 +93,11 @@
 
     private async Task LoadDataAsync()
     {
-        _loading = true;
-        _roles = await SecurityService.GetRolesAsync();
-        _assignments = await SecurityService.GetAssignmentsWithDetailsAsync();
-        _loading = false;
+        await RunAsync(async () =>
+        {
+            _roles = await SecurityService.GetRolesAsync();
+            _assignments = await SecurityService.GetAssignmentsWithDetailsAsync();
+        });
     }
 
     private async Task OpenAddDialog()

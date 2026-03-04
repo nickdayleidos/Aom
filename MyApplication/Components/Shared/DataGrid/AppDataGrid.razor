@@ -1,0 +1,102 @@
+@typeparam TItem
+@using MudBlazor
+
+<MudDataGrid T="TItem"
+             Items="@Items"
+             Filterable="@Filterable"
+             SortMode="@SortMode"
+             Groupable="@Groupable"
+             Dense="@Dense"
+             Hover="@Hover"
+             Bordered="@Bordered"
+             Striped="@Striped"
+             RowsPerPage="@RowsPerPage"
+             QuickFilter="@QuickFilter"
+             RowClick="@OnRowClick"
+             SelectedItemsChanged="@SelectedItemsChanged"
+             MultiSelection="@MultiSelection"
+             Loading="@Loading"
+             LoadingProgressColor="@LoadingProgressColor">
+    <ToolBarContent>
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <MudText Typo="Typo.h6">@Title</MudText>
+            <MudSpacer />
+        }
+        @if (ShowSearch)
+        {
+            <MudTextField @bind-Value="SearchString"
+                         Placeholder="@SearchPlaceholder"
+                         Adornment="Adornment.Start"
+                         AdornmentIcon="@Icons.Material.Filled.Search"
+                         IconSize="Size.Medium"
+                         Class="mt-0"
+                         Immediate="true"
+                         Clearable="true" />
+        }
+        @ToolBarContent
+    </ToolBarContent>
+    <Columns>
+        @ColumnsContent
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="TItem" PageSizeOptions="@PageSizeOptions" />
+    </PagerContent>
+</MudDataGrid>
+
+@code {
+    [Parameter] public IEnumerable<TItem> Items { get; set; } = Enumerable.Empty<TItem>();
+    [Parameter] public RenderFragment? ColumnsContent { get; set; }
+    [Parameter] public RenderFragment? ToolBarContent { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public bool ShowSearch { get; set; } = true;
+    [Parameter] public string SearchPlaceholder { get; set; } = "Search";
+    [Parameter] public Func<TItem, bool>? QuickFilter { get; set; }
+    [Parameter] public EventCallback<DataGridRowClickEventArgs<TItem>> OnRowClick { get; set; }
+    [Parameter] public EventCallback<HashSet<TItem>> SelectedItemsChanged { get; set; }
+    [Parameter] public bool Filterable { get; set; } = true;
+    [Parameter] public SortMode SortMode { get; set; } = SortMode.Multiple;
+    [Parameter] public bool Groupable { get; set; } = false;
+    [Parameter] public bool Dense { get; set; } = true;
+    [Parameter] public bool Hover { get; set; } = true;
+    [Parameter] public bool Bordered { get; set; } = true;
+    [Parameter] public bool Striped { get; set; } = true;
+    [Parameter] public int RowsPerPage { get; set; } = 25;
+    [Parameter] public bool MultiSelection { get; set; } = false;
+    [Parameter] public int[] PageSizeOptions { get; set; } = new[] { 25, 50, 100 };
+    [Parameter] public bool Loading { get; set; } = false;
+    [Parameter] public Color LoadingProgressColor { get; set; } = Color.Primary;
+    [Parameter] public Func<TItem, string, bool>? SearchFunc { get; set; }
+
+    private string _searchString = "";
+    public string SearchString
+    {
+        get => _searchString;
+        set
+        {
+            if (_searchString != value)
+            {
+                _searchString = value;
+                QuickFilter = CreateQuickFilter(_searchString);
+                StateHasChanged();
+            }
+        }
+    }
+
+    private Func<TItem, bool>? CreateQuickFilter(string search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+            return null;
+
+        if (SearchFunc != null)
+        {
+            return item => SearchFunc(item, search);
+        }
+
+        return item =>
+        {
+            if (item == null) return false;
+            return item.ToString()?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false;
+        };
+    }
+}

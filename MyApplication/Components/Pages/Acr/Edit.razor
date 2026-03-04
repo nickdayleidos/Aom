@@ -1,11 +1,9 @@
 @page "/acr/{Id:int}/edit"
-@* @attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")] *@
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.Management)]
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IAcrQueryService Query
 @inject IAcrService Acr
-@inject NavigationManager Nav
-@inject ISnackbar Snackbar
-@inject AuthenticationStateProvider AuthState
 
 <MudPaper Class="pa-2" Outlined="true">
     <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
@@ -89,12 +87,12 @@
         var statusId = await Query.GetStatusIdByAcrIdAsync(Id);
         if (!statusId.HasValue)
         {
-            Snackbar.Add("ACR not found.", Severity.Error);
-            Nav.NavigateTo("/acr");
+            ShowError("ACR not found.");
+            Navigation.NavigateTo("/acr");
             return;
         }
 
-        var authState = await AuthState.GetAuthenticationStateAsync();
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         var isAuth = false;
 
@@ -120,8 +118,8 @@
 
         if (!isAuth)
         {
-            Snackbar.Add("You are not authorized to edit this ACR in its current status.", Severity.Error);
-            Nav.NavigateTo($"/acr/{Id}");
+            ShowError("You are not authorized to edit this ACR in its current status.");
+            Navigation.NavigateTo($"/acr/{Id}");
             return;
         }
 
@@ -167,7 +165,7 @@
         if (_vm is null) return;
         if (!_vm.EffectiveDate.HasValue)
         {
-            Snackbar.Add("Effective Date is required.", Severity.Error);
+            ShowError("Effective Date is required.");
             return;
         }
 
@@ -175,7 +173,7 @@
         // AcrService.UpdateAsync handles Local -> Eastern conversion internally.
         await Acr.UpdateAsync(_vm);
 
-        Snackbar.Add("ACR updated.", Severity.Success);
-        Nav.NavigateTo("/acr");
+        ShowSuccess("ACR updated.");
+        Navigation.NavigateTo("/acr");
     }
 }
