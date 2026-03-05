@@ -39,7 +39,7 @@
                 {
                     <MudChip T="string"
                              OnClose="@( (MudChip<string> _) => RemoveEmployee(emp.Id) )"
-                             Closeable="true"
+                             ShowCloseIcon="true"
                              Color="Color.Primary"
                              Variant="Variant.Outlined">
                         @emp.Display
@@ -67,7 +67,6 @@
             <!-- Skill date -->
             <MudDatePicker @bind-Date="_model.SkillDate"
                            Label="Skill Date"
-                           Dense="true"
                            DateFormat="yyyy-MM-dd" />
 
             <MudStack Row Spacing="2" Class="mt-2">

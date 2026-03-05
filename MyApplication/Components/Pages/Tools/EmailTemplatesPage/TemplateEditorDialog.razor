@@ -15,7 +15,7 @@
             <MudTextField Label="To Addresses" @bind-Value="Model.ToAddresses" />
             <MudTextField Label="Cc Addresses" @bind-Value="Model.CcAddresses" />
             <MudTextField Label="Send From" @bind-Value="Model.SendFromAddress" />
-            <MudSwitch T="bool" @bind-value="Model.IsActive" CheckedChanged="v => Model.IsActive = v" />
+            <MudSwitch T="bool" @bind-Value="Model.IsActive" />
             <MudTextField Label="Body" Lines="18" @bind-Value="Model.Body" />
         </EditForm>
     </DialogContent>

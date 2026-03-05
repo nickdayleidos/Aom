@@ -183,12 +183,11 @@
     private async Task Delete()
     {
         var options = new DialogOptions { CloseOnEscapeKey = true };
-        var result = await DialogService.ShowMessageBox(
-            "Warning",
+        var result = await ConfirmAsync(
             "Deleting this record will remove the database entry. It will NOT delete the physical file on disk (per safety policies). Continue?",
-            yesText: "Delete", cancelText: "Cancel");
+            "Warning");
 
-        if (result == true)
+        if (result)
         {
             await Repository.DeleteCertificationAsync(Id);
             Navigation.NavigateTo("/training/certifications");

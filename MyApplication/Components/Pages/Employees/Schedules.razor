@@ -278,7 +278,7 @@
                         @foreach (var site in _vm.Sites)
                         {
                             <MudExpansionPanel Text="@($"{site.SiteName} - {_vm.Date:ddd, MMM d, yyyy} ({site.Employees.Count} employees)")"
-                                               @bind-IsExpanded="@site.IsExpanded">
+                                               @bind-Expanded="@site.IsExpanded">
                                 <MudTable Items="@site.Employees" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.None">
                                     <HeaderContent>
                                         <MudTh>Employee</MudTh>
@@ -287,7 +287,7 @@
                                         <MudTh Class="d-print-none"></MudTh>
                                     </HeaderContent>
                                     <RowTemplate Context="emp">
-                                        <MudTd DataLabel="Employee" Valign="Valign.Top">
+                                        <MudTd DataLabel="Employee" valign="top">
                                             <MudText Typo="Typo.body2" Style="font-weight:bold;">@emp.EmployeeName</MudText>
                                             <MudText Typo="Typo.caption" Color="Color.Secondary">ID: @emp.EmployeeId</MudText>
                                             <MudStack Spacing="0" Class="mt-2">
@@ -301,7 +301,7 @@
                                                 }
                                             </MudStack>
                                         </MudTd>
-                                        <MudTd DataLabel="Shift" Valign="Valign.Top">
+                                        <MudTd DataLabel="Shift" valign="top">
                                             <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
                                                 @emp.ShiftString
                                             </MudChip>
@@ -330,7 +330,7 @@
                                                 }
                                             </MudStack>
                                         </MudTd>
-                                        <MudTd Valign="Valign.Top" Class="d-print-none">
+                                        <MudTd valign="top" Class="d-print-none">
                                             <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
                                                            OnClick="@(() => Navigation.NavigateTo($"/employees/{emp.EmployeeId}"))" />
                                         </MudTd>

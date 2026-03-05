@@ -4,6 +4,7 @@
 @using MyApplication.Components.Service
 @using MyApplication.Components.Service.Email
 @using MyApplication.Components.Model.AOM
+@using MyApplication.Common.Time
 @inject IProactiveRepository Repo
 @inject IEmailComposer Composer
 @using AomModel = MyApplication.Components.Model.AOM.Tools
@@ -28,7 +29,6 @@
                               Lines="5"
                               AutoGrow="true"
                               MaxLines="40"
-                              Resize="Resize.Vertical"
                               @bind-Value="_inj" />
             </MudItem>
 
@@ -39,7 +39,6 @@
                               Lines="5"
                               AutoGrow="true"
                               MaxLines="40"
-                              Resize="Resize.Vertical"
                               @bind-Value="_site" />
             </MudItem>
 
@@ -50,7 +49,6 @@
                               Lines="5"
                               AutoGrow="true"
                               MaxLines="40"
-                              Resize="Resize.Vertical"
                               @bind-Value="_status" />
             </MudItem>
 
@@ -151,7 +149,7 @@
                 OpenAsDraft = true,
                 IncludeCui = false
             }
-.WithFouoBanner("Proactive Announcement", preparedBy);
+.WithFouoBanner("Proactive Announcement", preparedBy, Et.Now);
 
             // Build once, serve as .oft so Outlook opens compose
             var msgBytes = EmailDraftBuilder.BuildMsgBytes(draft);

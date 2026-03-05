@@ -93,8 +93,8 @@
 
     private async Task RemoveQueue(RoutingProfileQueue item)
     {
-        var confirm = await DialogService.ShowMessageBox("Remove Queue", "Are you sure?", yesText: "Remove", cancelText: "Cancel");
-        if (confirm == true)
+        var confirm = await ConfirmAsync("Are you sure?", "Remove Queue");
+        if (confirm)
         {
             await Service.RemoveQueueFromProfileAsync(item.Id);
             await LoadData();

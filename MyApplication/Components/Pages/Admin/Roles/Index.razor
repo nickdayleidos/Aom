@@ -117,12 +117,11 @@
 
     private async Task DeleteAssignment(RoleAssignmentDto item)
     {
-        var confirmed = await DialogService.ShowMessageBox(
-            "Delete Assignment",
+        var confirmed = await ConfirmAsync(
             $"Are you sure you want to remove {item.RoleName} access for {item.DisplayName}?",
-            yesText: "Delete", cancelText: "Cancel");
+            "Delete Assignment");
 
-        if (confirmed == true)
+        if (confirmed)
         {
             await SecurityService.DeleteAssignmentAsync(item.Id);
             await LoadDataAsync();

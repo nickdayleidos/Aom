@@ -39,7 +39,7 @@
           Dense="true"
           Hover="true"
           Bordered="true"
-                  RowClick="@(async (TableRowClickEventArgs<EmailTemplates> e) => await OpenEditAsync(e.Item))">
+                  OnRowClick="@(async (TableRowClickEventArgs<EmailTemplates> e) => await OpenEditAsync(e.Item))">
 
             <HeaderContent>
                 <MudTh>Name</MudTh>
@@ -61,7 +61,6 @@
                         <MudSwitch T="bool"
                                    Value="context.IsActive"
                                    ValueChanged="@(async (bool v) => await ToggleActiveAsync(context, v))"
-                                   Immediate="true"
                                    Color="Color.Primary" />
                     </div>
                 </MudTd>
@@ -72,16 +71,16 @@
                     <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                    Size="Size.Small"
                                    Color="Color.Primary"
-                                   Title="Edit"
+                                   title="Edit"
                                    OnClick="@(() => OpenEditAsync(context))" />
                     <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                    Size="Size.Small"
-                                   Title="Copy"
+                                   title="Copy"
                                    OnClick="@(() => OpenCopyAsync(context))" />
                     <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                    Size="Size.Small"
                                    Color="Color.Error"
-                                   Title="Delete"
+                                   title="Delete"
                                    OnClick="@(() => ConfirmDeleteAsync(context))" />
                 </MudTd>
             </RowTemplate>
@@ -184,13 +183,11 @@
 
     private async Task ConfirmDeleteAsync(EmailTemplates row)
     {
-        bool? confirm = await DialogService.ShowMessageBox(
-            "Delete Template",
-            (MarkupString)$"Are you sure you want to delete <b>{row.TemplateName}</b>?",
-            yesText: "Delete", cancelText: "Cancel",
-            options: new DialogOptions { CloseOnEscapeKey = true });
+        bool confirm = await ConfirmAsync(
+            $"Are you sure you want to delete {row.TemplateName}?",
+            "Delete Template");
 
-        if (confirm == true)
+        if (confirm)
         {
             try
             {

@@ -13,7 +13,7 @@
     <MudText Typo="Typo.h5">Bulk Profile Assignment</MudText>
 
     <MudPaper Class="pa-4" Outlined="true">
-        <MudGrid AlignItems="AlignItems.End">
+        <MudGrid>
             <MudItem xs="12" md="4">
                 <MudSelect T="int?" Label="Weekday Profile" @bind-Value="_selectedWeekday" Clearable="true" AnchorOrigin="Origin.BottomCenter">
                     @foreach (var p in _profiles)
@@ -132,7 +132,7 @@
             @if (_expandedIds.Contains(context.Id))
             {
                 <MudTr>
-                    <MudTd Colspan="9" Class="pa-4 shade-background">
+                    <MudTd colspan="9" Class="pa-4 shade-background">
                         <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Daily Schedule Breakdown (@_timeMode)</MudText>
                         <MudStack Row="true" Spacing="4" Wrap="Wrap.Wrap">
                             @if (context.DailySchedules != null)
@@ -232,12 +232,11 @@
         if (!_selectedEmployees.Any()) return;
 
         var count = _selectedEmployees.Count;
-        var confirm = await DialogService.ShowMessageBox(
-            "Confirm Assignment",
+        var confirm = await ConfirmAsync(
             $"Are you sure you want to update the routing profiles for {count} employees?",
-            yesText: "Yes", cancelText: "Cancel");
+            "Confirm Assignment");
 
-        if (confirm == true)
+        if (confirm)
         {
             var ids = _selectedEmployees.Select(x => x.Id).ToList();
             await AwsService.AssignProfilesToEmployeesAsync(ids, _selectedWeekday, _selectedWeekend);

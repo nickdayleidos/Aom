@@ -149,13 +149,13 @@
                                    Size="Size.Small"
                                    Color="Color.Primary"
                                    OnClick="@(() => EditSchedule(context))"
-                                   Title="Edit Schedule" />
-                                   
+                                   title="Edit Schedule" />
+
                     <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                    Size="Size.Small"
                                    Color="Color.Error"
                                    OnClick="@(() => DeleteSchedule(context))"
-                                   Title="Delete Assignment" />
+                                   title="Delete Assignment" />
                 </MudTd>
             </RowTemplate>
             <PagerContent>
@@ -204,17 +204,16 @@
         var json = JsonSerializer.Serialize(dto.Schedule);
         _newSchedule = JsonSerializer.Deserialize<BreakSchedules>(json);
         _selectedEmployee = _employees.FirstOrDefault(x => x.Id == _newSchedule.EmployeeId);
-        _form.ResetValidation();
+        _ = _form.ResetAsync();
     }
 
     private async Task DeleteSchedule(BreakScheduleDto dto)
     {
-        bool? result = await DialogService.ShowMessageBox(
-            "Warning", 
-            $"Are you sure you want to remove the static break schedule for {dto.EmployeeName}?", 
-            yesText:"Delete", cancelText:"Cancel");
+        bool result = await ConfirmAsync(
+            $"Are you sure you want to remove the static break schedule for {dto.EmployeeName}?",
+            "Warning");
 
-        if (result == true)
+        if (result)
         {
             await WfmService.DeleteBreakScheduleAsync(dto.Schedule.Id);
             ShowSuccess("Schedule removed");
@@ -233,7 +232,7 @@
     {
         _newSchedule = new();
         _selectedEmployee = null; 
-        _form.ResetValidation();
+        _ = _form.ResetAsync();
         _form.ResetTouched();
     }
 

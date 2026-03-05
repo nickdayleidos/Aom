@@ -50,7 +50,7 @@
                                                                                 (string.IsNullOrWhiteSpace(_availableFilter) ||
                                                                                 o.Label.Contains(_availableFilter, StringComparison.OrdinalIgnoreCase))))
                                         {
-                                            <MudListItem T="EmployeeOption" Value="emp" Clickable="true" OnClick="@(() => AddEmployee(emp.Id))">
+                                            <MudListItem T="EmployeeOption" Value="emp" OnClick="@(() => AddEmployee(emp.Id))">
                                                 @emp.Label
                                             </MudListItem>
                                         }
@@ -70,7 +70,7 @@
                                                                                 .Where(o => string.IsNullOrWhiteSpace(_selectedFilter) ||
                                                                                 o.Label.Contains(_selectedFilter, StringComparison.OrdinalIgnoreCase)))
                                         {
-                                            <MudListItem T="EmployeeOption" Value="emp" Clickable="true" OnClick="@(() => RemoveEmployee(emp.Id))">
+                                            <MudListItem T="EmployeeOption" Value="emp" OnClick="@(() => RemoveEmployee(emp.Id))">
                                                 @emp.Label
                                             </MudListItem>
                                         }
@@ -147,16 +147,15 @@
 
                             <MudGrid Spacing="2" Class="mt-1">
                                 <MudItem xs="12" md="4">
-                                    <MudDatePicker @bind-Date="_startDateEt" @bind-Date:after="OnStartDateAfter" Label="Start Date" Variant="Variant.Outlined" Dense="true" Disabled="@(_timeframeId is null)" />
+                                    <MudDatePicker @bind-Date="_startDateEt" @bind-Date:after="OnStartDateAfter" Label="Start Date" Variant="Variant.Outlined" Disabled="@(_timeframeId is null)" />
                                 </MudItem>
 
                                 <MudItem xs="12" md="4">
-                                    <MudTimePicker @bind-Time="_startTimeEt" 
-                                    Label="Start Time" 
-                                    Variant="Variant.Outlined" 
-                                    Editable="true" 
-                                    Clearable="true" 
-                                    Dense="true"
+                                    <MudTimePicker @bind-Time="_startTimeEt"
+                                    Label="Start Time"
+                                    Variant="Variant.Outlined"
+                                    Editable="true"
+                                    Clearable="true"
                                                    Disabled="@(_timeframeId is null || _timeframeId == 2 || _timeframeId == 3 || _timeframeId == 6)" />
                                     @* For Full day single (id==2) we do not require start time selection; keep as-is when null *@
                                 </MudItem>
@@ -167,7 +166,6 @@
                                     <MudDatePicker @bind-Date="_endDateEt"
                                                    Label="End Date"
                                                    Variant="Variant.Outlined"
-                                                   Dense="true"
                                                    Disabled="@(_timeframeId is null || _timeframeId == 1 || _timeframeId == 2 || _timeframeId == 4 || _timeframeId == 6)" />
                                     @* Disabled for:
                                        1 = EOS (calculated)
@@ -183,7 +181,6 @@
                                                    Variant="Variant.Outlined"
                                                    Editable="true"
                                                    Clearable="true"
-                                                   Dense="true"
                                                    Disabled="@(_timeframeId is null || _timeframeId == 1 || _timeframeId == 2 || _timeframeId == 3)" />
                                     @* Enabled for:
                                        3 = Multiple full day (optional, but allowed)

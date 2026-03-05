@@ -55,8 +55,8 @@
 
     private async Task Delete(CallQueue queue)
     {
-        bool? confirm = await DialogService.ShowMessageBox("Delete", $"Delete {queue.Name}?", yesText: "Delete", cancelText: "Cancel");
-        if (confirm == true)
+        bool confirm = await ConfirmAsync($"Delete {queue.Name}?", "Delete");
+        if (confirm)
         {
             await Service.DeleteQueueAsync(queue.Id);
             await LoadData();

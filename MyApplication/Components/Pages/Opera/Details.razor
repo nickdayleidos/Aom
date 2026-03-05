@@ -10,7 +10,7 @@
 
 <MudStack Spacing="4">
     <MudPaper Class="pa-4" Outlined="true">
-        <MudGrid AlignItems="AlignItems.Center">
+        <MudGrid>
             <MudItem xs="12" md="5">
                 <MudStack Row="true" AlignItems="AlignItems.Center">
                     <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/opera"))" />
@@ -220,7 +220,7 @@
                         }
                         else
                         {
-                            <MudField Label="Comments" Variant="Variant.Outlined" Lines="3">@_item.SubmitterComments</MudField>
+                            <MudField Label="Comments" Variant="Variant.Outlined">@_item.SubmitterComments</MudField>
                         }
 
                         <MudDivider />

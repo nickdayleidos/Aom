@@ -56,16 +56,16 @@ public abstract class AppComponentBase : ComponentBase
 
     protected async Task<bool> ConfirmAsync(string message, string title = "Confirm")
     {
-        var parameters = new DialogParameters<MudBlazor.DialogOptions>
+        var parameters = new DialogParameters<MudMessageBox>
         {
-            { "ContentText", message },
-            { "ButtonText", "Confirm" },
-            { "Color", Color.Primary }
+            { x => x.Message, message },
+            { x => x.YesText, "Confirm" },
+            { x => x.CancelText, "Cancel" }
         };
 
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small };
 
-        var dialog = DialogService.Show<MudMessageBox>(title, parameters, options);
+        var dialog = await DialogService.ShowAsync<MudMessageBox>(title, parameters, options);
         var result = await dialog.Result;
         return result != null && !result.Canceled;
     }

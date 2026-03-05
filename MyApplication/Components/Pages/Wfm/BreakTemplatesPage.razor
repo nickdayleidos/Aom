@@ -128,7 +128,7 @@
                                    Size="Size.Small"
                                    Color="Color.Primary"
                                    OnClick="@(() => EditTemplate(context))"
-                                   Title="Edit Template" />
+                                   title="Edit Template" />
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -159,13 +159,13 @@
         _newTemplate = JsonSerializer.Deserialize<BreakTemplates>(json);
 
         // Clear any previous validation errors
-        _form.ResetValidation();
+        _ = _form.ResetAsync();
     }
 
     private void ResetForm()
     {
         _newTemplate = new() { IsActive = true };
-        _form.ResetValidation();
+        _ = _form.ResetAsync();
         _form.ResetTouched();
     }
 
