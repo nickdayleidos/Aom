@@ -75,8 +75,8 @@
                             <MudTextField @bind-Value="_searchString" Placeholder="Search..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
                         </ToolBarContent>
                         <HeaderContent>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Employee?.LastName)">Employee</MudTableSortLabel></MudTh>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationType?.Name)">Type</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Employee?.LastName!)">Employee</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationType?.Name!)">Type</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.SerialNumber)">Serial Number</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationDate)">Cert Date</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.ExpirationDate)">Expires</MudTableSortLabel></MudTh>
@@ -121,8 +121,8 @@
                             <MudTextField @bind-Value="_searchString" Placeholder="Search..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
                         </ToolBarContent>
                         <HeaderContent>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Employee?.LastName)">Employee</MudTableSortLabel></MudTh>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationType?.Name)">Type</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Employee?.LastName!)">Employee</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationType?.Name!)">Type</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.SerialNumber)">Serial Number</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationDate)">Cert Date</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.ExpirationDate)">Expires</MudTableSortLabel></MudTh>
@@ -167,11 +167,11 @@
                         <HeaderContent>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.EmployeeName)">Employee</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.SupervisorName)">Supervisor</MudTableSortLabel></MudTh>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.HireDate)">Hire Date</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.HireDate.GetValueOrDefault())">Hire Date</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.RequiredLevel)">Required Level</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.CertificationName)">Best Certification</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.AchievedLevel)">Cert Level</MudTableSortLabel></MudTh>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.ExpirationDate)">Expires</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.ExpirationDate.GetValueOrDefault())">Expires</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.SerialNumber)">Serial Number</MudTableSortLabel></MudTh>
                             <MudTh>Action</MudTh>
                         </HeaderContent>

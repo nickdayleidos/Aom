@@ -39,7 +39,7 @@
           Dense="true"
           Hover="true"
           Bordered="true"
-                  OnRowClick="@(async (TableRowClickEventArgs<EmailTemplates> e) => await OpenEditAsync(e.Item))">
+                  OnRowClick="@(async (TableRowClickEventArgs<EmailTemplates> e) => await OpenEditAsync(e.Item!))">
 
             <HeaderContent>
                 <MudTh>Name</MudTh>
@@ -210,7 +210,7 @@
         var parameters = new DialogParameters { { nameof(TemplateEditorDialog.Model), vm } };
         var dlg = await DialogService.ShowAsync<TemplateEditorDialog>(title, parameters, options);
         var res = await dlg.Result;
-        if (!res.Canceled) await LoadAsync();
+        if (res is { Canceled: false }) await LoadAsync();
     }
 
     public class TemplateEditModel
@@ -233,7 +233,7 @@
             TemplateName = e.TemplateName,
             Subject = e.Subject,
             ToAddresses = e.ToAddresses,
-            CcAddresses = e.CcAddresses,
+            CcAddresses = e.CcAddresses ?? string.Empty,
             SendFromAddress = e.SendFromAddress,
             Body = e.Body,
             IsActive = e.IsActive

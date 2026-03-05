@@ -109,7 +109,7 @@
     private KeyValuePair<int, string> _selectedType = default;
     private KeyValuePair<int, string> _selectedEmployee = default;
 
-    private bool _showOrg, _showSchedule, _showOvertime, _showNewHire, _showSeparation, _showRehire;
+    private bool _showOrg, _showSchedule, _showNewHire, _showSeparation, _showRehire;
 
     private const int OvertimeOnlyTypeId = 7;
 
@@ -174,7 +174,7 @@
         _empOptions.Clear();
         _selectedEmployee = default;
 
-        _showNewHire = _showSeparation = _showRehire = _showOrg = _showSchedule = _showOvertime = false;
+        _showNewHire = _showSeparation = _showRehire = _showOrg = _showSchedule = false;
 
         switch ((AcrTypeKey)v.Key)
         {
@@ -200,7 +200,6 @@
                 break;
 
             case AcrTypeKey.OvertimeAdjustment:
-                _showOvertime = true;
                 _vm = _vm with
                 {
                     Organization = null,
@@ -225,7 +224,7 @@
 
     private void OnEmployeeChanged(KeyValuePair<int, string> v)
     {
-        _showNewHire = _showSeparation = _showRehire = _showOrg = _showSchedule = _showOvertime = false;
+        _showNewHire = _showSeparation = _showRehire = _showOrg = _showSchedule = false;
         _selectedEmployee = v;
         _vm = _vm with { EmployeeId = v.Key };
         StateHasChanged();

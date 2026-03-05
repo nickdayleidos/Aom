@@ -11,9 +11,9 @@ namespace MyApplication.Components.Model.AOM.Tools
         public int Id { get; set; }
         public DateTime ProactiveTime { get; set; }  // stamped in ET by repository on insert
 
-        public string UsnInjectionAnnouncement { get; set; }
-    
-        public string UsnSiteAnnouncement { get; set; }
-        public string UsnStatusAnnouncement { get; set; }
+        public string UsnInjectionAnnouncement { get; set; } = null!;
+
+        public string UsnSiteAnnouncement { get; set; } = null!;
+        public string UsnStatusAnnouncement { get; set; } = null!;
     }
 }

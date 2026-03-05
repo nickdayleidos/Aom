@@ -182,7 +182,7 @@
     private DateTime _todayEt;
     private DateTime _todayMt;
 
-    private UserRoles _roles;
+    private UserRoles _roles = default!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -476,7 +476,7 @@
 
         var profile = await UserProfile.GetAsync();
         var actor = profile.UserName;
-        await Repo.SetStatusAsync(req.RequestId, status.Id, actor);
+        await Repo.SetStatusAsync(req.RequestId, status.Id, actor!);
 
         ShowSuccess($"Request #{req.RequestId} set to {status.Name}.");
         await LoadAsync();
@@ -494,7 +494,7 @@
                 <MudTh><MudTableSortLabel T="OperaRequest" SortBy="new Func<OperaRequest, object>(x => ToDisplayTime(x.StartTime, x.EmployeeId))">Start</MudTableSortLabel></MudTh>
                 <MudTh><MudTableSortLabel T="OperaRequest" SortBy="new Func<OperaRequest, object>(x => ToDisplayTime(x.EndTime, x.EmployeeId))">End</MudTableSortLabel></MudTh>
                 <MudTh><MudTableSortLabel T="OperaRequest" SortBy="SortByType">Type / SubType</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel T="OperaRequest" SortBy="new Func<OperaRequest, object>(x => GetStatusId(x))">Status</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel T="OperaRequest" SortBy="new Func<OperaRequest, object>(x => (object)GetStatusId(x)!)">Status</MudTableSortLabel></MudTh>
                 <MudTh>Actions</MudTh>
             </HeaderContent>
             <RowTemplate>

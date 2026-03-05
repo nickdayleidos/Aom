@@ -84,7 +84,7 @@ namespace MyApplication.Components.Service
                             // Check if user is in this group
                             if (userGraphGroups.Any(g => g.Equals(groupNameToMatch, StringComparison.OrdinalIgnoreCase)))
                             {
-                                AddRole(identity, assignment.AppRole.Name, "GroupMatch");
+                                AddRole(identity, assignment.AppRole!.Name, "GroupMatch");
                             }
                         }
                     }
@@ -106,7 +106,7 @@ namespace MyApplication.Components.Service
 
                         foreach (var match in userMatches)
                         {
-                            AddRole(identity, match.AppRole.Name, "UserMatch");
+                            AddRole(identity, match.AppRole!.Name, "UserMatch");
                         }
                     }
                 }

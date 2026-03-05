@@ -19,7 +19,7 @@
         </ToolBarContent>
         <ColumnsContent>
             <PropertyColumn T="CallQueue" TProperty="string" Property="x => x.Name" Title="Queue Name" />
-            <PropertyColumn T="CallQueue" TProperty="string" Property="x => x.SkillType.Name" Title="Required Skill" />
+            <PropertyColumn T="CallQueue" TProperty="string" Property="x => x.SkillType!.Name ?? string.Empty" Title="Required Skill" />
             <TemplateColumn T="CallQueue" Title="Active">
                 <CellTemplate>
                     <MudCheckBox Value="@context.Item.IsActive" ReadOnly="true" Color="Color.Primary" Dense="true" />
@@ -50,7 +50,7 @@
         var dialog = await DialogService.ShowAsync<QueueDialog>("Queue Details", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled) await LoadData();
+        if (result is { Canceled: false }) await LoadData();
     }
 
     private async Task Delete(CallQueue queue)

@@ -60,11 +60,11 @@ namespace MyApplication.Components.Service
                 {
                     t = Regex.Replace(t, @"\s+", " ");
                     qry = qry.Where(x =>
-                        (x.Request.Employees.LastName + ", " + x.Request.Employees.FirstName +
-                            (x.Request.Employees.MiddleInitial == null ? "" : " " + x.Request.Employees.MiddleInitial)).Contains(t) ||
-                        (x.Request.Employees.FirstName + " " + x.Request.Employees.LastName).Contains(t) ||
-                        EF.Functions.Like(x.Request.Employees.FirstName, $"%{t}%") ||
-                        EF.Functions.Like(x.Request.Employees.LastName, $"%{t}%")
+                        (x.Request.Employees!.LastName + ", " + x.Request.Employees!.FirstName +
+                            (x.Request.Employees!.MiddleInitial == null ? "" : " " + x.Request.Employees!.MiddleInitial)).Contains(t) ||
+                        (x.Request.Employees!.FirstName + " " + x.Request.Employees!.LastName).Contains(t) ||
+                        EF.Functions.Like(x.Request.Employees!.FirstName, $"%{t}%") ||
+                        EF.Functions.Like(x.Request.Employees!.LastName, $"%{t}%")
                     );
                 }
             }
@@ -245,7 +245,7 @@ namespace MyApplication.Components.Service
         public async Task<OperaRequest> GetRequestByIdAsync(int id, CancellationToken ct = default)
         {
             await using var db = await _factory.CreateDbContextAsync(ct);
-            return await db.OperaRequests.FindAsync(new object[] { id }, ct);
+            return (await db.OperaRequests.FindAsync(new object[] { id }, ct))!;
         }
 
         public async Task<IReadOnlyList<OperaStatus>> GetStatusesAsync(CancellationToken ct = default)

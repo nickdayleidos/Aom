@@ -58,11 +58,11 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public List<AppRole> Roles { get; set; } = new();
 
     private AppRoleAssignment _model = new() { Type = "User" };
-    private MudForm _form;
+    private MudForm _form = null!;
     private EmployeeUserDto? _selectedEmployee;
 
     private async Task<IEnumerable<EmployeeUserDto>> SearchUsers(string value, CancellationToken token)
@@ -85,9 +85,9 @@
         }
     }
 
-    private void Submit()
+    private async Task Submit()
     {
-        _form.Validate();
+        await _form.ValidateAsync();
         if (_form.IsValid && !string.IsNullOrWhiteSpace(_model.Identifier))
         {
             MudDialog.Close(DialogResult.Ok(_model));

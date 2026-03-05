@@ -195,7 +195,7 @@
     private const int StatusSubmitted = 1;
     private const int StatusManagerApproved = 2;
 
-    private MudTable<AcrRequestListItem> _table;
+    private MudTable<AcrRequestListItem> _table = null!;
 
     private int _tabIndex;
     private int TabIndex
@@ -321,5 +321,5 @@
     }
 
     private void OnRowClick(TableRowClickEventArgs<AcrRequestListItem> e)
-        => Navigation.NavigateTo($"/acr/{e.Item.Id}");
+        => Navigation.NavigateTo($"/acr/{e.Item!.Id}");
 }

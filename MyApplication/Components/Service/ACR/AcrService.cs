@@ -405,7 +405,7 @@ namespace MyApplication.Components.Service.Acr
                 row.ThursdayTypeId, row.FridayTypeId, row.SaturdayTypeId, row.SundayTypeId);
 
             return new LastOvertimeAdjustment(
-                row.EmployeeId, (AcrTypeKey)row.AcrTypeId, row.EffectiveDate, dto);
+                row.EmployeeId, (AcrTypeKey)row.AcrTypeId!.Value, row.EffectiveDate, dto);
         }
 
         public async Task SetStatusAsync(int acrRequestId, int newStatusId, CancellationToken ct = default)

@@ -108,7 +108,7 @@
         var dialog = await DialogService.ShowAsync<RoleAssignmentDialog>("Assign Role", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled && result.Data is AppRoleAssignment newAssignment)
+        if (result is { Canceled: false } && result.Data is AppRoleAssignment newAssignment)
         {
             await SecurityService.AddAssignmentAsync(newAssignment);
             await LoadDataAsync();

@@ -18,33 +18,37 @@ public sealed class EmployeeScheduleService
     {
         using var context = await _contextFactory.CreateDbContextAsync();
 
-        var managers = await context.Managers
+        var managersRaw = await context.Managers
             .Where(x => x.IsActive == true)
-            .Select(x => x.Employee.LastName + ", " + x.Employee.FirstName)
+            .Select(x => x.Employee!.LastName + ", " + x.Employee!.FirstName)
             .Distinct()
             .OrderBy(x => x)
             .ToListAsync();
+        var managers = managersRaw.Where(x => x != null).Select(x => x!).ToList();
 
-        var supervisors = await context.Supervisors
+        var supervisorsRaw = await context.Supervisors
             .Where(x => x.IsActive == true)
-            .Select(x => x.Employee.LastName + ", " + x.Employee.FirstName)
+            .Select(x => x.Employee!.LastName + ", " + x.Employee!.FirstName)
             .Distinct()
             .OrderBy(x => x)
             .ToListAsync();
+        var supervisors = supervisorsRaw.Where(x => x != null).Select(x => x!).ToList();
 
-        var orgs = await context.Organizations
+        var orgsRaw = await context.Organizations
             .Where(x => x.IsActive == true)
             .Select(x => x.Name)
             .Distinct()
             .OrderBy(x => x)
             .ToListAsync();
+        var orgs = orgsRaw.Where(x => x != null).Select(x => x!).ToList();
 
-        var subOrgs = await context.SubOrganizations
+        var subOrgsRaw = await context.SubOrganizations
             .Where(x => x.IsActive == true)
             .Select(x => x.Name)
             .Distinct()
             .OrderBy(x => x)
             .ToListAsync();
+        var subOrgs = subOrgsRaw.Where(x => x != null).Select(x => x!).ToList();
 
         return new EmployeeFilterOptionsDto
         {
@@ -85,8 +89,8 @@ public sealed class EmployeeScheduleService
             .Include(h => h.Site)
             .Include(h => h.Organization)
             .Include(h => h.SubOrganization)
-            .Include(h => h.Supervisor).ThenInclude(s => s.Employee)
-            .Include(h => h.Manager).ThenInclude(m => m.Employee)
+            .Include(h => h.Supervisor).ThenInclude(s => s!.Employee)
+            .Include(h => h.Manager).ThenInclude(m => m!.Employee)
             .Include(h => h.Employee)
             .ToListAsync(ct);
 
@@ -456,7 +460,7 @@ public sealed class EmployeeScheduleService
 
     private static string GetActivityColor(string? activityName, string? subActivityName, string? awsStatusName)
     {
-        string nameToCheck = awsStatusName;
+        string? nameToCheck = awsStatusName;
 
         if (string.IsNullOrEmpty(nameToCheck) || nameToCheck == "-")
         {

@@ -20,20 +20,20 @@ public sealed class EmployeeDetailsService
         var emp = await ctx.Employees.AsNoTracking()
             .Include(e => e.Aws)
             .FirstOrDefaultAsync(e => e.Id == employeeId);
-        if (emp == null) return null;
+        if (emp == null) return null!;
 
         var vm = new EmployeeFullDetailsVm
         {
             EmployeeId = emp.Id,
-            FirstName = emp.FirstName,
-            LastName = emp.LastName,
-            MiddleInitial = emp.MiddleInitial,
-            NmciEmail = emp.NmciEmail,
-            UsnOperatorId = emp.UsnOperatorId,
-            UsnAdminId = emp.UsnAdminId,
-            CorporateEmail = emp.CorporateEmail,
-            CorporateId = emp.CorporateId,
-            DomainLoginName = emp.DomainLoginName,
+            FirstName = emp.FirstName!,
+            LastName = emp.LastName!,
+            MiddleInitial = emp.MiddleInitial!,
+            NmciEmail = emp.NmciEmail!,
+            UsnOperatorId = emp.UsnOperatorId!,
+            UsnAdminId = emp.UsnAdminId!,
+            CorporateEmail = emp.CorporateEmail!,
+            CorporateId = emp.CorporateId!,
+            DomainLoginName = emp.DomainLoginName!,
             AwsId = emp.AwsId,
             AwsUsername = emp.Aws?.AwsUsername
         };
@@ -54,24 +54,24 @@ public sealed class EmployeeDetailsService
             vm.IsRemote = history.IsRemote ?? false;
             vm.IsLoa = history.IsLoa ?? false;
             vm.IsIntLoa = history.IsIntLoa ?? false;
-            vm.Employer = history.Employer?.Name;
-            vm.Site = history.Site?.SiteCode;
-            vm.SiteTimeZoneId = history.Site?.TimeZoneWindows ?? history.Site?.TimeZoneIana;
-            vm.Organization = history.Organization?.Name;
-            vm.SubOrganization = history.SubOrganization?.Name;
+            vm.Employer = history.Employer?.Name!;
+            vm.Site = history.Site?.SiteCode!;
+            vm.SiteTimeZoneId = (history.Site?.TimeZoneWindows ?? history.Site?.TimeZoneIana)!;
+            vm.Organization = history.Organization?.Name!;
+            vm.SubOrganization = history.SubOrganization?.Name!;
 
             if (history.ManagerId.HasValue)
             {
                 vm.Manager = await ctx.Managers.Where(m => m.Id == history.ManagerId)
                     .Select(m => ctx.Employees.Where(e => e.Id == m.EmployeeId).Select(e => e.LastName + ", " + e.FirstName).FirstOrDefault())
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync() ?? "";
             }
 
             if (history.SupervisorId.HasValue)
             {
                 vm.Supervisor = await ctx.Supervisors.Where(s => s.Id == history.SupervisorId)
                     .Select(s => ctx.Employees.Where(e => e.Id == s.EmployeeId).Select(e => e.LastName + ", " + e.FirstName).FirstOrDefault())
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync() ?? "";
             }
 
             if (history.ScheduleRequestId.HasValue)
@@ -201,8 +201,8 @@ public sealed class EmployeeDetailsService
             .Select(r => new AcrHistoryDto
             {
                 Id = r.Id,
-                Type = r.AcrType.Name,
-                Status = r.AcrStatus.Name,
+                Type = r.AcrType!.Name,
+                Status = r.AcrStatus!.Name,
                 EffectiveDate = r.EffectiveDate,
                 Submitted = r.SubmitTime
             }).ToListAsync();
@@ -217,11 +217,11 @@ public sealed class EmployeeDetailsService
             .Select(r => new OperaHistoryDto
             {
                 RequestId = r.RequestId,
-                Type = r.ActivityType.Name,
-                SubType = r.ActivitySubType.Name,
+                Type = r.ActivityType!.Name,
+                SubType = r.ActivitySubType!.Name,
                 StartTime = r.StartTime,
                 EndTime = r.EndTime,
-                Status = r.OperaStatus.Name
+                Status = r.OperaStatus!.Name
             }).ToListAsync();
 
         return vm;

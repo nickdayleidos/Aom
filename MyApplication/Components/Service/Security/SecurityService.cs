@@ -8,17 +8,17 @@ namespace MyApplication.Components.Service.Security
     public class RoleAssignmentDto
     {
         public int Id { get; set; }
-        public string RoleName { get; set; }
-        public string Type { get; set; }
-        public string Identifier { get; set; }
+        public string RoleName { get; set; } = null!;
+        public string Type { get; set; } = null!;
+        public string Identifier { get; set; } = null!;
         public string? DisplayName { get; set; } // The friendly name
     }
 
     // DTO for the Autocomplete Search
     public class EmployeeUserDto
     {
-        public string Login { get; set; }
-        public string FullName { get; set; }
+        public string Login { get; set; } = null!;
+        public string FullName { get; set; } = null!;
 
         // Helper for the UI to show "Day, Nick (dayng)"
         public override string ToString() => $"{FullName} ({Login})";
@@ -58,11 +58,11 @@ namespace MyApplication.Components.Service.Security
 
             // 2. Fetch matching Employees
             var employees = await ctx.Employees
-                .Where(e => userLogins.Contains(e.DomainLoginName))
+                .Where(e => userLogins.Contains(e.DomainLoginName!))
                 .Select(e => new { e.DomainLoginName, Name = e.LastName + ", " + e.FirstName })
                 .ToListAsync();
 
-            var empDict = employees.ToDictionary(e => e.DomainLoginName, e => e.Name, StringComparer.OrdinalIgnoreCase);
+            var empDict = employees.ToDictionary(e => e.DomainLoginName!, e => e.Name, StringComparer.OrdinalIgnoreCase);
 
             // 3. Map to DTO
             return assignments.Select(a => new RoleAssignmentDto
@@ -102,12 +102,12 @@ namespace MyApplication.Components.Service.Security
             using var ctx = await _factory.CreateDbContextAsync();
             return await ctx.Employees
                 .Where(e => (e.DomainLoginName != null && e.DomainLoginName.Contains(query)) ||
-                            (e.LastName.Contains(query)) ||
-                            (e.FirstName.Contains(query)))
+                            (e.LastName!.Contains(query)) ||
+                            (e.FirstName!.Contains(query)))
                 .Take(20)
                 .Select(e => new EmployeeUserDto
                 {
-                    Login = e.DomainLoginName,
+                    Login = e.DomainLoginName!,
                     FullName = e.LastName + ", " + e.FirstName
                 })
                 .ToListAsync();

@@ -109,7 +109,7 @@ namespace MyApplication.Components.Service.Employee
 
     public class DayScheduleDto
     {
-        public string Day { get; set; }
+        public string Day { get; set; } = null!;
         public TimeOnly? Start { get; set; }
         public TimeOnly? End { get; set; }
 
@@ -185,8 +185,8 @@ namespace MyApplication.Components.Service.Employee
         public string? SubActivityName { get; set; }
         public string? AwsStatusName { get; set; }
 
-        public string SiteName { get; set; }
-        public string SiteTimeZoneId { get; set; }
+        public string SiteName { get; set; } = null!;
+        public string SiteTimeZoneId { get; set; } = null!;
 
         public string? OrganizationName { get; set; }
         public string? SubOrganizationName { get; set; }
@@ -210,10 +210,10 @@ namespace MyApplication.Components.Service.Employee
 
     public class AwsAgentActivityDto
     {
-        public string EventId { get; set; }
-        public string AwsId { get; set; }
+        public string EventId { get; set; } = null!;
+        public string AwsId { get; set; } = null!;
         public DateTime StartTime { get; set; }
-        public string CurrentAgentStatus { get; set; }
+        public string CurrentAgentStatus { get; set; } = null!;
         public DateTime EndTime { get; set; }
         public int? Duration { get; set; }
         public Guid AwsGuid { get; set; }

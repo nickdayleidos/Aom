@@ -500,7 +500,7 @@
                 endLocal = _endDateEt.Value.Date + _endTimeEt.Value;
             }
 
-            Dictionary<int, string>? tzByEmp = null;
+            Dictionary<int, string?>? tzByEmp = null;
 
             // For TF2/TF3 we must use each employee's site TZ
             if (_timeframeId == 2 || _timeframeId == 3)
@@ -519,7 +519,7 @@
                     var eosEt = await Repo.GetEndOfShiftAsync(empId, startEt);
                     if (eosEt == null)
                     {
-                        var localStart = SiteTime.FromEtToSite(startEt, _zone.Value);
+                        var localStart = SiteTime.FromEtToSite(startEt, _zone!.Value);
                         errorMessages.Add($"No shift found for emp #{empId} at {localStart:HH:mm} ({_zone})");
                         continue;
                     }
@@ -531,7 +531,7 @@
                     // We only need a date to locate the shift. Use the selected start date.
                     // Convert selected date-at-midnight local -> ET for schedule lookup.
                     var dayLocal = _startDateEt!.Value.Date;
-                    var dayEt = SiteTime.FromSiteToEt(dayLocal, _zone.Value);
+                    var dayEt = SiteTime.FromSiteToEt(dayLocal, _zone!.Value);
 
                     var bosEt = await Repo.GetStartOfShiftAsync(empId, dayEt);
                     if (bosEt == null)

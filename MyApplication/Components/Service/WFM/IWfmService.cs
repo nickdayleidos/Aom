@@ -20,14 +20,14 @@ namespace MyApplication.Components.Service.Wfm
     // DTO to help display names in the table instead of just IDs
     public class BreakScheduleDto
     {
-        public BreakSchedules Schedule { get; set; }
-        public string EmployeeName { get; set; }
-        public string MonTemplate { get; set; }
-        public string TueTemplate { get; set; }
-        public string WedTemplate { get; set; }
-        public string ThuTemplate { get; set; }
-        public string FriTemplate { get; set; }
-        public string SatTemplate { get; set; }
-        public string SunTemplate { get; set; }
+        public BreakSchedules Schedule { get; set; } = null!;
+        public string EmployeeName { get; set; } = null!;
+        public string MonTemplate { get; set; } = null!;
+        public string TueTemplate { get; set; } = null!;
+        public string WedTemplate { get; set; } = null!;
+        public string ThuTemplate { get; set; } = null!;
+        public string FriTemplate { get; set; } = null!;
+        public string SatTemplate { get; set; } = null!;
+        public string SunTemplate { get; set; } = null!;
     }
 }

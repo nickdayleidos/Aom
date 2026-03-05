@@ -188,7 +188,7 @@
     private int? _selectedWeekday;
     private int? _selectedWeekend;
     private string _searchString = "";
-    private MudTable<EmployeeListItem> _table;
+    private MudTable<EmployeeListItem> _table = null!;
     private HashSet<int> _expandedIds = new();
 
     // Default to Eastern

@@ -33,14 +33,14 @@ public sealed class EmployeeListService
             .Include(x => x.Employee)
             .Include(x => x.Organization)
             .Include(x => x.SubOrganization)
-            .Include(x => x.Supervisor).ThenInclude(s => s.Employee)
-            .Include(x => x.Manager).ThenInclude(m => m.Employee)
-            .Include(x => x.ScheduleRequest).ThenInclude(s => s.AcrSchedules)
+            .Include(x => x.Supervisor).ThenInclude(s => s!.Employee)
+            .Include(x => x.Manager).ThenInclude(m => m!.Employee)
+            .Include(x => x.ScheduleRequest).ThenInclude(s => s!.AcrSchedules)
             .AsQueryable();
 
         if (activeOnly)
         {
-            query = query.Where(x => x.Employee.IsActive);
+            query = query.Where(x => x.Employee!.IsActive);
         }
 
         if (!string.IsNullOrWhiteSpace(searchText))
@@ -48,10 +48,10 @@ public sealed class EmployeeListService
             var terms = searchText.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var term in terms)
             {
-                query = query.Where(x => x.Employee.FirstName.Contains(term) ||
-                                         x.Employee.LastName.Contains(term) ||
-                                         x.Employee.MiddleInitial.Contains(term) ||
-                                         x.Employee.Id.ToString().Contains(term));
+                query = query.Where(x => x.Employee!.FirstName!.Contains(term) ||
+                                         x.Employee!.LastName!.Contains(term) ||
+                                         (x.Employee!.MiddleInitial != null && x.Employee!.MiddleInitial.Contains(term)) ||
+                                         x.Employee!.Id.ToString().Contains(term));
             }
         }
 
@@ -92,14 +92,14 @@ public sealed class EmployeeListService
             result.Add(new EmployeeListItem
             {
                 Id = h.EmployeeId,
-                FirstName = h.Employee.FirstName,
-                LastName = h.Employee.LastName,
-                MiddleInitial = h.Employee.MiddleInitial,
-                IsActive = h.Employee.IsActive,
+                FirstName = h.Employee!.FirstName,
+                LastName = h.Employee!.LastName,
+                MiddleInitial = h.Employee!.MiddleInitial,
+                IsActive = h.Employee!.IsActive,
                 Organization = h.Organization != null ? h.Organization.Name : null,
                 SubOrganization = h.SubOrganization != null ? h.SubOrganization.Name : null,
-                Supervisor = h.Supervisor != null ? $"{h.Supervisor.Employee.LastName}, {h.Supervisor.Employee.FirstName}" : null,
-                Manager = h.Manager != null ? $"{h.Manager.Employee.LastName}, {h.Manager.Employee.FirstName}" : null,
+                Supervisor = h.Supervisor != null ? $"{h.Supervisor.Employee!.LastName}, {h.Supervisor.Employee!.FirstName}" : null,
+                Manager = h.Manager != null ? $"{h.Manager.Employee!.LastName}, {h.Manager.Employee!.FirstName}" : null,
                 Skills = empSkills,
                 WeekdayProfile = rp?.WeekdayProfile?.Name,
                 WeekendProfile = rp?.WeekendProfile?.Name,
@@ -124,13 +124,13 @@ public sealed class EmployeeListService
             .Include(x => x.Organization)
             .Include(x => x.SubOrganization)
             .Include(x => x.Site)
-            .Include(x => x.Supervisor).ThenInclude(s => s.Employee)
-            .Include(x => x.Manager).ThenInclude(m => m.Employee)
+            .Include(x => x.Supervisor).ThenInclude(s => s!.Employee)
+            .Include(x => x.Manager).ThenInclude(m => m!.Employee)
             .AsQueryable();
 
         if (!filter.IncludeInactive)
         {
-            query = query.Where(x => x.Employee.IsActive);
+            query = query.Where(x => x.Employee!.IsActive);
         }
 
         if (!string.IsNullOrWhiteSpace(filter.SearchText))
@@ -138,10 +138,10 @@ public sealed class EmployeeListService
             var terms = filter.SearchText.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var term in terms)
             {
-                query = query.Where(x => x.Employee.FirstName.Contains(term) ||
-                                         x.Employee.LastName.Contains(term) ||
-                                         x.Employee.MiddleInitial.Contains(term) ||
-                                         x.Employee.Id.ToString().Contains(term));
+                query = query.Where(x => x.Employee!.FirstName!.Contains(term) ||
+                                         x.Employee!.LastName!.Contains(term) ||
+                                         (x.Employee!.MiddleInitial != null && x.Employee!.MiddleInitial.Contains(term)) ||
+                                         x.Employee!.Id.ToString().Contains(term));
             }
         }
 
@@ -179,9 +179,9 @@ public sealed class EmployeeListService
 
         return items.Select(x =>
         {
-            var fullName = $"{x.Employee.LastName}, {x.Employee.FirstName}";
-            if (!string.IsNullOrEmpty(x.Employee.MiddleInitial)) fullName += $" {x.Employee.MiddleInitial}";
-            fullName += $" ({x.Employee.Id})";
+            var fullName = $"{x.Employee!.LastName}, {x.Employee!.FirstName}";
+            if (!string.IsNullOrEmpty(x.Employee!.MiddleInitial)) fullName += $" {x.Employee!.MiddleInitial}";
+            fullName += $" ({x.Employee!.Id})";
 
             return new EmployeeDto
             {
@@ -193,13 +193,13 @@ public sealed class EmployeeListService
                 SubOrganizationId = x.SubOrganizationId ?? 0,
                 Site = x.Site?.SiteCode,
                 SiteId = x.SiteId ?? 0,
-                Supervisor = x.Supervisor != null ? $"{x.Supervisor.Employee.LastName}, {x.Supervisor.Employee.FirstName}" : null,
+                Supervisor = x.Supervisor != null ? $"{x.Supervisor.Employee!.LastName}, {x.Supervisor.Employee!.FirstName}" : null,
                 SupervisorId = x.SupervisorId,
-                Manager = x.Manager != null ? $"{x.Manager.Employee.LastName}, {x.Manager.Employee.FirstName}" : null,
+                Manager = x.Manager != null ? $"{x.Manager.Employee!.LastName}, {x.Manager.Employee!.FirstName}" : null,
                 ManagerId = x.ManagerId,
-                IsActive = x.Employee.IsActive,
+                IsActive = x.Employee!.IsActive,
 
-                Skills = skills.Where(s => s.EmployeeId == x.EmployeeId).Select(s => s.SkillType.Name).ToList()
+                Skills = skills.Where(s => s.EmployeeId == x.EmployeeId).Select(s => s.SkillType!.Name).ToList()
             };
         }).ToList();
     }
@@ -209,7 +209,7 @@ public sealed class EmployeeListService
         using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Organizations
             .Where(x => x.IsActive == true)
-            .Select(x => new OrganizationDto { Id = x.Id, Name = x.Name })
+            .Select(x => new OrganizationDto { Id = x.Id, Name = x.Name! })
             .OrderBy(x => x.Name)
             .ToListAsync();
     }
@@ -231,7 +231,7 @@ public sealed class EmployeeListService
             {
                 Id = x.Id,
                 OrganizationId = x.OrganizationId ?? 0,
-                Name = x.Name
+                Name = x.Name!
             })
             .OrderBy(x => x.Name)
             .ToListAsync();
@@ -242,7 +242,7 @@ public sealed class EmployeeListService
         using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Sites
             .Where(x => x.IsActive == true)
-            .Select(x => new SiteDto { Id = x.Id, Name = x.SiteCode })
+            .Select(x => new SiteDto { Id = x.Id, Name = x.SiteCode! })
             .OrderBy(x => x.Name)
             .ToListAsync();
     }
@@ -252,7 +252,7 @@ public sealed class EmployeeListService
         using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Supervisors
             .Where(x => x.IsActive == true)
-            .Select(x => new SupervisorDto { Id = x.Id, Name = x.Employee.LastName + ", " + x.Employee.FirstName })
+            .Select(x => new SupervisorDto { Id = x.Id, Name = x.Employee!.LastName + ", " + x.Employee!.FirstName })
             .OrderBy(x => x.Name)
             .ToListAsync();
     }
@@ -262,7 +262,7 @@ public sealed class EmployeeListService
         using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Managers
             .Where(x => x.IsActive == true)
-            .Select(x => new ManagerDto { Id = x.Id, Name = x.Employee.LastName + ", " + x.Employee.FirstName })
+            .Select(x => new ManagerDto { Id = x.Id, Name = x.Employee!.LastName + ", " + x.Employee!.FirstName })
             .OrderBy(x => x.Name)
             .ToListAsync();
     }

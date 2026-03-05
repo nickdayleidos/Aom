@@ -67,7 +67,7 @@
         var dialog = await DialogService.ShowAsync<AddQueueToProfileDialog>("Add Queue to Profile", parameters);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result is { Canceled: false })
         {
             await LoadData();
             ShowSuccess("Queue added");
@@ -84,7 +84,7 @@
         var dialog = await DialogService.ShowAsync<AddQueueToProfileDialog>("Edit Queue Assignment", parameters);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result is { Canceled: false })
         {
             await LoadData();
             ShowSuccess("Queue assignment updated");

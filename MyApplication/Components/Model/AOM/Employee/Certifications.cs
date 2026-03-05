@@ -43,15 +43,15 @@ namespace MyApplication.Components.Model.AOM.Employee
         public DateOnly CertificationDate { get; set; }
         public DateOnly ExpirationDate { get; set; }
         [Required, Column(TypeName = "varchar(32)")]
-        public string SerialNumber { get; set; }
+        public string SerialNumber { get; set; } = null!;
         public DateOnly? CeRegistrationDate { get; set; }
         public DateTime UploadDate { get; set; }
         [Column(TypeName = "varchar(32)")]
         public string? UploadedBy { get; set; }
         [Column(TypeName = "varchar(64)")]
-        public string FileName { get; set; }
+        public string FileName { get; set; } = null!;
         [Column(TypeName = "varchar(32)")]
-        public string VerifiedBy { get; set; }
+        public string VerifiedBy { get; set; } = null!;
         public bool Verified { get; set; }
     }
 

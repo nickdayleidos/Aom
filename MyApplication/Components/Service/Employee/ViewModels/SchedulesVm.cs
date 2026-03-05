@@ -21,10 +21,10 @@ namespace MyApplication.Components.Service.Employee
     {
         public int EmployeeId { get; set; }
         public string EmployeeName { get; set; } = string.Empty;
-        public string OrganizationName { get; set; }
-        public string SubOrganizationName { get; set; }
-        public string SupervisorName { get; set; }
-        public string ShiftString { get; set; }
+        public string OrganizationName { get; set; } = null!;
+        public string SubOrganizationName { get; set; } = null!;
+        public string SupervisorName { get; set; } = null!;
+        public string ShiftString { get; set; } = null!;
         public List<ScheduleSegmentVm> Segments { get; set; } = new();
         public List<ScheduleSegmentVm> AlertSegments { get; set; } = new();
         public List<ScheduleSegmentVm> AwsSegments { get; set; } = new();
@@ -35,11 +35,11 @@ public class ScheduleSegmentVm
 {
     public int ActivityTypeId { get; set; }
     public int? ActivitySubTypeId { get; set; }
-    public string ActivityName { get; set; }
-    public string SubActivityName { get; set; }
+    public string ActivityName { get; set; } = null!;
+    public string SubActivityName { get; set; } = null!;
 
     public int? AwsStatusId { get; set; }
-    public string AwsStatusName { get; set; }
+    public string AwsStatusName { get; set; } = null!;
 
     public DateTime Start { get; set; }
     public DateTime End { get; set; }

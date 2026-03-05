@@ -250,7 +250,7 @@
             {
                 Subject = subject,
                 HtmlBody = html,
-                From = from?.Trim(),
+                From = from?.Trim() ?? string.Empty,
                 To = to ?? string.Empty,
                 Cc = cc ?? string.Empty,
                 OpenAsDraft = true,

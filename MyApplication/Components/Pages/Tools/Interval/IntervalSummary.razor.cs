@@ -294,7 +294,7 @@ namespace MyApplication.Components.Pages.Tools.Interval
                 {
                     Subject = subjectWithInterval,
                     HtmlBody = html,
-                    From = from?.Trim(),
+                    From = from?.Trim() ?? string.Empty,
                     To = to ?? string.Empty,
                     Cc = cc ?? string.Empty,
                     OpenAsDraft = true,
@@ -318,8 +318,6 @@ namespace MyApplication.Components.Pages.Tools.Interval
         {
             static int I(string? s) => int.TryParse(s, NumberStyles.Integer | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var v) ? v : 0;
             static double F(string? s) => double.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var v) ? v : 0d;
-            static TimeSpan TS(string? s) => TimeSpan.TryParseExact(s?.Trim(), new[] { "h\\:mm", "hh\\:mm" }, CultureInfo.InvariantCulture, out var t) ? t : TimeSpan.Zero;
-
             var dateLocal = (State.Header.IntervalDate ?? Et.Now).Date;
 
             return new IntervalEmailContext

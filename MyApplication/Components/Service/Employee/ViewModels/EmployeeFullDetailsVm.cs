@@ -8,39 +8,39 @@ namespace MyApplication.Components.Service.Employee
         public int EmployeeId { get; set; }
 
         // --- Profile ---
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string MiddleInitial { get; set; }
-        public string NmciEmail { get; set; }
-        public string UsnOperatorId { get; set; }
-        public string UsnAdminId { get; set; }
-        public string CorporateEmail { get; set; }
-        public string CorporateId { get; set; }
-        public string DomainLoginName { get; set; }
+        public string FirstName { get; set; } = null!;
+        public string LastName { get; set; } = null!;
+        public string MiddleInitial { get; set; } = null!;
+        public string NmciEmail { get; set; } = null!;
+        public string UsnOperatorId { get; set; } = null!;
+        public string UsnAdminId { get; set; } = null!;
+        public string CorporateEmail { get; set; } = null!;
+        public string CorporateId { get; set; } = null!;
+        public string DomainLoginName { get; set; } = null!;
         public int? AwsId { get; set; }
         public string? AwsUsername { get; set; }
 
         // --- Assignment ---
         public bool HasHistory { get; set; }
         public DateOnly? EffectiveDate { get; set; }
-        public string Employer { get; set; }
-        public string Site { get; set; }
-        public string SiteTimeZoneId { get; set; } // NEW: For dynamic time conversion
-        public string Organization { get; set; }
-        public string SubOrganization { get; set; }
-        public string Manager { get; set; }
-        public string Supervisor { get; set; }
+        public string Employer { get; set; } = null!;
+        public string Site { get; set; } = null!;
+        public string SiteTimeZoneId { get; set; } = null!; // NEW: For dynamic time conversion
+        public string Organization { get; set; } = null!;
+        public string SubOrganization { get; set; } = null!;
+        public string Manager { get; set; } = null!;
+        public string Supervisor { get; set; } = null!;
         public bool IsRemote { get; set; }
         public bool IsLoa { get; set; }
         public bool IsIntLoa { get; set; }
 
         // --- Schedules ---
-        public ScheduleDetailsVm Schedule { get; set; }
-        public ScheduleDetailsVm Schedule2 { get; set; }
+        public ScheduleDetailsVm Schedule { get; set; } = null!;
+        public ScheduleDetailsVm Schedule2 { get; set; } = null!;
 
         // --- Other Details ---
-        public OvertimeDetailsVm Overtime { get; set; }
-        public StaticBreakDetailsVm StaticBreaks { get; set; }
+        public OvertimeDetailsVm Overtime { get; set; } = null!;
+        public StaticBreakDetailsVm StaticBreaks { get; set; } = null!;
 
         // --- Lists ---
         public List<string> Skills { get; set; } = new();
@@ -53,13 +53,13 @@ namespace MyApplication.Components.Service.Employee
         public bool IsSplit { get; set; }
 
         // Formatted strings (Default/ET)
-        public string Mon { get; set; }
-        public string Tue { get; set; }
-        public string Wed { get; set; }
-        public string Thu { get; set; }
-        public string Fri { get; set; }
-        public string Sat { get; set; }
-        public string Sun { get; set; }
+        public string Mon { get; set; } = null!;
+        public string Tue { get; set; } = null!;
+        public string Wed { get; set; } = null!;
+        public string Thu { get; set; } = null!;
+        public string Fri { get; set; } = null!;
+        public string Sat { get; set; } = null!;
+        public string Sun { get; set; } = null!;
 
         // NEW: Raw Times for Dynamic Conversion
         public TimeOnly? MonStart { get; set; }
@@ -80,31 +80,31 @@ namespace MyApplication.Components.Service.Employee
 
     public class OvertimeDetailsVm
     {
-        public string Mon { get; set; }
-        public string Tue { get; set; }
-        public string Wed { get; set; }
-        public string Thu { get; set; }
-        public string Fri { get; set; }
-        public string Sat { get; set; }
-        public string Sun { get; set; }
+        public string Mon { get; set; } = null!;
+        public string Tue { get; set; } = null!;
+        public string Wed { get; set; } = null!;
+        public string Thu { get; set; } = null!;
+        public string Fri { get; set; } = null!;
+        public string Sat { get; set; } = null!;
+        public string Sun { get; set; } = null!;
     }
 
     public class StaticBreakDetailsVm
     {
-        public string Mon { get; set; }
-        public string Tue { get; set; }
-        public string Wed { get; set; }
-        public string Thu { get; set; }
-        public string Fri { get; set; }
-        public string Sat { get; set; }
-        public string Sun { get; set; }
+        public string Mon { get; set; } = null!;
+        public string Tue { get; set; } = null!;
+        public string Wed { get; set; } = null!;
+        public string Thu { get; set; } = null!;
+        public string Fri { get; set; } = null!;
+        public string Sat { get; set; } = null!;
+        public string Sun { get; set; } = null!;
     }
 
     public class AcrHistoryDto
     {
         public int Id { get; set; }
-        public string Type { get; set; }
-        public string Status { get; set; }
+        public string Type { get; set; } = null!;
+        public string Status { get; set; } = null!;
         public DateOnly EffectiveDate { get; set; }
         public DateTime? Submitted { get; set; }
     }
@@ -112,10 +112,10 @@ namespace MyApplication.Components.Service.Employee
     public class OperaHistoryDto
     {
         public int RequestId { get; set; }
-        public string Type { get; set; }
-        public string SubType { get; set; }
+        public string Type { get; set; } = null!;
+        public string SubType { get; set; } = null!;
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
-        public string Status { get; set; }
+        public string Status { get; set; } = null!;
     }
 }

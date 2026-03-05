@@ -25,10 +25,10 @@
                         @foreach (var q in context.Item.RoutingProfileQueues
                                                 .Select(rpq => rpq.CallQueue)
                                                 .Where(q => q != null)
-                                                .OrderBy(q => q.Name))
+                                                .OrderBy(q => q!.Name))
                         {
                             <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">
-                                @q.Name
+                                @q!.Name
                             </MudChip>
                         }
                     </MudChipSet>
@@ -72,7 +72,7 @@
         var dialog = await DialogService.ShowAsync<ProfileDialog>("Profile Details", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled) await LoadData();
+        if (result is { Canceled: false }) await LoadData();
     }
 
     private bool SearchProfiles(RoutingProfile profile, string searchString)

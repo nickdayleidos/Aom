@@ -272,7 +272,7 @@
 
 @code {
     [Parameter] public int Id { get; set; }
-    private EmployeeFullDetailsVm _vm;
+    private EmployeeFullDetailsVm _vm = null!;
 
     // Default to Local time (Site)
     private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
@@ -316,9 +316,9 @@
         var dialog = await DialogService.ShowAsync<EditProfileDialog>("Edit Profile", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result is { Canceled: false })
         {
-            var updatedDto = (EmployeeProfileUpdateDto)result.Data;
+            var updatedDto = (EmployeeProfileUpdateDto)result!.Data!;
             await Repository.UpdateProfileAsync(updatedDto);
             // Refresh
             await LoadDataAsync();

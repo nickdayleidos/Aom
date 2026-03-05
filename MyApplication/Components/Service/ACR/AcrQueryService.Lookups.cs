@@ -11,7 +11,7 @@ public sealed partial class AcrQueryService
         return await db.Organizations.AsNoTracking()
             .Where(o => o.IsActive == true)
             .OrderBy(o => o.Name)
-            .Select(o => new KeyValuePair<int, string>(o.Id, o.Name))
+            .Select(o => new KeyValuePair<int, string>(o.Id, o.Name!))
             .ToListAsync(ct);
     }
 
@@ -28,7 +28,7 @@ public sealed partial class AcrQueryService
 
         return await q.OrderBy(s => s.Name)
                       .Where(s => s.IsActive == true)
-                      .Select(s => new KeyValuePair<int, string>(s.Id, s.Name))
+                      .Select(s => new KeyValuePair<int, string>(s.Id, s.Name!))
                       .ToListAsync(ct);
     }
 
@@ -38,7 +38,7 @@ public sealed partial class AcrQueryService
         return await db.Sites.AsNoTracking()
             .Where(s => s.IsActive == true)
             .OrderBy(s => s.SiteCode)
-            .Select(s => new KeyValuePair<int, string>(s.Id, s.SiteCode))
+            .Select(s => new KeyValuePair<int, string>(s.Id, s.SiteCode!))
             .ToListAsync(ct);
     }
 

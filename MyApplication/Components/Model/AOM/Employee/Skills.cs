@@ -11,7 +11,7 @@ namespace MyApplication.Components.Model.AOM.Employee
         public int EmployeeId { get; set; }
         public Employees? Employee { get; set; }
         public int SkillTypeId { get; set; }
-        public SkillType SkillType { get; set; }
+        public SkillType SkillType { get; set; } = null!;
         public DateOnly SkillDate {  get; set; }
         public bool? IsActive { get; set; }
     }
@@ -20,7 +20,7 @@ namespace MyApplication.Components.Model.AOM.Employee
     {
         [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
         public bool? IsActive { get; set; } = true;
     }
 }

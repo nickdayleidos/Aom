@@ -10,7 +10,7 @@ namespace MyApplication.Components.Model.AOM.Security
         public int Id { get; set; }
 
         [Required, MaxLength(50)]
-        public string Name { get; set; } // e.g., "Admin", "Manager", "WFM"
+        public string Name { get; set; } = null!; // e.g., "Admin", "Manager", "WFM"
     }
 
     [Table("AppRoleAssignment", Schema = "Security")]
@@ -25,7 +25,7 @@ namespace MyApplication.Components.Model.AOM.Security
         // This can be a specific username (LEIDOS-CORP\dayng) 
         // OR an AD Group Name (LEIDOS-CORP\SMIT_TODAdmin)
         [Required, MaxLength(128)]
-        public string Identifier { get; set; }
+        public string Identifier { get; set; } = null!;
 
         // Helper to know if this is a user or group mapping (optional, but good for UI)
         [MaxLength(20)]

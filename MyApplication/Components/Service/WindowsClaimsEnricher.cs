@@ -50,7 +50,7 @@ namespace MyApplication.Components.Service
 
                 foreach (var match in userMatches)
                 {
-                    AddRole(wid, match.AppRole.Name, "UserMatch");
+                    AddRole(wid, match.AppRole!.Name, "UserMatch");
                 }
 
                 // ---------------------------------------------------------
@@ -67,7 +67,7 @@ namespace MyApplication.Components.Service
                         // assignment.Identifier should be "LEIDOS-CORP\Group"
                         if (wp.IsInRole(assignment.Identifier))
                         {
-                            AddRole(wid, assignment.AppRole.Name, "GroupMatch");
+                            AddRole(wid, assignment.AppRole!.Name, "GroupMatch");
                         }
                     }
                     catch
