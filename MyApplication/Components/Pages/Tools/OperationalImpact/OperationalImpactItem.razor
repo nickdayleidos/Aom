@@ -84,16 +84,16 @@
 
                 <!-- Posted -->
                 <MudItem xs="12" md="3">
-                    <MudDatePicker T="DateTime?" Label="Posted Date"
-                                   Value="PostedDate" ValueChanged="d => PostedDate = d" />
+                    <MudDatePicker Label="Posted Date"
+                                   Date="PostedDate" DateChanged="d => PostedDate = d" />
                     <MudTimePicker Label="Posted Time" AmPm="true"
                                    Time="PostedTimeOfDay" TimeChanged="t => PostedTimeOfDay = t" />
                 </MudItem>
 
                 <!-- Start -->
                 <MudItem xs="12" md="3">
-                    <MudDatePicker T="DateTime?" Label="Start Date"
-                                   Value="StartDate" ValueChanged="d => StartDate = d" />
+                    <MudDatePicker Label="Start Date"
+                                   Date="StartDate" DateChanged="d => StartDate = d" />
                     <MudTimePicker Label="Start Time" AmPm="true"
                                    Time="StartTimeOfDay" TimeChanged="t => StartTimeOfDay = t" />
                 </MudItem>
@@ -105,8 +105,7 @@
 
                 <!-- Resolution -->
                 <MudItem xs="12" md="3">
-                    <MudDatePicker T="DateTime?"
-                                   Label="Resolution Date"
+                    <MudDatePicker Label="Resolution Date"
                                    Date="ResolutionDate"
                                    DateChanged="(DateTime? d) => ResolutionDate = d" />
                     <MudTimePicker Label="Resolution Time"

@@ -64,7 +64,7 @@
             <PropertyColumn Property="x => x.Manager" Title="Manager" />
             <TemplateColumn Title="Actions" CellClass="d-flex justify-end">
                 <CellTemplate>
-                    <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ViewDetails(context.Item.Id))" Title="Details" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ViewDetails(context.Item.Id))" title="Details" />
                 </CellTemplate>
             </TemplateColumn>
         </Columns>

@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Security.Claims;
 using System.Security.Principal;
 using Microsoft.AspNetCore.Authentication;
@@ -7,6 +8,7 @@ using MyApplication.Components.Model.AOM.Security;
 
 namespace MyApplication.Components.Service
 {
+    [SupportedOSPlatform("windows")]
     public sealed class WindowsClaimsEnricher : IClaimsTransformation
     {
         private readonly IDbContextFactory<AomDbContext> _dbFactory;
