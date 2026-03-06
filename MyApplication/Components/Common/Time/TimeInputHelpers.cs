@@ -7,11 +7,11 @@ namespace MyApplication.Components.Common.Time
     public static class TimeInputHelpers
     {
         // Custom converter for MudTimePicker to allow inputs like "859", "0859", "8:59"
-        public static Converter<TimeSpan?> FlexibleTimeConverter = new Converter<TimeSpan?>
-        {
-            SetFunc = value => value.HasValue ? $"{value.Value.Hours:D2}:{value.Value.Minutes:D2}" : string.Empty,
-            GetFunc = text => ParseTime(text)
-        };
+        // MudBlazor 9: Converter<TIn,TOut> is now a delegate; use SetFunc/GetFunc directly on the component
+        public static string TimeToString(TimeSpan? value)
+            => value.HasValue ? $"{value.Value.Hours:D2}:{value.Value.Minutes:D2}" : string.Empty;
+
+        public static TimeSpan? StringToTime(string? text) => ParseTime(text);
 
         private static TimeSpan? ParseTime(string? input)
         {

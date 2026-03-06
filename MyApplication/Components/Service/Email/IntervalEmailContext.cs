@@ -1,5 +1,5 @@
-ï»¿// Components/Services/Email/IntervalEmailContext.cs
-namespace MyApplication.Components.Services.Email;
+// Components/Services/Email/IntervalEmailContext.cs
+namespace MyApplication.Components.Service.Email;
 
 public sealed class IntervalEmailContext
 {
@@ -47,7 +47,7 @@ public sealed class IntervalEmailContext
     public double Slr33VmMtdLos1 { get; init; }
     public double Slr33VmMtdLos2 { get; init; }
 
-    // Backlog â€“ Wireless
+    // Backlog – Wireless
     public int CurrentEmailCount { get; init; }
     public double CurrentEmailOldest { get; init; }
     public int CurrentCustomerCareCount { get; init; }
@@ -59,13 +59,13 @@ public sealed class IntervalEmailContext
     public int CurrentSiprUaifCount { get; init; }
     public double CurrentSiprUaifOldest { get; init; }
 
-    // Backlog â€“ Wireline
+    // Backlog – Wireline
     public int CurrentVmCount { get; init; }
     public double CurrentVmOldest { get; init; }
     public int CurrentEssCount { get; init; }
     public double CurrentEssOldest { get; init; }
 
-    // Backlog â€“ SRM
+    // Backlog – SRM
     public int SrmUaAutoCount { get; init; }
     public double SrmUaAutoAgeHours { get; init; }
     public int SrmUaUsnManCount { get; init; }
@@ -85,7 +85,7 @@ public sealed class IntervalEmailContext
     public int CsCount { get; init; }
     public double CsAgeHours { get; init; }
 
-    // OCM â€“ NIPR/SIPR Ready/Hold/Fatal
+    // OCM – NIPR/SIPR Ready/Hold/Fatal
     public int OcmNiprReadyCount { get; init; }
     public double OcmNiprReadyAgeHours { get; init; }
     public int OcmSiprReadyCount { get; init; }

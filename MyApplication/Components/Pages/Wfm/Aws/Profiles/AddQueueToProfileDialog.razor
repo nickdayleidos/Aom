@@ -1,7 +1,7 @@
-﻿@using MyApplication.Components.Model.AOM.Aws
+﻿@inherits AppComponentBase
+@using MyApplication.Components.Model.AOM.Aws
 @using MyApplication.Components.Service.Aws
 @inject AwsRoutingService Service
-@inject ISnackbar Snackbar
 
 <MudDialog>
     <DialogContent>
@@ -33,7 +33,7 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
 
     [Parameter] public int ProfileId { get; set; }
 
@@ -79,7 +79,7 @@
     {
         if (Mapping.CallQueueId == 0)
         {
-            Snackbar.Add("Please select a queue", Severity.Warning);
+            ShowWarning("Please select a queue");
             return;
         }
 

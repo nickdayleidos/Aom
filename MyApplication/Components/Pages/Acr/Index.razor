@@ -1,11 +1,11 @@
-﻿@page "/acr"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+@page "/acr"
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.Management)]
 @using System.Linq
 @using MudBlazor
 @using MyApplication.Components.Service.Acr
 
 @inject IAcrQueryService Query
-@inject NavigationManager Nav
 
 <MudStack Spacing="2">
     <MudPaper Class="pa-4" Outlined="true">
@@ -15,7 +15,7 @@
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Outlined.Add"
-                       OnClick="@(() => Nav.NavigateTo("/acr/new"))">
+                       OnClick="@(() => Navigation.NavigateTo("/acr/new"))">
                 New Request
             </MudButton>
         </MudStack>
@@ -32,7 +32,7 @@
 
         <MudDivider Class="my-3" />
 
-        <MudGrid Spacing="2" AlignItems="Center">
+        <MudGrid Spacing="2">
 
             <MudItem xs="12" md="3">
                 <MudTextField T="string"
@@ -137,7 +137,7 @@
                   Dense="true"
                   Bordered="false"
                   Striped="true"
-                  RowClick="OnRowClick"
+                  OnRowClick="OnRowClick"
                   RowsPerPage="50"
                   Class="mt-4"
                   Elevation="0">
@@ -180,7 +180,7 @@
             </NoRecordsContent>
             <LoadingContent>
                 <MudStack AlignItems="AlignItems.Center" Class="pa-4">
-                    <MudProgressCircular Indeterminate="true" />
+                    <LoadingSpinner />
                 </MudStack>
             </LoadingContent>
             <PagerContent>
@@ -195,7 +195,7 @@
     private const int StatusSubmitted = 1;
     private const int StatusManagerApproved = 2;
 
-    private MudTable<AcrRequestListItem> _table;
+    private MudTable<AcrRequestListItem> _table = null!;
 
     private int _tabIndex;
     private int TabIndex
@@ -208,8 +208,6 @@
     // Data Sources
     private Dictionary<int, string> _types = new();
     private Dictionary<int, string> _statuses = new();
-    private List<KeyValuePair<int, string>> _managers = new();
-    private List<KeyValuePair<int, string>> _supervisors = new();
     // Bound Objects for Autocompletes
     private KeyValuePair<int, string>? _selectedTypeKv;
     private KeyValuePair<int, string>? _selectedStatusKv;
@@ -230,15 +228,11 @@
         {
             var tTypes = Query.GetTypesAsync();
             var tStatus = Query.GetStatusesAsync();
-            var tManagers = Query.GetManagersAsync();
-            var tSupervisors = Query.GetSupervisorsAsync();
 
-            await Task.WhenAll(tTypes, tStatus, tManagers, tSupervisors);
+            await Task.WhenAll(tTypes, tStatus);
 
             _types = tTypes.Result;
             _statuses = tStatus.Result;
-            _managers = tManagers.Result;
-            _supervisors = tSupervisors.Result;
         }
         catch (Exception ex)
         {
@@ -249,39 +243,21 @@
     // --- Search Helpers for Autocompletes ---
 
     private Task<IEnumerable<KeyValuePair<int, string>?>> SearchTypes(string value, CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_types.Select(x => (KeyValuePair<int, string>?)x));
-        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
-            _types.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
-                  .Select(x => (KeyValuePair<int, string>?)x));
-    }
+        => KvSearchHelper.Search(_types, value);
 
     private Task<IEnumerable<KeyValuePair<int, string>?>> SearchStatuses(string value, CancellationToken ct)
+        => KvSearchHelper.Search(_statuses, value);
+
+    private async Task<IEnumerable<KeyValuePair<int, string>?>> SearchManagers(string value, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_statuses.Select(x => (KeyValuePair<int, string>?)x));
-        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
-            _statuses.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
-                     .Select(x => (KeyValuePair<int, string>?)x));
+        var results = await Query.SearchManagersAsync(value, 25, ct);
+        return results.Select(x => (KeyValuePair<int, string>?)x);
     }
 
-    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchManagers(string value, CancellationToken ct)
+    private async Task<IEnumerable<KeyValuePair<int, string>?>> SearchSupervisors(string value, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_managers.Select(x => (KeyValuePair<int, string>?)x));
-        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
-            _managers.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
-                     .Select(x => (KeyValuePair<int, string>?)x));
-    }
-
-    private Task<IEnumerable<KeyValuePair<int, string>?>> SearchSupervisors(string value, CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(value))
-            return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(_supervisors.Select(x => (KeyValuePair<int, string>?)x));
-        return Task.FromResult<IEnumerable<KeyValuePair<int, string>?>>(
-            _supervisors.Where(x => x.Value.Contains(value, StringComparison.OrdinalIgnoreCase))
-                        .Select(x => (KeyValuePair<int, string>?)x));
+        var results = await Query.SearchSupervisorsAsync(value, 25, ct);
+        return results.Select(x => (KeyValuePair<int, string>?)x);
     }
 
     // --- Change Handlers ---
@@ -345,5 +321,5 @@
     }
 
     private void OnRowClick(TableRowClickEventArgs<AcrRequestListItem> e)
-        => Nav.NavigateTo($"/acr/{e.Item.Id}");
+        => Navigation.NavigateTo($"/acr/{e.Item!.Id}");
 }

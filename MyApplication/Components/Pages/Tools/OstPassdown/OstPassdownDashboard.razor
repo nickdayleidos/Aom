@@ -1,14 +1,10 @@
-﻿@page "/tools/ost-passdown"
+@page "/tools/ost-passdown"
+@inherits AppComponentBase
 @using OstPassdownEntity = MyApplication.Components.Model.AOM.Tools.OstPassdown
-@attribute [Authorize(Roles = "Admin, OST")]
+@attribute [Authorize(Roles = RoleConstants.AdminOst)]
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Tools.OstPassdown
-@using Microsoft.AspNetCore.Components.Authorization
 @inject IOstPassdownService PassdownService
-@inject NavigationManager Navigation
-@inject ISnackbar Snackbar
-@inject AuthenticationStateProvider AuthStateProvider
-@inject IDialogService DialogService
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <div class="d-flex justify-space-between align-center mb-4">
@@ -16,11 +12,11 @@
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="GoToNew">New Passdown</MudButton>
     </div>
 
-    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
         <MudTabPanel Text="Current Passdown">
             @if (_isLoadingCurrent)
             {
-                <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                <LoadingSpinner Color="Color.Primary" />
             }
             else if (_currentPassdown == null)
             {
@@ -398,7 +394,7 @@
         {
             await PassdownService.UpdatePassdownAsync(_currentPassdown, _currentUser);
             _isEditing = false;
-            Snackbar.Add("Passdown updated successfully", Severity.Success);
+            ShowSuccess("Passdown updated successfully");
             await LoadData(); // Refresh list as well
         }
     }

@@ -9,17 +9,18 @@ namespace MyApplication.Components.Service.Tools.OstPassdown
 {
     public class OstPassdownService : IOstPassdownService
     {
-        private readonly AomDbContext _context;
+        private readonly IDbContextFactory<AomDbContext> _factory;
 
-        public OstPassdownService(AomDbContext context)
+        public OstPassdownService(IDbContextFactory<AomDbContext> factory)
         {
-            _context = context;
+            _factory = factory;
         }
 
         public async Task<Model.AOM.Tools.OstPassdown?> GetCurrentPassdownAsync()
         {
+            await using var db = await _factory.CreateDbContextAsync();
             // Returns the most recently posted passdown
-            return await _context.OstPassdown
+            return await db.OstPassdown
                 .Include(x => x.NewEdl)
                 .Include(x => x.PrevEdl)
                 .Include(x => x.ReskillBy)
@@ -32,7 +33,8 @@ namespace MyApplication.Components.Service.Tools.OstPassdown
 
         public async Task<List<Model.AOM.Tools.OstPassdown>> GetHistoryAsync()
         {
-            return await _context.OstPassdown
+            await using var db = await _factory.CreateDbContextAsync();
+            return await db.OstPassdown
                 .Include(x => x.NewEdl)
                 .Include(x => x.PrevEdl)
                 .OrderByDescending(x => x.PostedTime)
@@ -41,7 +43,8 @@ namespace MyApplication.Components.Service.Tools.OstPassdown
 
         public async Task<Model.AOM.Tools.OstPassdown?> GetPassdownByIdAsync(int id)
         {
-            return await _context.OstPassdown
+            await using var db = await _factory.CreateDbContextAsync();
+            return await db.OstPassdown
                 .Include(x => x.NewEdl)
                 .Include(x => x.PrevEdl)
                 .Include(x => x.ReskillBy)
@@ -53,38 +56,41 @@ namespace MyApplication.Components.Service.Tools.OstPassdown
 
         public async Task CreatePassdownAsync(Model.AOM.Tools.OstPassdown passdown, string user)
         {
+            await using var db = await _factory.CreateDbContextAsync();
             passdown.PostedBy = user;
             passdown.PostedTime = Et.Now;
-            _context.OstPassdown.Add(passdown);
-            await _context.SaveChangesAsync();
+            db.OstPassdown.Add(passdown);
+            await db.SaveChangesAsync();
         }
 
         public async Task UpdatePassdownAsync(Model.AOM.Tools.OstPassdown passdown, string user)
         {
+            await using var db = await _factory.CreateDbContextAsync();
             passdown.UpdatedBy = user;
             passdown.UpdateTime = Et.Now;
-            _context.OstPassdown.Update(passdown);
-            await _context.SaveChangesAsync();
+            db.OstPassdown.Update(passdown);
+            await db.SaveChangesAsync();
         }
 
         public async Task<List<Employees>> GetOstEmployeesAsync()
         {
+            await using var db = await _factory.CreateDbContextAsync();
             var targetOrgId = 5;
             var targetSubOrgId = 20;
 
             // Revised query to avoid EF Core translation issues with GroupBy/FirstOrDefault (EmptyProjectionMember error)
             // We select employees where their *latest* history record matches the criteria.
-            return await _context.Employees
+            return await db.Employees
                 .Select(e => new
                 {
                     Employee = e,
-                    LatestHistory = _context.EmployeeHistory
+                    LatestHistory = db.EmployeeHistory
                         .Where(h => h.EmployeeId == e.Id)
                         .OrderByDescending(h => h.EffectiveDate)
                         .FirstOrDefault()
                 })
-                .Where(x => x.LatestHistory != null 
-                && x.LatestHistory.OrganizationId == targetOrgId 
+                .Where(x => x.LatestHistory != null
+                && x.LatestHistory.OrganizationId == targetOrgId
                 && x.LatestHistory.SubOrganizationId == targetSubOrgId && x.LatestHistory.IsActive == true)
                 .Select(x => x.Employee)
                 .OrderBy(x => x.LastName)

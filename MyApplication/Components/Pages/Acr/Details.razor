@@ -1,11 +1,9 @@
-﻿@page "/acr/{Id:int}"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+@page "/acr/{Id:int}"
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.Management)]
 @using Microsoft.AspNetCore.Components.Authorization
 @inject IAcrQueryService Query
 @inject IAcrService Acr
-@inject NavigationManager Nav
-@inject ISnackbar Snackbar
-@inject AuthenticationStateProvider AuthState
 
 <MudPaper Class="pa-2" Outlined="true">
     <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
@@ -77,7 +75,7 @@
                 @if (_canEdit)
                 {
                     <MudButton Variant="Variant.Text"
-                               OnClick="@(() => Nav.NavigateTo($"/acr/{Id}/edit"))">
+                               OnClick="@(() => Navigation.NavigateTo($"/acr/{Id}/edit"))">
                         Edit
                     </MudButton>
                 }
@@ -227,12 +225,11 @@
     protected override async Task OnParametersSetAsync()
     {
         // 1. Get User Roles
-        var authState = await AuthState.GetAuthenticationStateAsync();
-        var user = authState.User;
-        _isAdmin = user.IsInRole("Admin");
-        _isWfm = user.IsInRole("WFM");
-        _isManager = user.IsInRole("Manager");
-        _isSupervisor = user.IsInRole("Supervisor");
+        var roles = await GetUserRolesAsync();
+        _isAdmin = roles.IsAdmin;
+        _isWfm = roles.IsWfm;
+        _isManager = roles.IsManager;
+        _isSupervisor = roles.IsSupervisor;
 
         // 2. Load Data
         _vm = await Query.LoadDetailsAsync(Id);
@@ -360,28 +357,28 @@
     private async Task ManagerApproveAsync()
     {
         await Acr.SetStatusAsync(Id, StatusManagerApproved);
-        Snackbar.Add("ACR manager-approved.", Severity.Success);
+        ShowSuccess("ACR manager-approved.");
         await RefreshStatusAsync();
     }
 
     private async Task WfmApproveAsync()
     {
         await Acr.SetStatusAsync(Id, StatusWfmApproved);
-        Snackbar.Add("ACR WFM-approved.", Severity.Success);
+        ShowSuccess("ACR WFM-approved.");
         await RefreshStatusAsync();
     }
 
     private async Task RejectAsync()
     {
         await Acr.SetStatusAsync(Id, StatusRejected);
-        Snackbar.Add("ACR rejected.", Severity.Warning);
+        ShowWarning("ACR rejected.");
         await RefreshStatusAsync();
     }
 
     private async Task CancelAsync()
     {
         await Acr.SetStatusAsync(Id, StatusCancelled);
-        Snackbar.Add("ACR cancelled.", Severity.Info);
+        ShowInfo("ACR cancelled.");
         await RefreshStatusAsync();
     }
 }

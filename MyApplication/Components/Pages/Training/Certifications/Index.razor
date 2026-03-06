@@ -1,18 +1,16 @@
 ﻿@page "/training/certifications"
+@inherits AppComponentBase
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Training.Certifications
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Text
 @using System
 @inject ICertificationsRepository Repository
-@inject NavigationManager Navigation
-@inject AuthenticationStateProvider AuthenticationStateProvider
-@inject IJSRuntime JS
 
 <PageTitle>Certifications</PageTitle>
 
 <!-- 1. Explicitly name the outer context to avoid conflict with default 'context' in tables -->
-<AuthorizeView Roles="Admin,Manager,Supervisor,WFM,OST,Training" Context="pageAuth">
+<AuthorizeView Roles="@RoleConstants.FullAccess" Context="pageAuth">
     <Authorized>
         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
@@ -24,7 +22,7 @@
 
             <!-- Filters Section (Top) -->
             <MudPaper Class="p-4 mb-4" Elevation="2">
-                <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                <MudGrid Spacing="2">
                     <MudItem xs="12" sm="6" md="2">
                         <MudSwitch T="bool" @bind-Value="_showOnlyActive" Color="Color.Primary" Label="Active Only" />
                     </MudItem>
@@ -67,7 +65,7 @@
             </MudPaper>
 
             <!-- Tabs for Views -->
-            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
                 <MudTabPanel Text="All Certifications">
                     <MudTable Items="@FilteredCertifications" Dense="true" Hover="true" Striped="true"
                               Filter="new Func<Certification, bool>(FilterFunc)" SortLabel="Sort By">
@@ -77,8 +75,8 @@
                             <MudTextField @bind-Value="_searchString" Placeholder="Search..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
                         </ToolBarContent>
                         <HeaderContent>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Employee?.LastName)">Employee</MudTableSortLabel></MudTh>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationType?.Name)">Type</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Employee?.LastName!)">Employee</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationType?.Name!)">Type</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.SerialNumber)">Serial Number</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationDate)">Cert Date</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.ExpirationDate)">Expires</MudTableSortLabel></MudTh>
@@ -123,8 +121,8 @@
                             <MudTextField @bind-Value="_searchString" Placeholder="Search..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
                         </ToolBarContent>
                         <HeaderContent>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Employee?.LastName)">Employee</MudTableSortLabel></MudTh>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationType?.Name)">Type</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.Employee?.LastName!)">Employee</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationType?.Name!)">Type</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.SerialNumber)">Serial Number</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.CertificationDate)">Cert Date</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Certification, object>(x => x.ExpirationDate)">Expires</MudTableSortLabel></MudTh>
@@ -141,7 +139,7 @@
                             <MudTd DataLabel="Uploaded">@certContext.UploadDate.ToShortDateString()</MudTd>
                             <MudTd DataLabel="Actions">
                                 <!-- 4. Explicit context 'authContext' to avoid clash with 'certContext' -->
-                                <AuthorizeView Roles="Training,Admin" Context="authContext">
+                                <AuthorizeView Roles="@RoleConstants.AdminTraining" Context="authContext">
                                     <Authorized>
                                         <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Success" StartIcon="@Icons.Material.Filled.Check" OnClick="@(() => Navigation.NavigateTo($"/training/certifications/details/{certContext.Id}"))">Review</MudButton>
                                     </Authorized>
@@ -169,11 +167,11 @@
                         <HeaderContent>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.EmployeeName)">Employee</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.SupervisorName)">Supervisor</MudTableSortLabel></MudTh>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.HireDate)">Hire Date</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.HireDate.GetValueOrDefault())">Hire Date</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.RequiredLevel)">Required Level</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.CertificationName)">Best Certification</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.AchievedLevel)">Cert Level</MudTableSortLabel></MudTh>
-                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.ExpirationDate)">Expires</MudTableSortLabel></MudTh>
+                            <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.ExpirationDate.GetValueOrDefault())">Expires</MudTableSortLabel></MudTh>
                             <MudTh><MudTableSortLabel SortBy="new Func<Current8570ReportItem, object>(x => x.SerialNumber)">Serial Number</MudTableSortLabel></MudTh>
                             <MudTh>Action</MudTh>
                         </HeaderContent>
@@ -224,11 +222,11 @@
     // Filter States
     private bool _showOnlyActive = true;
 
-    // Note: Bind-Value on MudSelect MultiSelection expects IEnumerable<T>
-    private IEnumerable<int?> _selectedManagers { get; set; } = new HashSet<int?>();
-    private IEnumerable<int?> _selectedSupervisors { get; set; } = new HashSet<int?>();
-    private IEnumerable<int?> _selectedOrgs { get; set; } = new HashSet<int?>();
-    private IEnumerable<int?> _selectedSubOrgs { get; set; } = new HashSet<int?>();
+    // MudBlazor 9: MudSelect.SelectedValues is IReadOnlyCollection<T>
+    private IReadOnlyCollection<int?> _selectedManagers { get; set; } = new HashSet<int?>();
+    private IReadOnlyCollection<int?> _selectedSupervisors { get; set; } = new HashSet<int?>();
+    private IReadOnlyCollection<int?> _selectedOrgs { get; set; } = new HashSet<int?>();
+    private IReadOnlyCollection<int?> _selectedSubOrgs { get; set; } = new HashSet<int?>();
 
     private string _searchString = "";
 
@@ -258,7 +256,7 @@
         _report8570 = t7.Result;
     }
 
-    private void OnOrgChanged(IEnumerable<int?> selectedValues)
+    private void OnOrgChanged(IReadOnlyCollection<int?> selectedValues)
     {
         _selectedOrgs = selectedValues;
 
@@ -266,7 +264,7 @@
         if (_selectedSubOrgs.Any())
         {
             var validSubOrgIds = _filteredSubOrgs.Select(s => (int?)s.Id).ToList();
-            _selectedSubOrgs = _selectedSubOrgs.Where(id => validSubOrgIds.Contains(id)).ToList();
+            _selectedSubOrgs = _selectedSubOrgs.Where(id => validSubOrgIds.Contains(id)).ToHashSet();
         }
     }
 

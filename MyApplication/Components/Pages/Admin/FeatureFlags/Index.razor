@@ -1,0 +1,122 @@
+@page "/admin/feature-flags"
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.Admin)]
+@using MyApplication.Components.Common.Auth
+@using MyApplication.Components.Model.AOM.Tools
+@using MyApplication.Components.Service.FeatureFlags
+@inject IFeatureFlagService FlagService
+
+<MudStack Spacing="4" Class="mb-8">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+        <MudText Typo="Typo.h5">Feature Flags</MudText>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenAddDialog">
+            Add Flag
+        </MudButton>
+    </MudStack>
+
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+        Toggle modules on/off and grant role-based early access without a redeploy.
+        Changes take effect within 5 minutes as the cache expires.
+    </MudText>
+
+    <MudDataGrid T="FeatureFlag"
+                 Items="_flags"
+                 Loading="@IsLoading"
+                 Hover="true"
+                 Dense="true"
+                 Bordered="true"
+                 Striped="true"
+                 Filterable="true"
+                 SortMode="SortMode.Multiple">
+        <Columns>
+            <PropertyColumn Property="x => x.Key" Title="Key" Filterable="true">
+                <CellTemplate>
+                    <MudText Typo="Typo.caption" Style="font-family:monospace">@context.Item.Key</MudText>
+                </CellTemplate>
+            </PropertyColumn>
+            <PropertyColumn Property="x => x.DisplayName" Title="Feature" Filterable="true" />
+            <TemplateColumn Title="Enabled" Sortable="true" Filterable="false">
+                <CellTemplate>
+                    <MudSwitch T="bool"
+                               Value="context.Item.IsEnabled"
+                               Color="Color.Success"
+                               ValueChanged="@(v => ToggleEnabled(context.Item, v))" />
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.AllowedRoles" Title="Role Overrides" Filterable="true">
+                <CellTemplate>
+                    @if (string.IsNullOrWhiteSpace(context.Item.AllowedRoles))
+                    {
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">None (use page auth)</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Style="font-family:monospace">@context.Item.AllowedRoles</MudText>
+                    }
+                </CellTemplate>
+            </PropertyColumn>
+            <PropertyColumn Property="x => x.Description" Title="Description" Filterable="true" />
+            <TemplateColumn CellClass="d-flex justify-end" Sortable="false" Filterable="false">
+                <CellTemplate>
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   OnClick="@(() => OpenEditDialog(context.Item))" />
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+        <PagerContent><MudDataGridPager T="FeatureFlag" /></PagerContent>
+        <NoRecordsContent><MudText Class="pa-4">No feature flags configured.</MudText></NoRecordsContent>
+    </MudDataGrid>
+</MudStack>
+
+@code {
+    private List<FeatureFlag> _flags = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RunAsync(async () =>
+        {
+            _flags = await FlagService.GetAllAsync();
+        });
+    }
+
+    private async Task ToggleEnabled(FeatureFlag flag, bool newValue)
+    {
+        flag.IsEnabled = newValue;
+        await FlagService.SaveAsync(flag);
+        ShowSuccess($"{flag.DisplayName} {(newValue ? "enabled" : "disabled")}.");
+    }
+
+    private async Task OpenAddDialog()
+    {
+        var flag = new FeatureFlag();
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters { ["Flag"] = flag, ["IsNew"] = true };
+        var dialog = await DialogService.ShowAsync<FeatureFlagEditDialog>("Add Feature Flag", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await FlagService.SaveAsync(flag);
+            _flags = await FlagService.GetAllAsync();
+            ShowSuccess("Feature flag added.");
+        }
+    }
+
+    private async Task OpenEditDialog(FeatureFlag flag)
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters { ["Flag"] = flag, ["IsNew"] = false };
+        var dialog = await DialogService.ShowAsync<FeatureFlagEditDialog>("Edit Feature Flag", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            await FlagService.SaveAsync(flag);
+            _flags = await FlagService.GetAllAsync();
+            ShowSuccess("Feature flag updated.");
+        }
+    }
+}

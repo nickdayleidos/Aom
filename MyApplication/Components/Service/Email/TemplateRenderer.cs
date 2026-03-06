@@ -1,8 +1,8 @@
-﻿// MyApplication/Components/Services/Email/TemplateRenderer.cs
+// MyApplication/Components/Services/Email/TemplateRenderer.cs
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace MyApplication.Components.Services.Email;
+namespace MyApplication.Components.Service.Email;
 
 public static class TemplateRenderer
 {

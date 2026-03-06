@@ -1,9 +1,9 @@
-﻿@page "/tools/ost-passdown/{Id:int}"
-@attribute [Authorize(Roles = "Admin, OST")]
+@page "/tools/ost-passdown/{Id:int}"
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.AdminOst)]
 @using OstPassdownEntity = MyApplication.Components.Model.AOM.Tools.OstPassdown
 @using MyApplication.Components.Service.Tools.OstPassdown
 @inject IOstPassdownService PassdownService
-@inject NavigationManager Navigation
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <div class="d-flex align-center mb-4">
@@ -13,7 +13,7 @@
 
     @if (_passdown == null)
     {
-        <MudProgressCircular Indeterminate="true" />
+        <LoadingSpinner />
     }
     else
     {
@@ -86,7 +86,7 @@
                     <MudItem xs="12"><MudDivider Class="my-4" /></MudItem>
 
                     <MudItem xs="6" md="1"><MudField Label="Callback Proj" Variant="Variant.Outlined">@_passdown.CallbackProjectCount</MudField></MudItem>
-                    <MudItem xs="12" md="11"><MudField Label="Callback Status" Variant="Variant.Outlined" Lines="2">@_passdown.CallbackProjectStatus</MudField></MudItem>
+                    <MudItem xs="12" md="11"><MudField Label="Callback Status" Variant="Variant.Outlined">@_passdown.CallbackProjectStatus</MudField></MudItem>
 
                     <MudItem xs="6" md="1"><MudField Label="LOS3 Count" Variant="Variant.Outlined">@_passdown.Los3Count</MudField></MudItem>
                     <MudItem xs="6" md="5"><MudField Label="LOS3 Status" Variant="Variant.Outlined">@_passdown.Los3Status</MudField></MudItem>
@@ -100,19 +100,19 @@
                     <MudItem xs="6" md="1"><MudField Label="SVD ETM Count" Variant="Variant.Outlined">@_passdown.SvdEtmCount</MudField></MudItem>
                     <MudItem xs="6" md="5"><MudField Label="SVD ETM Status" Variant="Variant.Outlined">@_passdown.SvdEtmStatus</MudField></MudItem>
 
-                    <MudItem xs="12" md="6"><MudField Label="OI Status" Variant="Variant.Outlined" Lines="2">@_passdown.OiStatus</MudField></MudItem>
-                    <MudItem xs="12" md="6"><MudField Label="UI Status" Variant="Variant.Outlined" Lines="2">@_passdown.UiStatus</MudField></MudItem>
-                    <MudItem xs="6" md="6"><MudField Label="UI StAio Status" Variant="Variant.Outlined" Lines="2">@_passdown.AioLongTagStatusatus</MudField></MudItem>
-                    <MudItem xs="6" md="6"><MudField Label="OTM Status" Variant="Variant.Outlined" Lines="2">@_passdown.OtmStatus</MudField></MudItem>
-                    <MudItem xs="12" md="6"><MudField Label="Navy Inbox Junk" Variant="Variant.Outlined" Lines="2">@_passdown.NavyInboxJunkStatus</MudField></MudItem>
+                    <MudItem xs="12" md="6"><MudField Label="OI Status" Variant="Variant.Outlined">@_passdown.OiStatus</MudField></MudItem>
+                    <MudItem xs="12" md="6"><MudField Label="UI Status" Variant="Variant.Outlined">@_passdown.UiStatus</MudField></MudItem>
+                    <MudItem xs="6" md="6"><MudField Label="UI StAio Status" Variant="Variant.Outlined">@_passdown.AioLongTagStatusatus</MudField></MudItem>
+                    <MudItem xs="6" md="6"><MudField Label="OTM Status" Variant="Variant.Outlined">@_passdown.OtmStatus</MudField></MudItem>
+                    <MudItem xs="12" md="6"><MudField Label="Navy Inbox Junk" Variant="Variant.Outlined">@_passdown.NavyInboxJunkStatus</MudField></MudItem>
 
                     <MudItem xs="12"><MudDivider Class="my-4" /></MudItem>
 
                     <MudItem xs="12">
-                        <MudField Label="Manager Comments" Variant="Variant.Outlined" Lines="3">@_passdown.ManagerComments</MudField>
+                        <MudField Label="Manager Comments" Variant="Variant.Outlined">@_passdown.ManagerComments</MudField>
                     </MudItem>
                     <MudItem xs="12">
-                        <MudField Label="Current Issues" Variant="Variant.Outlined" Lines="8">@_passdown.EdlComments</MudField>
+                        <MudField Label="Current Issues" Variant="Variant.Outlined">@_passdown.EdlComments</MudField>
                     </MudItem>
 
                 </MudGrid>

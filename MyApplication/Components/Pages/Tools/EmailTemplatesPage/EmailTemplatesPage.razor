@@ -1,5 +1,6 @@
-﻿@page "/tools/emailtemplates"
-@attribute [Authorize(Policy = "Admin")]
+@page "/tools/emailtemplates"
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.Admin)]
 @using System.ComponentModel.DataAnnotations
 @using Dapper
 @using Microsoft.Data.SqlClient
@@ -8,8 +9,6 @@
 @using MyApplication.Components.Model.AOM.Tools
 
 @inject IConfiguration Config
-@inject ISnackbar Snackbar
-@inject IDialogService Dialogs
 
 <MudStack Spacing="2">
     <!-- Toolbar -->
@@ -28,7 +27,7 @@
         </MudButton>
         <MudButton Variant="Variant.Outlined"
                    StartIcon="@Icons.Material.Filled.Refresh"
-                   Disabled="@_loading"
+                   Disabled="@IsLoading"
                    OnClick="@(async () => await LoadAsync())">
             Refresh
         </MudButton>
@@ -40,7 +39,7 @@
           Dense="true"
           Hover="true"
           Bordered="true"
-                  RowClick="@(async (TableRowClickEventArgs<EmailTemplates> e) => await OpenEditAsync(e.Item))">
+                  OnRowClick="@(async (TableRowClickEventArgs<EmailTemplates> e) => await OpenEditAsync(e.Item!))">
 
             <HeaderContent>
                 <MudTh>Name</MudTh>
@@ -62,7 +61,6 @@
                         <MudSwitch T="bool"
                                    Value="context.IsActive"
                                    ValueChanged="@(async (bool v) => await ToggleActiveAsync(context, v))"
-                                   Immediate="true"
                                    Color="Color.Primary" />
                     </div>
                 </MudTd>
@@ -73,16 +71,16 @@
                     <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                    Size="Size.Small"
                                    Color="Color.Primary"
-                                   Title="Edit"
+                                   title="Edit"
                                    OnClick="@(() => OpenEditAsync(context))" />
                     <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                    Size="Size.Small"
-                                   Title="Copy"
+                                   title="Copy"
                                    OnClick="@(() => OpenCopyAsync(context))" />
                     <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                    Size="Size.Small"
                                    Color="Color.Error"
-                                   Title="Delete"
+                                   title="Delete"
                                    OnClick="@(() => ConfirmDeleteAsync(context))" />
                 </MudTd>
             </RowTemplate>
@@ -95,7 +93,6 @@
 </MudStack>
 
 @code {
-    private bool _loading;
     private string _search = string.Empty;
 
     private List<EmailTemplates> _rows = new();
@@ -113,23 +110,24 @@
 
     private async Task LoadAsync()
     {
-        if (_loading) return;
-        _loading = true;
-        try
+        if (IsLoading) return;
+        await RunAsync(async () =>
         {
-            using var c = new SqlConnection(AomConn);
-            // Select explicit columns so Id is guaranteed to hydrate
-            var sql = @"SELECT Id, TemplateName, Subject, ToAddresses, CcAddresses, SendFromAddress, Body, IsActive
+            try
+            {
+                using var c = new SqlConnection(AomConn);
+                // Select explicit columns so Id is guaranteed to hydrate
+                var sql = @"SELECT Id, TemplateName, Subject, ToAddresses, CcAddresses, SendFromAddress, Body, IsActive
                     FROM Tools.EmailTemplates
                     ORDER BY TemplateName";
-            var rows = await c.QueryAsync<EmailTemplates>(sql);
-            _rows = rows.ToList();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Load failed: {ex.Message}", Severity.Error);
-        }
-        finally { _loading = false; }
+                var rows = await c.QueryAsync<EmailTemplates>(sql);
+                _rows = rows.ToList();
+            }
+            catch (Exception ex)
+            {
+                ShowError($"Load failed: {ex.Message}");
+            }
+        });
     }
 
 
@@ -150,19 +148,19 @@
             if (affected == 0)
             {
                 row.IsActive = prev; // revert UI
-                Snackbar.Add($"No rows updated (Id={row.Id}). Check that Id is loaded.", Severity.Warning);
+                ShowWarning($"No rows updated (Id={row.Id}). Check that Id is loaded.");
                 await InvokeAsync(StateHasChanged);
             }
             else
             {
-                Snackbar.Add($"{row.TemplateName} is now {(value ? "active" : "inactive")}.", Severity.Success);
+                ShowSuccess($"{row.TemplateName} is now {(value ? "active" : "inactive")}.");
             }
         }
         catch (Exception ex)
         {
             row.IsActive = prev; // revert UI on error
             await InvokeAsync(StateHasChanged);
-            Snackbar.Add($"Update failed: {ex.Message}", Severity.Error);
+            ShowError($"Update failed: {ex.Message}");
         }
     }
 
@@ -185,24 +183,22 @@
 
     private async Task ConfirmDeleteAsync(EmailTemplates row)
     {
-        bool? confirm = await Dialogs.ShowMessageBox(
-            "Delete Template",
-            (MarkupString)$"Are you sure you want to delete <b>{row.TemplateName}</b>?",
-            yesText: "Delete", cancelText: "Cancel",
-            options: new DialogOptions { CloseOnEscapeKey = true });
+        bool confirm = await ConfirmAsync(
+            $"Are you sure you want to delete {row.TemplateName}?",
+            "Delete Template");
 
-        if (confirm == true)
+        if (confirm)
         {
             try
             {
                 using var c = new SqlConnection(AomConn);
                 await c.ExecuteAsync("DELETE FROM Tools.EmailTemplates WHERE Id = @Id", new { row.Id });
                 _rows.Remove(row);
-                Snackbar.Add("Template deleted.", Severity.Success);
+                ShowSuccess("Template deleted.");
             }
             catch (Exception ex)
             {
-                Snackbar.Add($"Delete failed: {ex.Message}", Severity.Error);
+                ShowError($"Delete failed: {ex.Message}");
                 await LoadAsync();
             }
         }
@@ -212,9 +208,9 @@
     {
         var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true };
         var parameters = new DialogParameters { { nameof(TemplateEditorDialog.Model), vm } };
-        var dlg = await Dialogs.ShowAsync<TemplateEditorDialog>(title, parameters, options);
+        var dlg = await DialogService.ShowAsync<TemplateEditorDialog>(title, parameters, options);
         var res = await dlg.Result;
-        if (!res.Canceled) await LoadAsync();
+        if (res is { Canceled: false }) await LoadAsync();
     }
 
     public class TemplateEditModel
@@ -237,10 +233,11 @@
             TemplateName = e.TemplateName,
             Subject = e.Subject,
             ToAddresses = e.ToAddresses,
-            CcAddresses = e.CcAddresses,
+            CcAddresses = e.CcAddresses ?? string.Empty,
             SendFromAddress = e.SendFromAddress,
             Body = e.Body,
             IsActive = e.IsActive
         };
     }
 }
+

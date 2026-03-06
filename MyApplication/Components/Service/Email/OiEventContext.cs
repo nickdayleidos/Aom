@@ -1,4 +1,4 @@
-﻿namespace MyApplication.Components.Services.Email;
+namespace MyApplication.Components.Service.Email;
 
 public sealed class OiEventContext
 {

@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using System.Security.Claims;
 using System.Security.Principal;
 using Microsoft.AspNetCore.Authentication;
@@ -7,6 +8,7 @@ using MyApplication.Components.Model.AOM.Security;
 
 namespace MyApplication.Components.Service
 {
+    [SupportedOSPlatform("windows")]
     public sealed class WindowsClaimsEnricher : IClaimsTransformation
     {
         private readonly IDbContextFactory<AomDbContext> _dbFactory;
@@ -48,7 +50,7 @@ namespace MyApplication.Components.Service
 
                 foreach (var match in userMatches)
                 {
-                    AddRole(wid, match.AppRole.Name, "UserMatch");
+                    AddRole(wid, match.AppRole!.Name, "UserMatch");
                 }
 
                 // ---------------------------------------------------------
@@ -65,7 +67,7 @@ namespace MyApplication.Components.Service
                         // assignment.Identifier should be "LEIDOS-CORP\Group"
                         if (wp.IsInRole(assignment.Identifier))
                         {
-                            AddRole(wid, assignment.AppRole.Name, "GroupMatch");
+                            AddRole(wid, assignment.AppRole!.Name, "GroupMatch");
                         }
                     }
                     catch

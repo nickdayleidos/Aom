@@ -1,17 +1,15 @@
-﻿@page "/employees/{Id:int}"
+@page "/employees/{Id:int}"
+@inherits AppComponentBase
 @* 1. PAGE ACCESS: Expanded to include OST, WFM, Managers, Supervisors *@
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor,Tech Lead, Training")]
-
+@attribute [Authorize(Roles = RoleConstants.FullAccess)]
 @using MyApplication.Components.Service.Employee
 @using MyApplication.Components.Pages.Employees.Dialogs
 @using MyApplication.Common.Time
-@inject EmployeesRepository Repository
-@inject NavigationManager Nav
-@inject IDialogService DialogService
+@inject EmployeeDetailsService Repository
 
 <MudStack Spacing="4" Class="mb-8">
     <MudStack Row="true" AlignItems="AlignItems.Center">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/employees"))" />
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/employees"))" />
         <MudText Typo="Typo.h5">Employee Details</MudText>
         <MudSpacer />
         <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
@@ -24,9 +22,9 @@
         </MudStack>
     </MudStack>
 
-    @if (_loading)
+    @if (IsLoading)
     {
-        <MudProgressCircular Indeterminate="true" />
+        <LoadingSpinner />
     }
     else if (_vm == null)
     {
@@ -41,7 +39,7 @@
                         <MudText Typo="Typo.h6" Color="Color.Primary">Profile</MudText>
 
                         @* 2. EDIT PROFILE: Allowed for WFM, Manager, Supervisor, Admin *@
-                        <AuthorizeView Roles="Admin,WFM,Manager,Supervisor">
+                        <AuthorizeView Roles="@RoleConstants.Management">
                             <Authorized>
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                                Size="Size.Small"
@@ -221,7 +219,7 @@
 
         <MudPaper Class="pa-4" Outlined="true">
             <MudText Typo="Typo.h6" Class="mb-2">History</MudText>
-            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-2">
+            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true">
 
                 <MudTabPanel Text="ACR History">
                     <MudTable Items="_vm.AcrHistory" Dense="true" Hover="true" Striped="true" Elevation="0">
@@ -240,7 +238,7 @@
                             <MudTd>@context.EffectiveDate</MudTd>
                             <MudTd>@context.Submitted</MudTd>
                             <MudTd>
-                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(() => Nav.NavigateTo($"/acr/{context.Id}"))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(() => Navigation.NavigateTo($"/acr/{context.Id}"))" />
                             </MudTd>
                         </RowTemplate>
                     </MudTable>
@@ -274,8 +272,7 @@
 
 @code {
     [Parameter] public int Id { get; set; }
-    private EmployeeFullDetailsVm _vm;
-    private bool _loading = true;
+    private EmployeeFullDetailsVm _vm = null!;
 
     // Default to Local time (Site)
     private TimeDisplayMode _mode = TimeDisplayMode.EmployeeLocal;
@@ -287,10 +284,10 @@
 
     private async Task LoadDataAsync()
     {
-        _loading = true;
-        _vm = await Repository.GetFullDetailsAsync(Id);
-        _loading = false;
-        StateHasChanged();
+        await RunAsync(async () =>
+        {
+            _vm = await Repository.GetFullDetailsAsync(Id);
+        });
     }
 
     private async Task EditProfileAsync()
@@ -319,9 +316,9 @@
         var dialog = await DialogService.ShowAsync<EditProfileDialog>("Edit Profile", parameters, options);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result is { Canceled: false })
         {
-            var updatedDto = (EmployeeProfileUpdateDto)result.Data;
+            var updatedDto = (EmployeeProfileUpdateDto)result!.Data!;
             await Repository.UpdateProfileAsync(updatedDto);
             // Refresh
             await LoadDataAsync();

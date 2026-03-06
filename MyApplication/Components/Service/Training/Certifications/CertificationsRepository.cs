@@ -22,7 +22,7 @@ namespace MyApplication.Components.Service.Training.Certifications
             return await ctx.Certifications
                 .Include(c => c.Employee)
                 .Include(c => c.CertificationType)
-                .ThenInclude(ct => ct.Vendor)
+                .ThenInclude(ct => ct!.Vendor)
                 .OrderByDescending(c => c.UploadDate)
                 .ToListAsync();
         }
@@ -33,7 +33,7 @@ namespace MyApplication.Components.Service.Training.Certifications
             return await ctx.Certifications
                 .Include(c => c.Employee)
                 .Include(c => c.CertificationType)
-                .ThenInclude(ct => ct.Vendor)
+                .ThenInclude(ct => ct!.Vendor)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
@@ -229,12 +229,12 @@ namespace MyApplication.Components.Service.Training.Certifications
         public async Task<List<Manager>> GetManagersAsync()
         {
             using var ctx = _contextFactory.CreateDbContext();
-            return await ctx.Managers.Include(m => m.Employee).Where(m => m.IsActive == true).OrderBy(m => m.Employee.LastName).ThenBy(m => m.Employee.FirstName).ToListAsync();
+            return await ctx.Managers.Include(m => m.Employee).Where(m => m.IsActive == true).OrderBy(m => m.Employee!.LastName).ThenBy(m => m.Employee!.FirstName).ToListAsync();
         }
         public async Task<List<Supervisor>> GetSupervisorsAsync()
         {
             using var ctx = _contextFactory.CreateDbContext();
-            return await ctx.Supervisors.Include(s => s.Employee).Where(s => s.IsActive == true).OrderBy(s => s.Employee.LastName).ThenBy(s => s.Employee.FirstName).ToListAsync();
+            return await ctx.Supervisors.Include(s => s.Employee).Where(s => s.IsActive == true).OrderBy(s => s.Employee!.LastName).ThenBy(s => s.Employee!.FirstName).ToListAsync();
         }
         public async Task<List<Organization>> GetOrganizationsAsync()
         {

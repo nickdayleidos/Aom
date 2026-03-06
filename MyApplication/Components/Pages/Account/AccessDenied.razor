@@ -1,0 +1,123 @@
+@page "/Account/AccessDenied"
+@inherits AppComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+<PageTitle>Access Denied</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+    <MudPaper Class="pa-8" Elevation="3">
+        <MudStack Spacing="4" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Error" Style="font-size: 80px;" />
+
+            <MudText Typo="Typo.h4" Align="Align.Center" Color="Color.Error">
+                Access Denied
+            </MudText>
+
+            <MudText Typo="Typo.body1" Align="Align.Center">
+                You don't have permission to access this resource.
+            </MudText>
+
+            @if (!string.IsNullOrEmpty(_attemptedUrl))
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-4">
+                    <MudText Typo="Typo.body2">
+                        <strong>Attempted URL:</strong> @_attemptedUrl
+                    </MudText>
+                </MudAlert>
+            }
+
+            <MudDivider Class="my-4" Style="width: 100%;" />
+
+            <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Dark">
+                Logged in as: <strong>@_userName</strong>
+            </MudText>
+
+            @if (_userRoles.Any())
+            {
+                <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Dark">
+                    Your roles:
+                </MudText>
+                <MudChipSet T="string" ReadOnly="true">
+                    @foreach (var role in _userRoles)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">
+                            @role
+                        </MudChip>
+                    }
+                </MudChipSet>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Text">
+                    You have no roles assigned. Please contact your administrator.
+                </MudAlert>
+            }
+
+            <MudDivider Class="my-4" Style="width: 100%;" />
+
+            <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Default" Class="mb-2">
+                If you believe you should have access, try signing in again or contact your administrator.
+            </MudText>
+
+            <MudStack Row="true" Class="mt-4" Spacing="2" Wrap="Wrap.Wrap" Justify="Justify.Center">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.Login"
+                           OnClick="SignInAgain">
+                    Sign In Again
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Home"
+                           OnClick="GoHome">
+                    Go to Home
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Default"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="GoBack">
+                    Go Back
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "ReturnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private string _userName = "Unknown";
+    private List<string> _userRoles = new();
+    private string? _attemptedUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        _userName = user.Identity?.Name ?? "Unknown User";
+        _userRoles = user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        _attemptedUrl = ReturnUrl;
+    }
+
+    private void SignInAgain()
+    {
+        // Sign out using our clean logout page, which will handle the redirect
+        var returnUrl = ReturnUrl ?? "/";
+        Navigation.NavigateTo($"/Account/Logout?returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo(ReturnUrl ?? "/", forceLoad: true);
+    }
+}

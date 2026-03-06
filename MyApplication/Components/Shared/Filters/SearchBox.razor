@@ -1,0 +1,32 @@
+@using MudBlazor
+
+<MudTextField T="string"
+             Value="@Value"
+             ValueChanged="@ValueChanged"
+             Placeholder="@Placeholder"
+             Label="@Label"
+             Variant="@Variant"
+             Margin="@Margin"
+             Adornment="@Adornment"
+             AdornmentIcon="@AdornmentIcon"
+             IconSize="@IconSize"
+             Immediate="@Immediate"
+             DebounceInterval="@DebounceInterval"
+             Clearable="@Clearable"
+             Class="@Class" />
+
+@code {
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Search";
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
+    [Parameter] public Margin Margin { get; set; } = Margin.Dense;
+    [Parameter] public Adornment Adornment { get; set; } = Adornment.Start;
+    [Parameter] public string AdornmentIcon { get; set; } = Icons.Material.Filled.Search;
+    [Parameter] public Size IconSize { get; set; } = Size.Medium;
+    [Parameter] public bool Immediate { get; set; } = true;
+    [Parameter] public double DebounceInterval { get; set; } = 300;
+    [Parameter] public bool Clearable { get; set; } = true;
+    [Parameter] public string Class { get; set; } = "mt-0";
+}

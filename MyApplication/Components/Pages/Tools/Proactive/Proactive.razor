@@ -1,15 +1,14 @@
-﻿@page "/tools/proactive"
+@page "/tools/proactive"
+@inherits AppComponentBase
 @using MyApplication.Common
 @using MyApplication.Components.Service
-@using MyApplication.Components.Services.Email
+@using MyApplication.Components.Service.Email
 @using MyApplication.Components.Model.AOM
+@using MyApplication.Common.Time
 @inject IProactiveRepository Repo
 @inject IEmailComposer Composer
-@inject ISnackbar Snackbar
-@inject Microsoft.JSInterop.IJSRuntime JS
 @using AomModel = MyApplication.Components.Model.AOM.Tools
-@attribute [Authorize(Roles = "Admin,OST,WFM")]
-@inject AuthenticationStateProvider Auth
+@attribute [Authorize(Roles = RoleConstants.AdminOstWfm)]
 
 
 <MudStack Spacing="2">
@@ -28,9 +27,8 @@
                               Label="USN Injection Announcement"
                               Variant="Variant.Filled"
                               Lines="5"
-                              AutoGrow="true"
+
                               MaxLines="40"
-                              Resize="Resize.Vertical"
                               @bind-Value="_inj" />
             </MudItem>
 
@@ -39,9 +37,8 @@
                               Label="USN Site Announcement"
                               Variant="Variant.Filled"
                               Lines="5"
-                              AutoGrow="true"
+
                               MaxLines="40"
-                              Resize="Resize.Vertical"
                               @bind-Value="_site" />
             </MudItem>
 
@@ -50,9 +47,8 @@
                               Label="USN Status Announcement"
                               Variant="Variant.Filled"
                               Lines="5"
-                              AutoGrow="true"
+
                               MaxLines="40"
-                              Resize="Resize.Vertical"
                               @bind-Value="_status" />
             </MudItem>
 
@@ -85,13 +81,13 @@
                 _inj = latest.UsnInjectionAnnouncement;
                 _site = latest.UsnSiteAnnouncement;
                 _status = latest.UsnStatusAnnouncement;
-                Snackbar.Add("Loaded latest proactive data.", Severity.Info);
+                ShowInfo("Loaded latest proactive data.");
             }
-            else Snackbar.Add("No proactive entries yet.", Severity.Normal);
+            else ShowInfo("No proactive entries yet.");
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error loading latest: {ex.Message}", Severity.Error);
+            ShowError($"Error loading latest: {ex.Message}");
         }
     }
 
@@ -107,7 +103,7 @@
     {
         if (string.IsNullOrWhiteSpace(_inj) && string.IsNullOrWhiteSpace(_site) && string.IsNullOrWhiteSpace(_status))
         {
-            Snackbar.Add("Please enter at least one announcement.", Severity.Warning);
+            ShowWarning("Please enter at least one announcement.");
             return;
         }
 
@@ -131,9 +127,8 @@
                 UsnStatusAnnouncement = entity.UsnStatusAnnouncement
             };
 
-            var (tplSubject, tplBody, to, cc, from) = await Composer.ComposeAsync("ProactiveAnnouncement", ctx);
-            var (subject, html) = ProactiveEmailBuilder.Build(tplSubject, tplBody, ctx);
-            var authState = await Auth.GetAuthenticationStateAsync();
+            var (subject, html, to, cc, from) = await Composer.ComposeAsync("ProactiveAnnouncement", ctx);
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var preparedBy = IdentityHelpers.GetSamAccount(authState.User) ?? "Unknown";
 
             string WrapBody(string body) => @"
@@ -154,7 +149,7 @@
                 OpenAsDraft = true,
                 IncludeCui = false
             }
-.WithFouoBanner("Proactive Announcement", preparedBy);
+.WithFouoBanner("Proactive Announcement", preparedBy, Et.Now);
 
             // Build once, serve as .oft so Outlook opens compose
             var msgBytes = EmailDraftBuilder.BuildMsgBytes(draft);
@@ -162,14 +157,14 @@
 
             await DownloadAsync(fileName, "application/vnd.ms-outlook", msgBytes);
 
-            Snackbar.Add("Saved and prepared email draft.", Severity.Success);
+            ShowSuccess("Saved and prepared email draft.");
 
 
 
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Submit failed: {ex.Message}", Severity.Error);
+            ShowError($"Submit failed: {ex.Message}");
         }
     }
 
@@ -182,3 +177,4 @@
 
 
 }
+

@@ -1,11 +1,10 @@
-﻿@page "/wfm/staticbreaks"
-@attribute [Authorize(Roles = "Admin,WFM")]
+@page "/wfm/staticbreaks"
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.AdminWfm)]
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Wfm
 @using System.Text.Json
-@inject IWfmService WfmService
-@inject ISnackbar Snackbar
-@inject IDialogService DialogService 
+@inject IWfmService WfmService 
 
 <MudText Typo="Typo.h5" Class="mb-4">Static Break Schedules</MudText>
 
@@ -150,13 +149,13 @@
                                    Size="Size.Small"
                                    Color="Color.Primary"
                                    OnClick="@(() => EditSchedule(context))"
-                                   Title="Edit Schedule" />
-                                   
+                                   title="Edit Schedule" />
+
                     <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                    Size="Size.Small"
                                    Color="Color.Error"
                                    OnClick="@(() => DeleteSchedule(context))"
-                                   Title="Delete Assignment" />
+                                   title="Delete Assignment" />
                 </MudTd>
             </RowTemplate>
             <PagerContent>
@@ -172,8 +171,8 @@
     private List<BreakTemplates> _templates = new();
 
     private BreakSchedules _newSchedule = new();
-    private Employees _selectedEmployee;
-    private MudForm _form;
+    private Employees? _selectedEmployee;
+    private MudForm _form = null!;
     private string _searchString = "";
 
     protected override async Task OnInitializedAsync()
@@ -195,30 +194,29 @@
             return Task.FromResult<IEnumerable<Employees>>(_employees);
         
         return Task.FromResult(_employees.Where(x =>
-            x.LastName.Contains(value, StringComparison.InvariantCultureIgnoreCase) ||
-            x.FirstName.Contains(value, StringComparison.InvariantCultureIgnoreCase)
+            (x.LastName ?? "").Contains(value, StringComparison.InvariantCultureIgnoreCase) ||
+            (x.FirstName ?? "").Contains(value, StringComparison.InvariantCultureIgnoreCase)
         ));
     }
 
     private void EditSchedule(BreakScheduleDto dto)
     {
         var json = JsonSerializer.Serialize(dto.Schedule);
-        _newSchedule = JsonSerializer.Deserialize<BreakSchedules>(json);
+        _newSchedule = JsonSerializer.Deserialize<BreakSchedules>(json)!;
         _selectedEmployee = _employees.FirstOrDefault(x => x.Id == _newSchedule.EmployeeId);
-        _form.ResetValidation();
+        _ = _form.ResetAsync();
     }
 
     private async Task DeleteSchedule(BreakScheduleDto dto)
     {
-        bool? result = await DialogService.ShowMessageBox(
-            "Warning", 
-            $"Are you sure you want to remove the static break schedule for {dto.EmployeeName}?", 
-            yesText:"Delete", cancelText:"Cancel");
+        bool result = await ConfirmAsync(
+            $"Are you sure you want to remove the static break schedule for {dto.EmployeeName}?",
+            "Warning");
 
-        if (result == true)
+        if (result)
         {
             await WfmService.DeleteBreakScheduleAsync(dto.Schedule.Id);
-            Snackbar.Add("Schedule removed", Severity.Success);
+            ShowSuccess("Schedule removed");
             
             // If we deleted the item currently being edited, reset the form
             if (_newSchedule.Id == dto.Schedule.Id)
@@ -234,18 +232,18 @@
     {
         _newSchedule = new();
         _selectedEmployee = null; 
-        _form.ResetValidation();
+        _ = _form.ResetAsync();
         _form.ResetTouched();
     }
 
     private async Task SaveSchedule()
     {
-        await _form.Validate();
+        await _form.ValidateAsync();
         if (!_form.IsValid) return;
 
         if (_selectedEmployee == null)
         {
-            Snackbar.Add("Please select an employee", Severity.Warning);
+            ShowWarning("Please select an employee");
             return;
         }
 
@@ -253,9 +251,9 @@
         await WfmService.SaveBreakScheduleAsync(_newSchedule);
 
         if (_newSchedule.Id == 0)
-            Snackbar.Add("Schedule Assigned", Severity.Success);
+            ShowSuccess("Schedule Assigned");
         else
-            Snackbar.Add("Schedule Updated", Severity.Success);
+            ShowSuccess("Schedule Updated");
 
         ResetForm();
         await LoadData();

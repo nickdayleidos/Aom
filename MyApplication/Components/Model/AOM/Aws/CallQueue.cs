@@ -7,8 +7,8 @@ namespace MyApplication.Components.Model.AOM.Aws
     public class CallQueue
     {
         public int Id { get; set; }
-        public string Guid { get; set; }
-        public string Name { get; set; }
+        public string Guid { get; set; } = null!;
+        public string Name { get; set; } = null!;
         public int? SkillTypeId { get; set; }
         public SkillType? SkillType { get; set; }
         public bool? IsActive { get; set; }

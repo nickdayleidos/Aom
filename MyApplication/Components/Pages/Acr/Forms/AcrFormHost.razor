@@ -1,9 +1,7 @@
 ﻿@using MudBlazor
 @using Microsoft.AspNetCore.Components.Web
-@using MyApplication.Components.Service.Acr
 @using MyApplication.Components.Pages.Acr.Forms
 @using MyApplication.Common.Time
-@using MyApplication.Components.Service.Acr
 
 <MudPaper Class="pa-4 h-full" Outlined="true">
     <MudStack Spacing="2">
@@ -11,7 +9,7 @@
 
         <MudGrid Class="mt-2">
             <MudItem xs="12" md="6">
-                <MudDatePicker T="DateTime?" Label="Effective Date" Dense
+                <MudDatePicker Label="Effective Date"
                                @bind-Date="_effectiveDateDT"
                                Adornment="Adornment.Start"
                                AdornmentIcon="@Icons.Material.Filled.Event"
@@ -19,8 +17,6 @@
                                PickerVariant="PickerVariant.Inline"
                                OpenTo="OpenTo.Date"
                                Disabled="@ReadOnly"
-                               Immediate="true"
-                               CloseOnOutsideClick="true"
                                MinDate="@(IsCreate ? MinEffectiveDate : (DateTime?)null)" />
 
 

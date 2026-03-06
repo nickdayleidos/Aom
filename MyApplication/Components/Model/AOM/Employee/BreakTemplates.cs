@@ -7,7 +7,7 @@ namespace MyApplication.Components.Model.AOM.Employee
     {
         
         public int Id { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
         public int? ShiftLength { get; set; }
         public int? Breaks { get; set; }
         public int? BreakLength { get; set; }

@@ -1,6 +1,6 @@
 ﻿
 @using MyApplication.Components.Service.Employee
-@inject EmployeesRepository Repository
+@inject EmployeeDetailsService Repository
 
 <MudDialog>
     <DialogContent>
@@ -59,10 +59,10 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public EmployeeProfileUpdateDto Model { get; set; } = new();
 
-    private MudForm _form;
+    private MudForm _form = null!;
     private AwsIdentifierLookupDto? _selectedAwsIdentifier;
 
     protected override async Task OnInitializedAsync()
@@ -86,9 +86,9 @@
         Model.AwsId = value?.Id;
     }
 
-    private void Submit()
+    private async Task Submit()
     {
-        _form.Validate();
+        await _form.ValidateAsync();
         if (_form.IsValid)
         {
             MudDialog.Close(DialogResult.Ok(Model));

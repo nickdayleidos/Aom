@@ -1,10 +1,10 @@
-﻿@page "/wfm/breaktemplates"
-@attribute [Authorize(Roles = "Admin,WFM")]
+@page "/wfm/breaktemplates"
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.AdminWfm)]
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Wfm
 @using System.Text.Json
 @inject IWfmService WfmService
-@inject ISnackbar Snackbar
 
 <MudText Typo="Typo.h5" Class="mb-4">Break Templates</MudText>
 
@@ -128,7 +128,7 @@
                                    Size="Size.Small"
                                    Color="Color.Primary"
                                    OnClick="@(() => EditTemplate(context))"
-                                   Title="Edit Template" />
+                                   title="Edit Template" />
                 </MudTd>
             </RowTemplate>
         </MudTable>
@@ -138,7 +138,7 @@
 @code {
     private List<BreakTemplates> _templates = new();
     private BreakTemplates _newTemplate = new() { IsActive = true };
-    private MudForm _form;
+    private MudForm _form = null!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -156,30 +156,30 @@
     {
         // Clone the object using JSON serialization to avoid reference issues
         var json = JsonSerializer.Serialize(item);
-        _newTemplate = JsonSerializer.Deserialize<BreakTemplates>(json);
+        _newTemplate = JsonSerializer.Deserialize<BreakTemplates>(json) ?? new BreakTemplates { IsActive = true };
 
         // Clear any previous validation errors
-        _form.ResetValidation();
+        _ = _form.ResetAsync();
     }
 
     private void ResetForm()
     {
         _newTemplate = new() { IsActive = true };
-        _form.ResetValidation();
+        _ = _form.ResetAsync();
         _form.ResetTouched();
     }
 
     private async Task SaveTemplate()
     {
-        await _form.Validate();
+        await _form.ValidateAsync();
         if (!_form.IsValid) return;
 
         await WfmService.SaveBreakTemplateAsync(_newTemplate);
 
         if (_newTemplate.Id == 0)
-            Snackbar.Add("Template Created", Severity.Success);
+            ShowSuccess("Template Created");
         else
-            Snackbar.Add("Template Updated", Severity.Success);
+            ShowSuccess("Template Updated");
 
         // Reset and reload
         ResetForm();

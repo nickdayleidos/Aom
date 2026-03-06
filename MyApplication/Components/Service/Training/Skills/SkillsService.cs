@@ -142,7 +142,7 @@ namespace MyApplication.Components.Service.Training
                       s => s.EmployeeId,
                       d => d.EmployeeId,
                       (s, d) => new { Skill = s, Details = d })
-                .Where(x => x.Skill.Employee.IsActive == true && x.Skill.IsActive == true);
+                .Where(x => x.Skill.Employee!.IsActive == true && x.Skill.IsActive == true);
 
             // 1. Apply Filters
             if (search.ManagerId.HasValue) query = query.Where(x => x.Details.ManagerId == search.ManagerId);
@@ -153,8 +153,8 @@ namespace MyApplication.Components.Service.Training
             {
                 var term = search.EmployeeSearch.Trim();
                 query = query.Where(x =>
-                    EF.Functions.Like(x.Skill.Employee.LastName, $"%{term}%") ||
-                    EF.Functions.Like(x.Skill.Employee.FirstName, $"%{term}%")
+                    EF.Functions.Like(x.Skill.Employee!.LastName, $"%{term}%") ||
+                    EF.Functions.Like(x.Skill.Employee!.FirstName, $"%{term}%")
                 );
             }
 
@@ -168,7 +168,7 @@ namespace MyApplication.Components.Service.Training
             switch (sortLabel)
             {
                 case "SkillTypeName":
-                    query = isAsc ? query.OrderBy(x => x.Skill.SkillType.Name) : query.OrderByDescending(x => x.Skill.SkillType.Name);
+                    query = isAsc ? query.OrderBy(x => x.Skill.SkillType!.Name) : query.OrderByDescending(x => x.Skill.SkillType!.Name);
                     break;
                 case "SkillDate":
                     query = isAsc ? query.OrderBy(x => x.Skill.SkillDate) : query.OrderByDescending(x => x.Skill.SkillDate);
@@ -176,8 +176,8 @@ namespace MyApplication.Components.Service.Training
                 case "EmployeeName":
                 default:
                     query = isAsc
-                        ? query.OrderBy(x => x.Skill.Employee.LastName).ThenBy(x => x.Skill.Employee.FirstName)
-                        : query.OrderByDescending(x => x.Skill.Employee.LastName).ThenByDescending(x => x.Skill.Employee.FirstName);
+                        ? query.OrderBy(x => x.Skill.Employee!.LastName).ThenBy(x => x.Skill.Employee!.FirstName)
+                        : query.OrderByDescending(x => x.Skill.Employee!.LastName).ThenByDescending(x => x.Skill.Employee!.FirstName);
                     break;
             }
 
@@ -188,8 +188,8 @@ namespace MyApplication.Components.Service.Training
                 .Select(x => new SkillLookupRow(
                     x.Skill.Id,
                     x.Skill.EmployeeId,
-                    x.Skill.Employee.LastName + ", " + x.Skill.Employee.FirstName + (x.Skill.Employee.MiddleInitial == null ? "" : " " + x.Skill.Employee.MiddleInitial),
-                    x.Skill.SkillType.Name,
+                    x.Skill.Employee!.LastName + ", " + x.Skill.Employee!.FirstName + (x.Skill.Employee!.MiddleInitial == null ? "" : " " + x.Skill.Employee!.MiddleInitial),
+                    x.Skill.SkillType!.Name,
                     x.Skill.SkillDate
                 ))
                 .ToListAsync(ct);
@@ -212,7 +212,7 @@ namespace MyApplication.Components.Service.Training
             var baseQuery = db.Skills
                 .AsNoTracking()
                 .Join(db.EmployeeCurrentDetails, s => s.EmployeeId, d => d.EmployeeId, (s, d) => new { Skill = s, Details = d })
-                .Where(x => x.Skill.Employee.IsActive == true && x.Skill.IsActive == true);
+                .Where(x => x.Skill.Employee!.IsActive == true && x.Skill.IsActive == true);
 
             if (search.ManagerId.HasValue) baseQuery = baseQuery.Where(x => x.Details.ManagerId == search.ManagerId);
             if (search.SupervisorId.HasValue) baseQuery = baseQuery.Where(x => x.Details.SupervisorId == search.SupervisorId);
@@ -220,7 +220,7 @@ namespace MyApplication.Components.Service.Training
             if (!string.IsNullOrWhiteSpace(search.EmployeeSearch))
             {
                 var term = search.EmployeeSearch.Trim();
-                baseQuery = baseQuery.Where(x => EF.Functions.Like(x.Skill.Employee.LastName, $"%{term}%") || EF.Functions.Like(x.Skill.Employee.FirstName, $"%{term}%"));
+                baseQuery = baseQuery.Where(x => EF.Functions.Like(x.Skill.Employee!.LastName, $"%{term}%") || EF.Functions.Like(x.Skill.Employee!.FirstName, $"%{term}%"));
             }
 
             // 1. Group by Employee first to handle paging on "Rows" (Employees), not lines
@@ -230,9 +230,9 @@ namespace MyApplication.Components.Service.Training
                 {
                     EmployeeId = g.Key,
                     // We need these for sorting
-                    LastName = g.Max(x => x.Skill.Employee.LastName),
-                    FirstName = g.Max(x => x.Skill.Employee.FirstName),
-                    MiddleInitial = g.Max(x => x.Skill.Employee.MiddleInitial),
+                    LastName = g.Max(x => x.Skill.Employee!.LastName),
+                    FirstName = g.Max(x => x.Skill.Employee!.FirstName),
+                    MiddleInitial = g.Max(x => x.Skill.Employee!.MiddleInitial),
                     MaxDate = g.Max(x => x.Skill.SkillDate)
                 });
 

@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +10,7 @@ using MyApplication.Components.Model.AOM.Tools;
 using MyApplication.Components.Service;
 using MyApplication.Common.Time;
 
-namespace MyApplication.Components.Services.Email
+namespace MyApplication.Components.Service.Email
 {
     public sealed class OperationalImpactEmailService
     {
@@ -168,7 +168,7 @@ namespace MyApplication.Components.Services.Email
                 var items = string.Join("",
                     history.Select(h =>
                         "<li style=\"margin:0.25rem 0\">" +
-                            $"<span style=\"color:#374151\">{H(FormatEt(h.UpdateTime))}</span> — {H(h.Summary)}" +
+                            $"<span style=\"color:#374151\">{H(FormatEt(h.UpdateTime))}</span> � {H(h.Summary)}" +
                         "</li>"));
 
                 body +=

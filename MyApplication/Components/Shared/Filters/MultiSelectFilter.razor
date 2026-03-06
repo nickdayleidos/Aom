@@ -1,0 +1,73 @@
+@typeparam TItem
+@typeparam TValue
+
+<MudSelect T="TValue"
+           Label="@Label"
+           MultiSelection="true"
+           SelectedValues="@_selectedValues"
+           SelectedValuesChanged="@OnSelectedValuesChanged"
+           Variant="@Variant"
+           Margin="@Margin"
+           Dense="@Dense"
+           Clearable="@Clearable"
+           AnchorOrigin="@AnchorOrigin"
+
+           ToStringFunc="@ToStringFunc">
+    @foreach (var item in Items)
+    {
+        <MudSelectItem Value="@GetValue(item)">@GetDisplayText(item)</MudSelectItem>
+    }
+</MudSelect>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public IEnumerable<TItem> Items { get; set; } = Enumerable.Empty<TItem>();
+    [Parameter] public IEnumerable<TValue> SelectedValues { get; set; } = Enumerable.Empty<TValue>();
+    [Parameter] public EventCallback<IEnumerable<TValue>> SelectedValuesChanged { get; set; }
+    [Parameter] public Func<TItem, TValue> GetValue { get; set; } = _ => default!;
+    [Parameter] public Func<TItem, string> GetDisplayText { get; set; } = item => item?.ToString() ?? "";
+    [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
+    [Parameter] public Margin Margin { get; set; } = Margin.Dense;
+    [Parameter] public bool Dense { get; set; } = true;
+    [Parameter] public bool Clearable { get; set; } = true;
+    [Parameter] public Origin AnchorOrigin { get; set; } = Origin.BottomCenter;
+
+    // Local copy so MudSelect's internal state is never corrupted by a parent re-render
+    private HashSet<TValue> _selectedValues = new();
+
+    protected override void OnParametersSet()
+    {
+        // Only sync from parent when the parent genuinely changed the selection
+        // (e.g. a "clear all" action). Skip if it's just the parent echoing back
+        // what we already sent it, to avoid losing the checked state mid-render.
+        var incoming = new HashSet<TValue>(SelectedValues, EqualityComparer<TValue>.Default);
+        if (!incoming.SetEquals(_selectedValues))
+            _selectedValues = incoming;
+    }
+
+    private async Task OnSelectedValuesChanged(IEnumerable<TValue> values)
+    {
+        // Materialize immediately so the visual state is owned by this component,
+        // not by MudBlazor's internal collection.
+        _selectedValues = new HashSet<TValue>(values, EqualityComparer<TValue>.Default);
+        await SelectedValuesChanged.InvokeAsync(_selectedValues);
+    }
+
+    private Func<TValue, string> ToStringFunc => value =>
+    {
+        var item = Items.FirstOrDefault(i => EqualityComparer<TValue>.Default.Equals(GetValue(i), value));
+        return item != null ? GetDisplayText(item) : value?.ToString() ?? "";
+    };
+
+    private Task<IEnumerable<TValue>> SearchFunction(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(Items.Select(GetValue));
+
+        var filtered = Items
+            .Where(item => GetDisplayText(item).Contains(value, StringComparison.OrdinalIgnoreCase))
+            .Select(GetValue);
+
+        return Task.FromResult(filtered);
+    }
+}

@@ -41,7 +41,7 @@
                             }
 
                             <MudText Class="mt-4 mb-1"><b>Enricher Debug Log:</b></MudText>
-                            <MudList T="string" Dense="true" DisablePadding="true">
+                            <MudList T="string" Dense="true">
                                 @foreach (var claim in context.User.Claims.Where(c => c.Type.StartsWith("Debug:")).OrderBy(c => c.Type))
                                 {
                                     <MudListItem Icon="@Icons.Material.Filled.BugReport" IconSize="Size.Small">

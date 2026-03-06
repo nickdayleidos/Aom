@@ -1,21 +1,19 @@
-﻿@page "/wfm/aws/assignments"
-@attribute [Authorize(Roles = "Admin,WFM")]
-
+@page "/wfm/aws/assignments"
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.AdminWfm)]
 @using MyApplication.Components.Model.AOM.Aws
 @using MyApplication.Components.Service.Aws
 @using MyApplication.Components.Service.Employee
 
 @using MyApplication.Common.Time
 @inject AwsRoutingService AwsService
-@inject EmployeesRepository EmployeeRepo
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
+@inject EmployeeListService EmployeeRepo
 
 <MudStack Spacing="4">
     <MudText Typo="Typo.h5">Bulk Profile Assignment</MudText>
 
     <MudPaper Class="pa-4" Outlined="true">
-        <MudGrid AlignItems="AlignItems.End">
+        <MudGrid>
             <MudItem xs="12" md="4">
                 <MudSelect T="int?" Label="Weekday Profile" @bind-Value="_selectedWeekday" Clearable="true" AnchorOrigin="Origin.BottomCenter">
                     @foreach (var p in _profiles)
@@ -134,7 +132,7 @@
             @if (_expandedIds.Contains(context.Id))
             {
                 <MudTr>
-                    <MudTd Colspan="9" Class="pa-4 shade-background">
+                    <MudTd colspan="9" Class="pa-4 shade-background">
                         <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Daily Schedule Breakdown (@_timeMode)</MudText>
                         <MudStack Row="true" Spacing="4" Wrap="Wrap.Wrap">
                             @if (context.DailySchedules != null)
@@ -190,7 +188,7 @@
     private int? _selectedWeekday;
     private int? _selectedWeekend;
     private string _searchString = "";
-    private MudTable<EmployeeListItem> _table;
+    private MudTable<EmployeeListItem> _table = null!;
     private HashSet<int> _expandedIds = new();
 
     // Default to Eastern
@@ -234,17 +232,16 @@
         if (!_selectedEmployees.Any()) return;
 
         var count = _selectedEmployees.Count;
-        var confirm = await DialogService.ShowMessageBox(
-            "Confirm Assignment",
+        var confirm = await ConfirmAsync(
             $"Are you sure you want to update the routing profiles for {count} employees?",
-            yesText: "Yes", cancelText: "Cancel");
+            "Confirm Assignment");
 
-        if (confirm == true)
+        if (confirm)
         {
             var ids = _selectedEmployees.Select(x => x.Id).ToList();
             await AwsService.AssignProfilesToEmployeesAsync(ids, _selectedWeekday, _selectedWeekend);
 
-            Snackbar.Add($"Successfully updated {count} employees.", Severity.Success);
+            ShowSuccess($"Successfully updated {count} employees.");
             _selectedEmployees.Clear();
             await _table.ReloadServerData();
         }

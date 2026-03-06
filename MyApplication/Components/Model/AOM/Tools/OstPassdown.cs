@@ -11,10 +11,10 @@ namespace MyApplication.Components.Model.AOM.Tools
         public int Id { get; set; }
 
         public int NewEdlId { get; set; }
-        public Employees NewEdl { get; set; }
+        public Employees NewEdl { get; set; } = null!;
 
         public int PrevEdlId { get; set; }
-        public Employees PrevEdl { get; set; }
+        public Employees PrevEdl { get; set; } = null!;
 
         public DateTime PostedTime { get; set; }
         public string PostedBy { get; set; } = string.Empty;

@@ -1,4 +1,5 @@
-﻿// EmailDraft.cs
+﻿namespace MyApplication.Components.Service.Email;
+
 public sealed class EmailDraft
 {
     public string Subject { get; set; } = "";

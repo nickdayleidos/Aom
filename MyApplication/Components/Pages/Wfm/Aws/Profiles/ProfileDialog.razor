@@ -25,14 +25,14 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
     [Parameter] public RoutingProfile Profile { get; set; } = new();
 
-    private MudForm _form;
+    private MudForm _form = null!;
 
     private async Task Submit()
     {
-        await _form.Validate();
+        await _form.ValidateAsync();
         if (_form.IsValid)
         {
             await Service.SaveProfileAsync(Profile);

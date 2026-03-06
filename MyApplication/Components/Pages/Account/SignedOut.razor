@@ -1,0 +1,33 @@
+@page "/account/signed-out"
+@attribute [AllowAnonymous]
+
+<PageTitle>Signed Out</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Class="pa-10" Elevation="4">
+        <MudStack AlignItems="AlignItems.Center" Spacing="4">
+
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline"
+                     Color="Color.Success"
+                     Style="font-size: 72px;" />
+
+            <MudText Typo="Typo.h5" Align="Align.Center">
+                You've been signed out
+            </MudText>
+
+            <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">
+                Your session has ended. Sign in again to continue.
+            </MudText>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Large"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Login"
+                       Href="/MicrosoftIdentity/Account/SignIn">
+                Sign In
+            </MudButton>
+
+        </MudStack>
+    </MudPaper>
+</MudContainer>

@@ -1,13 +1,10 @@
-﻿@page "/tools/ost-passdown/new"
+@page "/tools/ost-passdown/new"
+@inherits AppComponentBase
 @using OstPassdownEntity = MyApplication.Components.Model.AOM.Tools.OstPassdown
-@attribute [Authorize(Roles = "Admin, OST")]
+@attribute [Authorize(Roles = RoleConstants.AdminOst)]
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Tools.OstPassdown
-@using Microsoft.AspNetCore.Components.Authorization
 @inject IOstPassdownService PassdownService
-@inject NavigationManager Navigation
-@inject ISnackbar Snackbar
-@inject AuthenticationStateProvider AuthStateProvider
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <div class="d-flex align-center mb-4">
@@ -17,7 +14,7 @@
 
     @if (_isLoading)
     {
-        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        <LoadingSpinner Color="Color.Primary" />
     }
     else
     {
@@ -342,12 +339,12 @@
     {
         if (_newPassdown.NewEdlId == 0 || _newPassdown.PrevEdlId == 0)
         {
-            Snackbar.Add("Please select both New and Previous EDLs.", Severity.Error);
+            ShowError("Please select both New and Previous EDLs.");
             return;
         }
 
         await PassdownService.CreatePassdownAsync(_newPassdown, _currentUser);
-        Snackbar.Add("New passdown created!", Severity.Success);
+        ShowSuccess("New passdown created!");
         GoBack();
     }
 }

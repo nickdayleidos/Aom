@@ -7,7 +7,7 @@ namespace MyApplication.Components.Model.AOM.Aws
     {
         public int Id { get; set; }
         public string? Guid { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
         public bool? IsActive { get; set; }
 
         // NEW: Navigation property

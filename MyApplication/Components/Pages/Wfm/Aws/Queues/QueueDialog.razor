@@ -39,10 +39,10 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
-    [Parameter] public CallQueue Queue { get; set; }
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public CallQueue Queue { get; set; } = null!;
 
-    private MudForm _form;
+    private MudForm _form = null!;
     private List<SkillType> _skillTypes = new();
 
     protected override async Task OnInitializedAsync()
@@ -52,7 +52,7 @@
 
     private async Task Submit()
     {
-        await _form.Validate();
+        await _form.ValidateAsync();
         if (_form.IsValid)
         {
             await Service.SaveQueueAsync(Queue);

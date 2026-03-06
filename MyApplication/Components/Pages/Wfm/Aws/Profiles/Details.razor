@@ -1,15 +1,13 @@
-﻿@page "/wfm/aws/profiles/{id:int}"
-@attribute [Authorize(Roles = "Admin,WFM")]
+@page "/wfm/aws/profiles/{id:int}"
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.AdminWfm)]
 @using MyApplication.Components.Model.AOM.Aws
 @using MyApplication.Components.Service.Aws
 @inject AwsRoutingService Service
-@inject IDialogService DialogService
-@inject NavigationManager Nav
-@inject ISnackbar Snackbar
 
 <MudStack Spacing="4">
     <MudStack Row="true" AlignItems="AlignItems.Center">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/wfm/aws/profiles"))" />
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/wfm/aws/profiles"))" />
         <MudText Typo="Typo.h5">@_profile?.Name</MudText>
     </MudStack>
 
@@ -42,7 +40,7 @@
     }
     else
     {
-        <MudProgressCircular Indeterminate="true" />
+        <LoadingSpinner />
     }
 </MudStack>
 
@@ -69,10 +67,10 @@
         var dialog = await DialogService.ShowAsync<AddQueueToProfileDialog>("Add Queue to Profile", parameters);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result is { Canceled: false })
         {
             await LoadData();
-            Snackbar.Add("Queue added", Severity.Success);
+            ShowSuccess("Queue added");
         }
     }
 
@@ -86,21 +84,21 @@
         var dialog = await DialogService.ShowAsync<AddQueueToProfileDialog>("Edit Queue Assignment", parameters);
         var result = await dialog.Result;
 
-        if (!result.Canceled)
+        if (result is { Canceled: false })
         {
             await LoadData();
-            Snackbar.Add("Queue assignment updated", Severity.Success);
+            ShowSuccess("Queue assignment updated");
         }
     }
 
     private async Task RemoveQueue(RoutingProfileQueue item)
     {
-        var confirm = await DialogService.ShowMessageBox("Remove Queue", "Are you sure?", yesText: "Remove", cancelText: "Cancel");
-        if (confirm == true)
+        var confirm = await ConfirmAsync("Are you sure?", "Remove Queue");
+        if (confirm)
         {
             await Service.RemoveQueueFromProfileAsync(item.Id);
             await LoadData();
-            Snackbar.Add("Queue removed", Severity.Success);
+            ShowSuccess("Queue removed");
         }
     }
 }

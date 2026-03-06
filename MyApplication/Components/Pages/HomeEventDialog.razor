@@ -1,0 +1,55 @@
+@using MyApplication.Components.Model.AOM.Tools
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="Event.Title"
+                              Label="Title"
+                              Required="true"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+                <MudDatePicker @bind-Date="_eventDate"
+                               Label="Date"
+                               Required="true"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense" />
+                <MudTextField @bind-Value="Event.Description"
+                              Label="Description"
+                              Lines="3"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public HomeEvent Event { get; set; } = null!;
+    [Parameter] public bool IsNew { get; set; }
+
+    private MudForm _form = null!;
+    private DateTime? _eventDate;
+
+    protected override void OnParametersSet()
+    {
+        _eventDate = Event.EventDate == default ? DateTime.Today : Event.EventDate;
+    }
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (_form.IsValid)
+        {
+            Event.EventDate = _eventDate ?? DateTime.Today;
+            MudDialog.Close(DialogResult.Ok(Event));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

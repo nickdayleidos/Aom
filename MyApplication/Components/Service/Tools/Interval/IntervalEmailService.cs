@@ -1,8 +1,8 @@
-﻿using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor;
 using MyApplication.Components.Model.AOM;
 using MyApplication.Components.Model.AOM.Tools;
-using MyApplication.Components.Services.Email;
+using MyApplication.Components.Service.Email;
 
 namespace MyApplication.Components.Service;
 

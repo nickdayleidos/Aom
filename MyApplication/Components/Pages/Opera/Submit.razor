@@ -1,5 +1,6 @@
-﻿@page "/opera/new"
-@attribute [Authorize(Roles = "Admin,OST,WFM,Manager,Supervisor")]
+@page "/opera/new"
+@inherits AppComponentBase
+@attribute [Authorize(Roles = RoleConstants.Management)]
 @using System
 @using System.Linq
 @using Microsoft.EntityFrameworkCore
@@ -10,8 +11,6 @@
 @using MyApplication.Components.Common.Time
 @inject IOperaRepository Repo
 @inject AomDbContext Db
-@inject ISnackbar Snackbar
-@inject NavigationManager Nav
 @inject UserProfileService UserProfile
 
 <MudStack Spacing="2">
@@ -40,7 +39,6 @@
                                     <MudTextField @bind-Value="_availableFilter"
                                                   @bind-Value:after="OnAvailableFilterChanged"
                                                   Label="Filter"
-                                                  Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Immediate="true"
                                                   DebounceInterval="250" />
@@ -51,7 +49,7 @@
                                                                                 (string.IsNullOrWhiteSpace(_availableFilter) ||
                                                                                 o.Label.Contains(_availableFilter, StringComparison.OrdinalIgnoreCase))))
                                         {
-                                            <MudListItem T="EmployeeOption" Value="emp" Clickable="true" OnClick="@(() => AddEmployee(emp.Id))">
+                                            <MudListItem T="EmployeeOption" Value="emp" OnClick="@(() => AddEmployee(emp.Id))">
                                                 @emp.Label
                                             </MudListItem>
                                         }
@@ -61,7 +59,6 @@
                                 <MudItem xs="12" md="6">
                                     <MudTextField @bind-Value="_selectedFilter"
                                                   Label="Filter"
-                                                  Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Immediate="true"
                                                   DebounceInterval="250" />
@@ -71,7 +68,7 @@
                                                                                 .Where(o => string.IsNullOrWhiteSpace(_selectedFilter) ||
                                                                                 o.Label.Contains(_selectedFilter, StringComparison.OrdinalIgnoreCase)))
                                         {
-                                            <MudListItem T="EmployeeOption" Value="emp" Clickable="true" OnClick="@(() => RemoveEmployee(emp.Id))">
+                                            <MudListItem T="EmployeeOption" Value="emp" OnClick="@(() => RemoveEmployee(emp.Id))">
                                                 @emp.Label
                                             </MudListItem>
                                         }
@@ -148,16 +145,15 @@
 
                             <MudGrid Spacing="2" Class="mt-1">
                                 <MudItem xs="12" md="4">
-                                    <MudDatePicker @bind-Date="_startDateEt" @bind-Date:after="OnStartDateAfter" Label="Start Date" Variant="Variant.Outlined" Dense="true" Disabled="@(_timeframeId is null)" />
+                                    <MudDatePicker @bind-Date="_startDateEt" @bind-Date:after="OnStartDateAfter" Label="Start Date" Variant="Variant.Outlined" Disabled="@(_timeframeId is null)" />
                                 </MudItem>
 
                                 <MudItem xs="12" md="4">
-                                    <MudTimePicker @bind-Time="_startTimeEt" 
-                                    Label="Start Time" 
-                                    Variant="Variant.Outlined" 
-                                    Editable="true" 
-                                    Clearable="true" 
-                                    Dense="true"
+                                    <MudTimePicker @bind-Time="_startTimeEt"
+                                    Label="Start Time"
+                                    Variant="Variant.Outlined"
+                                    Editable="true"
+                                    Clearable="true"
                                                    Disabled="@(_timeframeId is null || _timeframeId == 2 || _timeframeId == 3 || _timeframeId == 6)" />
                                     @* For Full day single (id==2) we do not require start time selection; keep as-is when null *@
                                 </MudItem>
@@ -168,7 +164,6 @@
                                     <MudDatePicker @bind-Date="_endDateEt"
                                                    Label="End Date"
                                                    Variant="Variant.Outlined"
-                                                   Dense="true"
                                                    Disabled="@(_timeframeId is null || _timeframeId == 1 || _timeframeId == 2 || _timeframeId == 4 || _timeframeId == 6)" />
                                     @* Disabled for:
                                        1 = EOS (calculated)
@@ -184,7 +179,6 @@
                                                    Variant="Variant.Outlined"
                                                    Editable="true"
                                                    Clearable="true"
-                                                   Dense="true"
                                                    Disabled="@(_timeframeId is null || _timeframeId == 1 || _timeframeId == 2 || _timeframeId == 3)" />
                                     @* Enabled for:
                                        3 = Multiple full day (optional, but allowed)
@@ -209,7 +203,7 @@
 
                             <MudStack Row="true" Justify="Justify.FlexStart" Spacing="1" Class="mt-2">
                                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitAsync" Disabled="@_busy">SUBMIT</MudButton>
-                                <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@(() => Nav.NavigateTo("/opera"))">CANCEL</MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@(() => Navigation.NavigateTo("/opera"))">CANCEL</MudButton>
                             </MudStack>
                         </MudStack>
                     </MudPaper>
@@ -251,7 +245,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var now = DateTime.Now;
+        var now = Et.Now;
         _startDateEt = now.Date;
         _startTimeEt = now.TimeOfDay;
         _endDateEt = now.Date;
@@ -267,7 +261,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Failed to load lookups: {ex.Message}", Severity.Error);
+            ShowError($"Failed to load lookups: {ex.Message}");
         }
         await LoadEmployeeOptionsAsync("");
     }
@@ -464,21 +458,21 @@
         _lastError = null;
         if (_selectedEmployeeIds.Count == 0 || _typeId == null || _subTypeId == null || _timeframeId == null)
         {
-            Snackbar.Add("Please complete all required fields.", Severity.Warning);
+            ShowWarning("Please complete all required fields.");
             return;
         }
 
         // Only require zone for timeframes that actually use it
         if ((_timeframeId == 1 || _timeframeId == 4 || _timeframeId == 6) && _zone == null)
         {
-            Snackbar.Add("Please select a Time Zone.", Severity.Warning);
+            ShowWarning("Please select a Time Zone.");
             return;
         }
 
 
         if (!TryGetStartEndEt(out var startEt, out var endEt))
         {
-            Snackbar.Add("Invalid dates/times.", Severity.Warning);
+            ShowWarning("Invalid dates/times.");
             return;
         }
 
@@ -498,7 +492,7 @@
             {
                 if (!_startDateEt.HasValue || !_endDateEt.HasValue || !_endTimeEt.HasValue)
                 {
-                    Snackbar.Add("Start date and end time are required for Beginning of Shift.", Severity.Warning);
+                    ShowWarning("Start date and end time are required for Beginning of Shift.");
                     return;
                 }
 
@@ -506,7 +500,7 @@
                 endLocal = _endDateEt.Value.Date + _endTimeEt.Value;
             }
 
-            Dictionary<int, string>? tzByEmp = null;
+            Dictionary<int, string?>? tzByEmp = null;
 
             // For TF2/TF3 we must use each employee's site TZ
             if (_timeframeId == 2 || _timeframeId == 3)
@@ -525,7 +519,7 @@
                     var eosEt = await Repo.GetEndOfShiftAsync(empId, startEt);
                     if (eosEt == null)
                     {
-                        var localStart = SiteTime.FromEtToSite(startEt, _zone.Value);
+                        var localStart = SiteTime.FromEtToSite(startEt, _zone!.Value);
                         errorMessages.Add($"No shift found for emp #{empId} at {localStart:HH:mm} ({_zone})");
                         continue;
                     }
@@ -537,7 +531,7 @@
                     // We only need a date to locate the shift. Use the selected start date.
                     // Convert selected date-at-midnight local -> ET for schedule lookup.
                     var dayLocal = _startDateEt!.Value.Date;
-                    var dayEt = SiteTime.FromSiteToEt(dayLocal, _zone.Value);
+                    var dayEt = SiteTime.FromSiteToEt(dayLocal, _zone!.Value);
 
                     var bosEt = await Repo.GetStartOfShiftAsync(empId, dayEt);
                     if (bosEt == null)
@@ -607,21 +601,21 @@
             if (errorMessages.Any())
             {
                 _lastError = string.Join("\n", errorMessages);
-                Snackbar.Add("Some employees could not be processed (see errors).", Severity.Error);
+                ShowError("Some employees could not be processed (see errors).");
                 return;
             }
 
             if (requests.Any())
             {
                 await Repo.CreateManyAsync(requests);
-                Snackbar.Add($"Created {requests.Count} requests.", Severity.Success);
-                Nav.NavigateTo("/opera");
+                ShowSuccess($"Created {requests.Count} requests.");
+                Navigation.NavigateTo("/opera");
             }
         }
         catch (Exception ex)
         {
             _lastError = ex.Message;
-            Snackbar.Add("Error submitting request.", Severity.Error);
+            ShowError("Error submitting request.");
         }
         finally
         {
@@ -635,3 +629,4 @@
         _empCts?.Cancel(); _empCts?.Dispose();
     }
 }
+
