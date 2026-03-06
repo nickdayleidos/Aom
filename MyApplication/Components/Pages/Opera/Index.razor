@@ -1,4 +1,4 @@
-@page "/opera"
+﻿@page "/opera"
 @inherits AppComponentBase
 @attribute [Authorize(Roles = RoleConstants.FullAccess)]
 @using MyApplication.Components.Model.AOM.Employee
@@ -359,6 +359,17 @@
 
     private static int? GetStatusId(OperaRequest r) => r.OperaStatusId;
 
+    private static Color GetOperaStatusColor(int? statusId) => statusId switch
+    {
+        1 => Color.Warning,   // Submitted
+        2 => Color.Success,   // Approved
+        3 => Color.Success,   // Processed
+        4 => Color.Default,   // Cancelled
+        5 => Color.Error,     // Rejected
+        6 => Color.Warning,   // Pending
+        _ => Color.Default,
+    };
+
     // ---------- Logic for Permissions ----------
     private bool IsPendingPastOrFuture(OperaRequest r)
     {
@@ -509,7 +520,7 @@
                     @(_subTypes.FirstOrDefault(s => s.Id == context.ActivitySubTypeId)?.Name ?? "")
                 </MudTd>
                 <MudTd DataLabel="Status">
-                    <MudChip T="int" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">
+                    <MudChip T="int" Size="Size.Small" Variant="Variant.Text" Color="@GetOperaStatusColor(GetStatusId(context))">
                         @_statuses.FirstOrDefault(s => s.Id == GetStatusId(context))?.Name
                     </MudChip>
                 </MudTd>

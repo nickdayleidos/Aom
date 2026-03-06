@@ -223,7 +223,7 @@
 
     </MudPaper>
 
-    <MudGrid Class="mb-4 align-center" Spacing="1">
+    <MudGrid Class="mb-4 align-center" Spacing="2">
         <MudItem xs="12" sm="6" md="2">
             <MultiSelectFilter TItem="string" TValue="string"
                 Label="Organization"
@@ -331,7 +331,7 @@
                                             </MudStack>
                                         </MudTd>
                                         <MudTd valign="top" Class="d-print-none">
-                                            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small"
+                                            <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small"
                                                            OnClick="@(() => Navigation.NavigateTo($"/employees/{emp.EmployeeId}"))" />
                                         </MudTd>
                                     </RowTemplate>

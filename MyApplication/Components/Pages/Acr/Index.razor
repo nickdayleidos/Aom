@@ -1,4 +1,4 @@
-@page "/acr"
+﻿@page "/acr"
 @inherits AppComponentBase
 @attribute [Authorize(Roles = RoleConstants.Management)]
 @using System.Linq
@@ -14,7 +14,7 @@
             <MudText Typo="Typo.h5">ACRs</MudText>
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
-                       StartIcon="@Icons.Material.Outlined.Add"
+                       StartIcon="@Icons.Material.Filled.Add"
                        OnClick="@(() => Navigation.NavigateTo("/acr/new"))">
                 New Request
             </MudButton>
@@ -165,7 +165,7 @@
                 <MudTd>@context.EmployeeName</MudTd>
                 <MudTd>@context.AcrType</MudTd>
                 <MudTd>
-                    <MudChip T="int" Size="Size.Small" Variant="Variant.Text" Color="Color.Default">@(context.AcrStatus ?? "-")</MudChip>
+                    <MudChip T="int" Size="Size.Small" Variant="Variant.Text" Color="@GetAcrStatusColor(context.AcrStatus)">@(context.AcrStatus ?? "-")</MudChip>
                 </MudTd>
                 <MudTd>@context.EffectiveDate.ToString("MM/dd/yyyy")</MudTd>
                 <MudTd>@(context.SubmitTime?.ToString("MM/dd/yyyy HH:mm") ?? "-")</MudTd>
@@ -322,4 +322,16 @@
 
     private void OnRowClick(TableRowClickEventArgs<AcrRequestListItem> e)
         => Navigation.NavigateTo($"/acr/{e.Item!.Id}");
+
+
+    private static Color GetAcrStatusColor(string? status) => status?.ToLowerInvariant() switch
+    {
+        "submitted"        => Color.Warning,
+        "manager approved" => Color.Info,
+        "wfm approved"     => Color.Success,
+        "processed"        => Color.Success,
+        "rejected"         => Color.Error,
+        "cancelled"        => Color.Default,
+        _                  => Color.Default,
+    };
 }
