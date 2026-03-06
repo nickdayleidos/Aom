@@ -1,0 +1,55 @@
+name: Feature Request
+description: New functionality or improvement
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Which part of the application is this for?
+      options:
+        - Home / Dashboard
+        - Employees
+        - ACR (Allowance Change Requests)
+        - Opera (Operational Requests)
+        - Training / Certifications / Skills
+        - WFM / AWS / Queues
+        - Tools (Intervals, OI, Passdown, Proactive)
+        - Admin / Roles
+        - New module
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      placeholder: "Currently I have to manually... / There is no way to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      placeholder: Describe what you want to happen.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - High — blocking operations
+        - Medium — would significantly improve workflow
+        - Low — nice to have
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or other approaches you've thought of?

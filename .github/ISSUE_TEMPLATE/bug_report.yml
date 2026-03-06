@@ -1,0 +1,68 @@
+name: Bug Report
+description: Something is broken or behaving unexpectedly
+labels: ["bug", "needs-triage"]
+body:
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Which part of the application is affected?
+      options:
+        - Home / Dashboard
+        - Employees
+        - ACR (Allowance Change Requests)
+        - Opera (Operational Requests)
+        - Training / Certifications / Skills
+        - WFM / AWS / Queues
+        - Tools (Intervals, OI, Passdown, Proactive)
+        - Admin / Roles
+        - Authentication / Login
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Clear description of the bug.
+      placeholder: "When I click X, Y happens instead of Z."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What should have happened?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Critical — app is down or data is corrupted
+        - High — feature is broken, no workaround
+        - Medium — feature is degraded, workaround exists
+        - Low — cosmetic or minor issue
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, error messages, browser, user role, etc.

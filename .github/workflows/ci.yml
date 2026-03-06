@@ -1,0 +1,33 @@
+name: CI — Build & Test
+
+on:
+  pull_request:
+    branches:
+      - master
+
+env:
+  DOTNET_VERSION: '10.x'
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore MyApplication/MyApplication.csproj
+
+      - name: Build
+        run: dotnet build MyApplication/MyApplication.csproj --configuration Release --no-restore
+
+      # Uncomment when a test project is added:
+      # - name: Test
+      #   run: dotnet test --configuration Release --no-build --verbosity normal
