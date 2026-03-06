@@ -47,10 +47,11 @@
 
                 <MudItem xs="12">
                     <MudFileUpload T="IBrowserFile" FilesChanged="UploadFiles">
-                        <CustomContent>
+                        <CustomContent Context="fileUpload">
                             <MudButton Variant="Variant.Filled"
                                        Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.CloudUpload">
+                                       StartIcon="@Icons.Material.Filled.CloudUpload"
+                                       OnClick="@fileUpload.OpenFilePickerAsync">
                                 Select PDF File
                             </MudButton>
                         </CustomContent>

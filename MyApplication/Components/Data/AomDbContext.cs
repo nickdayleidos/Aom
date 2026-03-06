@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using MyApplication.Components.Model.AOM.Aws;
 using MyApplication.Components.Model.AOM.Employee;
 using MyApplication.Components.Model.AOM.Security;
@@ -75,6 +75,8 @@ namespace MyApplication.Components.Data
         public DbSet<ProactiveAnnouncement> ProactiveAnnouncements { get; set; } = default!;
         public DbSet<DailyScheduleRow> DailyScheduleRows { get; set; }
         public DbSet<OstPassdown> OstPassdown { get; set; }
+        public DbSet<HomeEvent> HomeEvents { get; set; } = default!;
+        public DbSet<FeatureFlag> FeatureFlags { get; set; } = default!;
 
         // =========================
         // AWS schema

@@ -19,7 +19,7 @@
         </ToolBarContent>
         <ColumnsContent>
             <PropertyColumn T="CallQueue" TProperty="string" Property="x => x.Name" Title="Queue Name" />
-            <PropertyColumn T="CallQueue" TProperty="string" Property="x => x.SkillType!.Name ?? string.Empty" Title="Required Skill" />
+            <PropertyColumn T="CallQueue" TProperty="string" Property="x => x.SkillType != null ? x.SkillType.Name ?? string.Empty : string.Empty" Title="Required Skill" />
             <TemplateColumn T="CallQueue" Title="Active">
                 <CellTemplate>
                     <MudCheckBox Value="@context.Item.IsActive" ReadOnly="true" Color="Color.Primary" Dense="true" />

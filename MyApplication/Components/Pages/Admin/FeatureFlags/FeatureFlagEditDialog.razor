@@ -1,0 +1,53 @@
+@using MyApplication.Components.Model.AOM.Tools
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="Flag.Key"
+                              Label="Key"
+                              HelperText="e.g. Module.ACR"
+                              Required="true"
+                              Disabled="@(!IsNew)"
+                              Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="Flag.DisplayName"
+                              Label="Display Name"
+                              Required="true"
+                              Variant="Variant.Outlined" />
+                <MudSwitch @bind-Value="Flag.IsEnabled"
+                           Label="Enabled"
+                           Color="Color.Success" />
+                <MudTextField @bind-Value="Flag.AllowedRoles"
+                              Label="Role Overrides (optional)"
+                              HelperText="Comma-separated role names. Leave blank to use page-level auth."
+                              Placeholder="Admin,WFM"
+                              Variant="Variant.Outlined" />
+                <MudTextField @bind-Value="Flag.Description"
+                              Label="Description"
+                              Lines="2"
+                              Variant="Variant.Outlined" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public FeatureFlag Flag { get; set; } = null!;
+    [Parameter] public bool IsNew { get; set; }
+
+    private MudForm _form = null!;
+
+    private async Task Save()
+    {
+        await _form.Validate();
+        if (_form.IsValid)
+            MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

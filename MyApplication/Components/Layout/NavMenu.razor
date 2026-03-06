@@ -1,4 +1,4 @@
-﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 
@@ -41,8 +41,16 @@
         <MudNavGroup Title="Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
             <MudNavLink Href="admin/roles" Icon="@Icons.Material.Filled.Security">Role Management</MudNavLink>
             <MudNavLink Href="admin/debugclaims" Icon="@Icons.Material.Filled.BugReport">Debug Claims</MudNavLink>
+            <MudNavLink Href="admin/feature-flags" Icon="@Icons.Material.Filled.ToggleOn">Feature Flags</MudNavLink>
         </MudNavGroup>
     </AuthorizeView>
+
+    <MudDivider Class="my-2" />
+
+    <MudNavLink Href="/updates" Icon="@Icons.Material.Filled.Campaign">What's New</MudNavLink>
+
+    <MudNavLink Href="https://github.com/nickdayleidos/Aom/issues/new?template=bug_report.yml" Target="_blank" Icon="@Icons.Material.Filled.BugReport">Report a Bug</MudNavLink>
+    <MudNavLink Href="https://github.com/nickdayleidos/Aom/issues/new?template=feature_request.yml" Target="_blank" Icon="@Icons.Material.Filled.Lightbulb">Request a Feature</MudNavLink>
 
     <MudDivider Class="my-2" />
 

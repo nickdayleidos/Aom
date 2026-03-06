@@ -19,6 +19,9 @@ using MyApplication.Components.Service.Training;
 using MyApplication.Components.Service.Training.Certifications;
 using MyApplication.Components.Service.Wfm;
 using MyApplication.Components.Service.Email;
+using MyApplication.Components.Service.Home;
+using MediatR;
+using MyApplication.Components.Service.FeatureFlags;
 using System.Configuration;
 
 // Load .env file in development (for local testing)
@@ -57,13 +60,9 @@ builder.Services.AddDbContextFactory<AomDbContext>((sp, opts) =>
     opts.EnableSensitiveDataLogging(false); // Disable in prod
 });
 
-// AWS Context - Standard Scoped
-builder.Services.AddDbContext<AwsDbContext>(opt =>
-    opt.UseSqlServer(builder.Configuration.GetConnectionString("AWS"),
-        sql => sql.EnableRetryOnFailure()));
-
 builder.Services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+builder.Services.AddMemoryCache(); // Used by ClaimsEnrichmentMiddleware and FeatureFlagService
 
 // --------------------------------------------------------------------------------
 // 3. Authentication & Authorization (Entra ID)
@@ -149,6 +148,11 @@ builder.Services.AddScoped<OperationalImpactEmailService>();
 
 builder.Services.AddScoped<IProactiveRepository, ProactiveRepository>();
 builder.Services.AddScoped<ICertificationsRepository, CertificationsRepository>();
+
+// Home Dashboard
+builder.Services.AddSingleton<HomeDashboardCache>();
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(App).Assembly));
+builder.Services.AddScoped<IFeatureFlagService, FeatureFlagService>();
 
 
 builder.Services.AddScoped<MyApplication.Components.Service.Security.SecurityService>();

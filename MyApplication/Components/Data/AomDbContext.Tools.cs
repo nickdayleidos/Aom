@@ -17,6 +17,9 @@ public partial class AomDbContext
         b.Entity<OiStatus>().ToTable(nameof(OiStatus), "Tools").HasKey(x => x.Id);
         b.Entity<ProactiveAnnouncement>().ToTable(nameof(ProactiveAnnouncement), "Tools").HasKey(x => x.Id);
         b.Entity<OstPassdown>().ToTable(nameof(OstPassdown), "Tools").HasKey(x => x.Id);
+        b.Entity<HomeEvent>().ToTable(nameof(HomeEvent), "Tools").HasKey(x => x.Id);
+        b.Entity<FeatureFlag>().ToTable(nameof(FeatureFlag), "Tools").HasKey(x => x.Id);
+        b.Entity<FeatureFlag>().HasIndex(x => x.Key).IsUnique();
 
         // ---- Relationships ----
         b.Entity<OstPassdown>(e =>

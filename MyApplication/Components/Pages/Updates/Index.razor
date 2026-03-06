@@ -1,0 +1,94 @@
+@page "/updates"
+@inherits AppComponentBase
+
+<PageTitle>Update Notes</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+    <MudText Typo="Typo.h5" Class="mb-1">Update Notes</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">Release history for the Total Operations Database (TOD)</MudText>
+
+    <MudTimeline TimelinePosition="TimelinePosition.Start">
+
+        @* v1.1 *@
+        <MudTimelineItem Color="Color.Success" Icon="@Icons.Material.Filled.NewReleases" Size="Size.Medium">
+            <ItemOpposite>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">March 2026</MudText>
+            </ItemOpposite>
+            <ItemContent>
+                <MudPaper Elevation="2" Class="pa-4 mb-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                        <MudText Typo="Typo.h6">v1.1</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Current</MudChip>
+                    </MudStack>
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Platform</MudText>
+                    <MudList T="string" Dense="true" Class="mb-3">
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Upgraded to .NET 10 and MudBlazor 9 — all breaking API changes resolved</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Fixed all 255 compiler warnings (MUD0002, CA1416, nullable reference types)</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Health check endpoint added at <code>/healthz</code></MudListItem>
+                    </MudList>
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Architecture</MudText>
+                    <MudList T="string" Dense="true" Class="mb-3">
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight"><code>AomDbContext</code> split into focused partial classes (Aws, Employee, Security, Tools)</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight"><code>EmployeesRepository</code> refactored into three focused services: EmployeeDetailsService, EmployeeListService, EmployeeScheduleService</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight"><code>AcrQueryService</code> split into partial classes (Details, Lookups, Search)</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight"><code>OperaRepository</code> split into partial classes (Commands, Queries)</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight"><code>AppComponentBase</code> introduced — all pages share loading state, navigation, snackbar, and role helpers</MudListItem>
+                    </MudList>
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Authentication &amp; Authorization</MudText>
+                    <MudList T="string" Dense="true" Class="mb-3">
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Full auth overhaul: ClaimsEnrichmentMiddleware and EntraIdClaimsEnricher for Entra ID / GCC High</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Role constants and authorization helpers centralized in <code>Common/Auth/</code></MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">New dedicated account pages: Access Denied, Logout, Signed Out</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Role-based authorization re-enabled across all protected pages</MudListItem>
+                    </MudList>
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">New Features</MudText>
+                    <MudList T="string" Dense="true" Class="mb-3">
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Home dashboard events — create, edit, and delete pinned events visible on the dashboard</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Feature flags system — toggle features on/off at runtime without redeployment (Admin only)</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Report a Bug and Request a Feature links added to the navigation menu</MudListItem>
+                    </MudList>
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Deployment</MudText>
+                    <MudList T="string" Dense="true">
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Prepared for Azure App Service (GCC High) — removed local certificate dependency and fixed port bindings</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">CI workflow added — automatic build gate on pull requests to master</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">GitHub issue templates added for structured bug reports and feature requests</MudListItem>
+                    </MudList>
+                </MudPaper>
+            </ItemContent>
+        </MudTimelineItem>
+
+        @* v1.0 *@
+        <MudTimelineItem Color="Color.Default" Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Medium">
+            <ItemOpposite>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">December 2025</MudText>
+            </ItemOpposite>
+            <ItemContent>
+                <MudPaper Elevation="1" Class="pa-4 mb-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                        <MudText Typo="Typo.h6">v1.0</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Initial Release</MudChip>
+                    </MudStack>
+
+                    <MudList T="string" Dense="true">
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Employee management — profiles, schedules, routing assignments</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">ACR (Allowance Change Requests) — full lifecycle with 7 form types</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Opera (Operational Requests) — submission, tracking, and details</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">WFM — routing profiles, queue management, bulk routing assignment, break templates</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Training — skills lookup, skill assignment, certifications tracking and upload</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Tools — OST Passdown, Email Templates, Interval Summary, Operational Impact, Proactive Comms</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Admin — role management and debug claims</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Microsoft Entra ID authentication via OpenID Connect</MudListItem>
+                    </MudList>
+                </MudPaper>
+            </ItemContent>
+        </MudTimelineItem>
+
+    </MudTimeline>
+
+</MudContainer>
