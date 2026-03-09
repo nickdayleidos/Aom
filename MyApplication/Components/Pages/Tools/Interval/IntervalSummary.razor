@@ -1,4 +1,4 @@
-@page "/tools/intervalsummary"
+﻿@page "/tools/intervalsummary"
 @inherits AppComponentBase
 @using MudBlazor
 @using Dapper
@@ -14,9 +14,10 @@
 <MudStack Spacing="2">
     <!-- Toolbar -->
     <MudPaper Class="pa-3 d-flex gap-2 align-center" Outlined="true">
-        <MudButton Variant="Variant.Filled" OnClick="PopulateAsync" StartIcon="@Icons.Material.Filled.CloudDownload">Populate</MudButton>
-        <MudButton Variant="Variant.Outlined" OnClick="CopyStatsAsync" StartIcon="@Icons.Material.Filled.ContentCopy">Copy Stats</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PopulateAsync" StartIcon="@Icons.Material.Filled.CloudDownload">Populate</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="CopyStatsAsync" StartIcon="@Icons.Material.Filled.ContentCopy">Copy Stats</MudButton>
         <MudButton Variant="Variant.Outlined"
+                   Color="Color.Default"
                    OnClick="GenerateEmailAsync"
                    StartIcon="@Icons.Material.Filled.Email">
             Generate Email

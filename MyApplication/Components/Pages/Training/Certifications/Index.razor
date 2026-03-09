@@ -14,7 +14,7 @@
     <Authorized>
         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
-                <MudText Typo="Typo.h4">Certifications</MudText>
+                <MudText Typo="Typo.h5">Certifications</MudText>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" OnClick="@(() => Navigation.NavigateTo("/training/certifications/upload"))">
                     Upload Certification
                 </MudButton>
@@ -103,7 +103,7 @@
                                 }
                             </MudTd>
                             <MudTd DataLabel="Actions">
-                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo($"/training/certifications/details/{certContext.Id}"))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo($"/training/certifications/details/{certContext.Id}"))" />
                             </MudTd>
                         </RowTemplate>
                         <PagerContent>

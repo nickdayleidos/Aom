@@ -1,4 +1,4 @@
-@page "/updates"
+﻿@page "/updates"
 @inherits AppComponentBase
 
 <PageTitle>Update Notes</PageTitle>
@@ -58,6 +58,14 @@
                         <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Prepared for Azure App Service (GCC High) — removed local certificate dependency and fixed port bindings</MudListItem>
                         <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">CI workflow added — automatic build gate on pull requests to master</MudListItem>
                         <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">GitHub issue templates added for structured bug reports and feature requests</MudListItem>
+                    </MudList>
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">UI Polish</MudText>
+                    <MudList T="string" Dense="true">
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Created <code>app.css</code> — centralized custom styles for scrollbars, AppBar glass blur, nav active indicator, and clickable row cursors</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Light mode palette expanded with full color set for text hierarchy, semantic colors, and surface/chrome tokens</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Semantic status chip colors added to ACR and Opera list pages (Warning=pending, Info=in-progress, Success=approved, Error=rejected)</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Replaced inline loading spinners with shared <code>LoadingSpinner</code> component across ACR pages</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Standardized page title typography, icon variants, and button colors across Employees, Tools, and Training pages</MudListItem>
                     </MudList>
                 </MudPaper>
             </ItemContent>

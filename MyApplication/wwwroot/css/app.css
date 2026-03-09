@@ -1,0 +1,136 @@
+﻿/* ============================================================
+   Total Operations Database (TOD) — Custom Application Styles
+   ============================================================ */
+
+
+/* ── 1. Base & Text Rendering ────────────────────────────── */
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+
+/* ── 2. Scrollbar ────────────────────────────────────────── */
+
+/* Firefox */
+html {
+    scrollbar-width: thin;
+    scrollbar-color: #3d3b4f transparent;
+}
+
+/* Chromium / Safari */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #3d3b4f;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #5c5978;
+}
+
+
+/* ── 3. AppBar Glass Effect ──────────────────────────────── */
+
+.mud-appbar {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+
+/* ── 4. Dark / Light Mode Toggle Transition ──────────────── */
+
+body,
+.mud-appbar,
+.mud-drawer,
+.mud-paper,
+.mud-nav-menu,
+.mud-main-content {
+    transition: background-color 0.2s ease, color 0.15s ease;
+}
+
+
+/* ── 5. Table Row Hover Transition ───────────────────────── */
+
+.mud-table-row {
+    transition: background-color 0.12s ease;
+}
+
+
+/* ── 6. Navigation Active Indicator ─────────────────────── */
+
+/* Left accent bar on the active nav link — uses inset box-shadow
+   so it doesnt shift layout or affect the box model            */
+.mud-nav-link.active {
+    box-shadow: inset 3px 0 0 var(--mud-palette-primary);
+}
+
+
+/* ── 7. Clickable Table Rows ─────────────────────────────── */
+
+.row-clickable {
+    cursor: pointer;
+}
+
+.clickable-row {
+    cursor: pointer;
+}
+
+
+/* ── 8. Expansion Panel Transition ───────────────────────── */
+
+.mud-collapse-container {
+    transition: height 0.2s ease;
+}
+
+
+/* ── 9. Blazor Error UI ──────────────────────────────────── */
+
+/* Hidden by default; Blazor JS sets display:block on error.
+   Replaces the unstyled default browser rendering.            */
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #1e1e2d;
+    border-top: 2px solid #ff3f5f;
+    color: #b2b0bf;
+    padding: 12px 20px;
+    font-size: 0.875rem;
+    font-family: Roboto, sans-serif;
+    z-index: 9999;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+}
+
+#blazor-error-ui a.reload {
+    color: #7e6fff;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    opacity: 0.5;
+    font-size: 1.1rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+#blazor-error-ui .dismiss:hover {
+    opacity: 1;
+    background-color: rgba(255, 63, 95, 0.15);
+}
