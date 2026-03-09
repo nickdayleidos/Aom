@@ -259,6 +259,68 @@ All services registered in `Program.cs`:
 - **Azure App Service** — primary target (HTTPS, no local cert)
 - **Windows Service** — supported via `UseWindowsService()`
 - No `--no-verify` or force-push to `master`
-- Current active branch: `AzureNew`; main branch: `master`
+- Current active branch: `Aom_1.1_Test`; main branch: `master`
 - Health endpoint available at `/healthz`
 - Distributed SQL Server token cache for MSAL token persistence
+
+---
+
+## Release / Update Notes Workflow
+
+Every time changes are merged into `master`, update `Components/Pages/Updates/Index.razor`:
+
+1. Add a new `MudTimelineItem` block **at the top** of the timeline (above the previous current entry)
+2. Move the `<MudChip ... Variant="Variant.Filled">Current</MudChip>` to the new entry
+3. Change the previously-current entry's chip to `Variant="Variant.Outlined"` and `Color="Color.Default"`
+4. Change the previously-current entry's `MudTimelineItem` color to `Color="Color.Default"` and icon to `Icon="@Icons.Material.Filled.CheckCircle"`
+5. Set the new entry's `Color="Color.Success"` and `Icon="@Icons.Material.Filled.NewReleases"`
+6. Update the `<ItemOpposite>` date to the current month/year
+
+Template for a new entry:
+```razor
+<MudTimelineItem Color="Color.Success" Icon="@Icons.Material.Filled.NewReleases" Size="Size.Medium">
+    <ItemOpposite>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">Month YYYY</MudText>
+    </ItemOpposite>
+    <ItemContent>
+        <MudPaper Elevation="2" Class="pa-4 mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                <MudText Typo="Typo.h6">vX.Y</MudText>
+                <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Current</MudChip>
+            </MudStack>
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Section Name</MudText>
+            <MudList T="string" Dense="true" Class="mb-3">
+                <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Change description</MudListItem>
+            </MudList>
+        </MudPaper>
+    </ItemContent>
+</MudTimelineItem>
+```
+---
+
+## Versioning Convention
+
+Uses semantic versioning: `major.minor.patch`
+
+| Increment | When | Example |
+|-----------|------|---------|
+| `minor` | New features, refactors, significant changes | `1.1` → `1.2` |
+| `patch` | Bug fixes, small tweaks, hotfixes | `1.2` → `1.2.1` |
+| `major` | Breaking changes or full rewrites | `1.x` → `2.0` |
+
+**Branch naming:** `Aom_<version>_Dev` — e.g. `Aom_1.2_Dev`, `Aom_1.2.1_Dev`
+
+### Patch versions in Update Notes
+
+For patch releases (e.g. `v1.2.1`), add a compact `MudAlert` block **inside** the parent minor version's `MudPaper`, below its existing content — do NOT create a new top-level timeline item:
+
+```razor
+<MudAlert Severity="Severity.Info" Variant="Variant.Text" Dense="true" Class="mt-3">
+    <MudText Typo="Typo.caption"><strong>v1.2.1</strong> — Month YYYY</MudText>
+    <MudList T="string" Dense="true">
+        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Fix description</MudListItem>
+    </MudList>
+</MudAlert>
+```
+
+Also move the `Current` chip to the patch version number and update `MudText Typo="Typo.h6"` to `v1.2.1`.
