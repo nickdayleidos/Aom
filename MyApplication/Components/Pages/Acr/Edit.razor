@@ -16,25 +16,27 @@
     </MudStack>
 </MudPaper>
 
-<MudStack Spacing="2">
-    <MudPaper Class="pa-4" Outlined>
+<SectionHeader Title="@(_vm is null ? "Edit ACR" : $"Edit ACR #{_vm.Id}")">
+    <Actions>
+        @if (_vm is not null)
+        {
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       OnClick="SaveAsync">
+                Save
+            </MudButton>
+        }
+    </Actions>
+</SectionHeader>
+
+<AppCard>
+    <ChildContent>
         @if (_vm is null)
         {
             <LoadingSpinner />
         }
         else
         {
-            <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
-                <MudText Typo="Typo.h6">Edit ACR #@_vm.Id</MudText>
-                <MudSpacer />
-                <MudButton Color="Color.Primary"
-                           Variant="Variant.Filled"
-                           OnClick="SaveAsync">
-                    Save
-                </MudButton>
-            </MudStack>
-
-            <MudDivider Class="my-2" />
 
             <MudGrid>
                 @if (_vm.TypeKey == AcrTypeKey.NewHire)
@@ -67,8 +69,8 @@
                         }
             </MudGrid>
         }
-    </MudPaper>
-</MudStack>
+    </ChildContent>
+</AppCard>
 
 @code {
     [Parameter] public int Id { get; set; }
