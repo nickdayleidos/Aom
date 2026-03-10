@@ -134,3 +134,113 @@ body,
     opacity: 1;
     background-color: rgba(255, 63, 95, 0.15);
 }
+
+/* ── 10. Typography — Inter font ──────────────────────────── */
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+
+/* ── 11. Border Radius ────────────────────────────────────── */
+
+.mud-paper {
+    border-radius: 8px !important;
+}
+
+
+/* ── 12. Card / Section Header ───────────────────────────── */
+
+/* Header row inside AppCard */
+.app-card-header {
+    display: flex;
+    align-items: center;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--mud-palette-divider);
+}
+
+/* Page-level section title divider */
+.section-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--mud-palette-divider);
+    margin-bottom: 16px;
+}
+
+
+/* ── 13. Stat Cards ──────────────────────────────────────── */
+
+.stat-card {
+    border-radius: 8px;
+    transition: box-shadow 0.15s ease;
+}
+
+.stat-card:hover {
+    box-shadow: var(--mud-elevation-6) !important;
+}
+
+
+/* ── 14. Modern Table Styles ─────────────────────────────── */
+
+/* Applied via Class="table-modern" on MudSimpleTable */
+.table-modern thead th {
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--mud-palette-text-secondary);
+    padding: 8px 12px;
+}
+
+.table-modern tbody td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--mud-palette-divider);
+    font-size: 0.875rem;
+}
+
+.table-modern tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.table-modern tbody tr:hover td {
+    background-color: var(--mud-palette-background-gray);
+}
+
+
+/* ── 15. Main content breathing room ────────────────────── */
+
+.mud-main-content {
+    padding: 72px 24px 24px !important;
+}
+
+
+/* ── 16. Navigation Branding ─────────────────────────────── */
+
+.nav-brand {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid var(--mud-palette-divider);
+    margin-bottom: 8px;
+}
+
+.nav-brand-logo {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--mud-palette-primary);
+    letter-spacing: 0.05em;
+}
+
+.nav-brand-sub {
+    font-size: 0.65rem;
+    color: var(--mud-palette-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+}
+
+.nav-version {
+    padding: 6px 16px 10px;
+    font-size: 0.7rem;
+    color: var(--mud-palette-text-disabled);
+}

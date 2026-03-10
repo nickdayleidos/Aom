@@ -36,6 +36,29 @@ public partial class Home : AppComponentBase, IDisposable
     private IReadOnlyList<DashSubTypeCount> _attendance = [];
     private IReadOnlyList<DashSubTypeCount> _resourcing = [];
 
+    // ── KPI stat row computed properties ─────────────────────
+    private int TotalCallsToday => _dailyStats.Sum(r => r.Offered);
+    private int TotalAnsweredToday => _dailyStats.Sum(r => r.Answered);
+    private string AnswerRateToday => TotalCallsToday == 0 ? "—"
+        : $"{(TotalAnsweredToday * 100.0 / TotalCallsToday):F1}%";
+    private string AvgAsaToday
+    {
+        get
+        {
+            var answered = _dailyStats.Sum(r => r.Answered);
+            if (answered == 0) return "—";
+            var weightedSum = _dailyStats.Sum(r => (long)r.Asa * r.Answered);
+            return $"{weightedSum / answered:F0}s";
+        }
+    }
+    private int OpenOiCount => _openOi.Count;
+    private static Color AsaColor(int asa) => asa switch {
+        0 => Color.Default,
+        < 10 => Color.Success,
+        < 20 => Color.Warning,
+        _ => Color.Error
+    };
+
     protected override async Task OnInitializedAsync()
     {
         // Subscribe so this component re-renders when any background refresh finishes

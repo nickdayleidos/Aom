@@ -6,37 +6,38 @@
 @inject AwsRoutingService Service
 
 <MudStack Spacing="4">
-    <MudStack Row="true" AlignItems="AlignItems.Center">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/wfm/aws/profiles"))" />
-        <MudText Typo="Typo.h5">@_profile?.Name</MudText>
-    </MudStack>
+    <SectionHeader Title="@(_profile?.Name ?? "Profile")">
+        <Actions>
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/wfm/aws/profiles"))" />
+        </Actions>
+    </SectionHeader>
 
     @if (_profile != null)
     {
-        <MudPaper Class="pa-4">
-            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                <MudText Typo="Typo.h6">Assigned Queues</MudText>
+        <AppCard Title="Assigned Queues">
+            <Actions>
                 <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" OnClick="AddQueue">Add Queue</MudButton>
-            </MudStack>
-
-            <MudTable Items="_queues" Dense="true" Hover="true" Class="mt-4">
-                <HeaderContent>
-                    <MudTh>Queue</MudTh>
-                    <MudTh>Priority</MudTh>
-                    <MudTh>Delay</MudTh>
-                    <MudTh>Actions</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.CallQueue?.Name</MudTd>
-                    <MudTd>@context.Priority</MudTd>
-                    <MudTd>@context.Delay</MudTd>
-                    <MudTd>
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => EditQueue(context))" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveQueue(context))" />
-                    </MudTd>
-                </RowTemplate>
-            </MudTable>
-        </MudPaper>
+            </Actions>
+            <ChildContent>
+                <MudTable Items="_queues" Dense="true" Hover="true" Class="mt-4">
+                    <HeaderContent>
+                        <MudTh>Queue</MudTh>
+                        <MudTh>Priority</MudTh>
+                        <MudTh>Delay</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.CallQueue?.Name</MudTd>
+                        <MudTd>@context.Priority</MudTd>
+                        <MudTd>@context.Delay</MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => EditQueue(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => RemoveQueue(context))" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </ChildContent>
+        </AppCard>
     }
     else
     {

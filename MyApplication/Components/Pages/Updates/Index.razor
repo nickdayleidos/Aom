@@ -10,7 +10,7 @@
 
     <MudTimeline TimelinePosition="TimelinePosition.Start">
 
-        @* v1.1 *@
+        @* v1.2 *@
         <MudTimelineItem Color="Color.Success" Icon="@Icons.Material.Filled.NewReleases" Size="Size.Medium">
             <ItemOpposite>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">March 2026</MudText>
@@ -18,8 +18,34 @@
             <ItemContent>
                 <MudPaper Elevation="2" Class="pa-4 mb-4">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
-                        <MudText Typo="Typo.h6">v1.1</MudText>
+                        <MudText Typo="Typo.h6">v1.2</MudText>
                         <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Current</MudChip>
+                    </MudStack>
+
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">UI Polish</MudText>
+                    <MudList T="string" Dense="true" Class="mb-3">
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Switched to Inter font for sharper, more modern typography</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Added KPI stat row to dashboard — calls, answer rate, ASA, and open operational impacts at a glance</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">New shared components: AppCard, StatCard, and SectionHeader for consistent page layouts</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Color-coded ASA chips in queue tables (green / amber / red by threshold)</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Semantic status chips on ACR and Opera request lists</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">TOD branding header and version badge added to the navigation sidebar</MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.ArrowRight">Consistent card elevation (Elevation=3), 8px border radius, and improved spacing across all pages</MudListItem>
+                    </MudList>
+                </MudPaper>
+            </ItemContent>
+        </MudTimelineItem>
+
+        @* v1.1 *@
+        <MudTimelineItem Color="Color.Default" Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Medium">
+            <ItemOpposite>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">March 2026</MudText>
+            </ItemOpposite>
+            <ItemContent>
+                <MudPaper Elevation="2" Class="pa-4 mb-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                        <MudText Typo="Typo.h6">v1.1</MudText>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Current</MudChip>
                     </MudStack>
 
                     <MudText Typo="Typo.subtitle2" Class="mb-1">Platform</MudText>

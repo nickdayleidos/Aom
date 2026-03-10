@@ -2,6 +2,11 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 
+<div class="nav-brand">
+    <span class="nav-brand-logo">TOD</span>
+    <span class="nav-brand-sub">Total Operations Database</span>
+</div>
+
 <MudNavMenu>
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
 
@@ -60,6 +65,7 @@
         </Authorized>
     </AuthorizeView>
 </MudNavMenu>
+<div class="nav-version">v1.2</div>
 
 @code {
     private void SignOut()

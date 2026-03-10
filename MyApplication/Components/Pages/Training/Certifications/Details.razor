@@ -1,4 +1,4 @@
-﻿@page "/training/certifications/details/{Id:int}"
+@page "/training/certifications/details/{Id:int}"
 @inherits AppComponentBase
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Training.Certifications
@@ -18,12 +18,8 @@
             <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4" Style="height: 90vh; display: flex; flex-direction: column;">
 
                 <!-- Header -->
-                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
-                    <MudText Typo="Typo.h5">
-                        Details: @_cert.Employee?.FirstName @_cert.Employee?.LastName - @_cert.CertificationType?.Name
-                    </MudText>
-
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <SectionHeader Title="@($"Details: {_cert.Employee?.FirstName} {_cert.Employee?.LastName} - {_cert.CertificationType?.Name}")">
+                    <Actions>
                         <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/training/certifications"))">Back</MudButton>
 
                         @if (_isEditMode)
@@ -56,13 +52,13 @@
                         </AuthorizeView>
 
                         <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="Delete">Delete</MudButton>
-                    </MudStack>
-                </MudStack>
+                    </Actions>
+                </SectionHeader>
 
                 <MudGrid Style="flex-grow: 1; overflow: hidden;">
                     <!-- Left: Form -->
                     <MudItem xs="12" md="4" Style="overflow-y: auto; max-height: 100%;">
-                        <MudPaper Class="p-4">
+                        <AppCard>
                             <MudForm @ref="_form">
                                 <MudTextField Label="Employee" Value="@($"{_cert.Employee?.LastName}, {_cert.Employee?.FirstName}")" ReadOnly="true" Variant="Variant.Filled" Class="mb-3" />
 
@@ -96,12 +92,12 @@
                                 <MudTextField Label="Upload Date" Value="@_cert.UploadDate.ToString("g")" ReadOnly="true" Variant="Variant.Filled" Class="mt-3" />
                                 <MudTextField Label="File Name" Value="@_cert.FileName" ReadOnly="true" Variant="Variant.Filled" Class="mt-3" />
                             </MudForm>
-                        </MudPaper>
+                        </AppCard>
                     </MudItem>
 
                     <!-- Right: PDF Viewer -->
                     <MudItem xs="12" md="8" Style="height: 100%;">
-                        <MudPaper Class="p-2" Style="height: 100%; display: flex; flex-direction: column;">
+                        <MudPaper Elevation="3" Class="p-2" Style="height: 100%; display: flex; flex-direction: column;">
                             <MudText Typo="Typo.subtitle1" Class="mb-2">Document Preview</MudText>
                             <iframe src="@($"/api/certifications/view/{_cert.Id}")" style="width:100%; height:100%; border:none;" type="application/pdf"></iframe>
                         </MudPaper>

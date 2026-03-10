@@ -12,29 +12,29 @@
 
 <MudStack Spacing="2">
     <!-- Toolbar -->
-    <MudPaper Class="pa-3 d-flex gap-2 align-center" Outlined="true">
-        <MudText Typo="Typo.h6">Email Templates</MudText>
-        <MudSpacer />
-        <MudTextField @bind-Value="_search"
-                      Placeholder="Search…"
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search" />
-        <MudButton Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.Add"
-                   Color="Color.Primary"
-                   OnClick="@(async () => await OpenAddAsync())">
-            New Template
-        </MudButton>
-        <MudButton Variant="Variant.Outlined"
-                   StartIcon="@Icons.Material.Filled.Refresh"
-                   Disabled="@IsLoading"
-                   OnClick="@(async () => await LoadAsync())">
-            Refresh
-        </MudButton>
-    </MudPaper>
+    <SectionHeader Title="Email Templates">
+        <Actions>
+            <MudTextField @bind-Value="_search"
+                          Placeholder="Search…"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" />
+            <MudButton Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       Color="Color.Primary"
+                       OnClick="@(async () => await OpenAddAsync())">
+                New Template
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       Disabled="@IsLoading"
+                       OnClick="@(async () => await LoadAsync())">
+                Refresh
+            </MudButton>
+        </Actions>
+    </SectionHeader>
 
     <!-- Grid -->
-    <MudPaper Class="pa-0" Outlined="true">
+    <AppCard>
         <MudTable Items="_rowsFiltered"
           Dense="true"
           Hover="true"
@@ -89,7 +89,7 @@
                 <MudText Class="pa-4">No templates yet. Click <b>New Template</b>.</MudText>
             </NoRecordsContent>
         </MudTable>
-    </MudPaper>
+    </AppCard>
 </MudStack>
 
 @code {

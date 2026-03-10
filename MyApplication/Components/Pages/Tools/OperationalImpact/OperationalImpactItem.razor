@@ -15,8 +15,7 @@
 @inject OperationalImpactEmailService OiEmailSvc
 @attribute [Authorize(Roles = RoleConstants.AdminOstWfm)]
 <MudStack Spacing="2">
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6">Operational Impact Details</MudText>
+    <AppCard Title="Operational Impact Details">
 
         @if (IsLoading)
         {
@@ -119,10 +118,9 @@
                 </MudItem>
             </MudGrid>
         }
-    </MudPaper>
+    </AppCard>
 
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6">Add Update</MudText>
+    <AppCard Title="Add Update">
 
         <MudTextField T="string"
                       Value="_newUpdate"
@@ -143,10 +141,9 @@
                 Save Update & Email
             </MudButton>
         </div>
-    </MudPaper>
+    </AppCard>
 
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6">History</MudText>
+    <AppCard Title="History">
         <MudList T="object">
             @foreach (var u in _updates)
             {
@@ -156,7 +153,7 @@
                 </MudListItem>
             }
         </MudList>
-    </MudPaper>
+    </AppCard>
 </MudStack>
 
 @code {

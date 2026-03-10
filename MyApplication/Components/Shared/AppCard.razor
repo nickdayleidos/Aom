@@ -1,0 +1,50 @@
+@* AppCard — standard elevated card with optional titled header and actions slot.
+   Auto-imported via @using MyApplication.Components.Shared in _Imports.razor.
+
+   Usage (title only):
+       <AppCard Title="My Section">content</AppCard>
+
+   Usage (title + actions):
+       <AppCard Title="My Section">
+           <Actions><MudIconButton .../></Actions>
+           <ChildContent>content</ChildContent>
+       </AppCard>
+
+   Usage (no title, just elevated paper):
+       <AppCard>content</AppCard>
+*@
+
+<MudPaper Elevation="3" Class="@Class">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="app-card-header">
+            @if (TitleIcon is not null)
+            {
+                <MudIcon Icon="@TitleIcon" Color="@TitleColor" Size="Size.Small" Class="mr-2" />
+            }
+            <MudText Typo="Typo.subtitle1" Style="font-weight:600;flex:1">@Title</MudText>
+            @Actions
+        </div>
+    }
+    @ChildContent
+</MudPaper>
+
+@code {
+    /// <summary>Card title displayed in the header row. Omit for a bare elevated card.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Optional MudBlazor icon string shown left of the title.</summary>
+    [Parameter] public string? TitleIcon { get; set; }
+
+    /// <summary>Icon color. Default = Color.Default.</summary>
+    [Parameter] public Color TitleColor { get; set; } = Color.Default;
+
+    /// <summary>Content rendered on the right side of the header row (buttons, chips, etc.).</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+
+    /// <summary>Card body content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>CSS class applied to the root MudPaper. Default = "pa-4".</summary>
+    [Parameter] public string Class { get; set; } = "pa-4";
+}

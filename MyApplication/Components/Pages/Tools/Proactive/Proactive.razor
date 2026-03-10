@@ -12,15 +12,15 @@
 
 
 <MudStack Spacing="2">
-    <MudPaper Class="pa-3 d-flex gap-2 align-center" Outlined="true">
-        <MudText Typo="Typo.h5">Proactive Announcements</MudText>
-        <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadLatestAsync" StartIcon="@Icons.Material.Filled.Refresh">
-            Load Latest
-        </MudButton>
-    </MudPaper>
+    <SectionHeader Title="Proactive Announcements">
+        <Actions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadLatestAsync" StartIcon="@Icons.Material.Filled.Refresh">
+                Load Latest
+            </MudButton>
+        </Actions>
+    </SectionHeader>
 
-    <MudPaper Class="pa-4" Outlined="true">
+    <AppCard>
         <MudGrid Spacing="2">
             <MudItem xs="12">
                 <MudTextField T="string"
@@ -61,7 +61,7 @@
                 <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ClearInputs" StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
             </MudItem>
         </MudGrid>
-    </MudPaper>
+    </AppCard>
 </MudStack>
 
 @code {

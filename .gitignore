@@ -368,3 +368,6 @@ FodyWeavers.xsd
 .env.production
 # Claude Code
 .claude/
+
+# Git worktrees
+.worktrees/

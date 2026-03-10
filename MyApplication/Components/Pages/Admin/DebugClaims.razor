@@ -10,25 +10,23 @@
 @inject GraphServiceClient GraphClient
 
 <MudStack Spacing="4" Class="pa-4">
-    <MudText Typo="Typo.h5">User Claims Debugger (Entra ID)</MudText>
+    <SectionHeader Title="User Claims Debugger (Entra ID)" />
     <MudAlert Severity="Severity.Info">
         This page displays all claims from your Entra ID (Azure AD) authentication token.
         Use this information for troubleshooting authentication and configuring role-based access.
     </MudAlert>
 
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6">Identity</MudText>
-        <MudSimpleTable>
+    <AppCard Title="Identity">
+        <MudSimpleTable Class="table-modern">
             <tbody>
                 <tr><td><b>Name</b></td><td>@_user?.Identity?.Name</td></tr>
                 <tr><td><b>IsAuthenticated</b></td><td>@_user?.Identity?.IsAuthenticated</td></tr>
                 <tr><td><b>Auth Type</b></td><td>@_user?.Identity?.AuthenticationType</td></tr>
             </tbody>
         </MudSimpleTable>
-    </MudPaper>
+    </AppCard>
 
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6" Class="mb-2">Groups (via Microsoft Graph API)</MudText>
+    <AppCard Title="Groups (via Microsoft Graph API)">
         @if (IsLoading)
         {
             <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
@@ -66,10 +64,9 @@
                 No groups found for this user.
             </MudAlert>
         }
-    </MudPaper>
+    </AppCard>
 
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6" Class="mb-2">All Claims</MudText>
+    <AppCard Title="All Claims">
         <MudTable Items="_claims" Dense="true" Striped="true" Hover="true" Filter="new Func<Claim, bool>(FilterClaims)">
             <ToolBarContent>
                 <MudTextField @bind-Value="_searchString" Placeholder="Search claims..." Adornment="Adornment.Start"
@@ -96,11 +93,10 @@
                 </MudTd>
             </RowTemplate>
         </MudTable>
-    </MudPaper>
+    </AppCard>
 
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6" Class="mb-2">Common Entra ID Claims Reference</MudText>
-        <MudSimpleTable Dense="true" Striped="true">
+    <AppCard Title="Common Entra ID Claims Reference">
+        <MudSimpleTable Dense="true" Striped="true" Class="table-modern">
             <thead>
                 <tr>
                     <th>Claim Type</th>
@@ -116,7 +112,7 @@
                 <tr><td><b>groups</b></td><td>Group memberships (if configured)</td></tr>
             </tbody>
         </MudSimpleTable>
-    </MudPaper>
+    </AppCard>
 </MudStack>
 
 @code {

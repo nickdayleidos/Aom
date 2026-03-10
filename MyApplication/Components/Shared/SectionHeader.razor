@@ -1,0 +1,33 @@
+@* SectionHeader — page-level title area with optional subtitle and actions.
+   Replaces the ad-hoc MudStack Row + MudText h5 + MudSpacer + buttons pattern.
+   Auto-imported via @using MyApplication.Components.Shared in _Imports.razor.
+
+   Usage:
+       <SectionHeader Title="Employees" />
+
+   Usage with subtitle + button:
+       <SectionHeader Title="ACRs" Subtitle="Allowance Change Requests">
+           <Actions>
+               <MudButton ...>New Request</MudButton>
+           </Actions>
+       </SectionHeader>
+*@
+
+<div class="section-header mb-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <MudStack Spacing="0" Style="flex:1">
+            <MudText Typo="Typo.h5">@Title</MudText>
+            @if (!string.IsNullOrEmpty(Subtitle))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1">@Subtitle</MudText>
+            }
+        </MudStack>
+        @Actions
+    </MudStack>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+}

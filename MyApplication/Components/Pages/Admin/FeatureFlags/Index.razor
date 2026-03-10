@@ -7,20 +7,16 @@
 @inject IFeatureFlagService FlagService
 
 <MudStack Spacing="4" Class="mb-8">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-        <MudText Typo="Typo.h5">Feature Flags</MudText>
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="OpenAddDialog">
-            Add Flag
-        </MudButton>
-    </MudStack>
-
-    <MudText Typo="Typo.body2" Class="mud-text-secondary">
-        Toggle modules on/off and grant role-based early access without a redeploy.
-        Changes take effect within 5 minutes as the cache expires.
-    </MudText>
+    <SectionHeader Title="Feature Flags" Subtitle="Toggle modules on/off and grant role-based early access without a redeploy. Changes take effect within 5 minutes as the cache expires.">
+        <Actions>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenAddDialog">
+                Add Flag
+            </MudButton>
+        </Actions>
+    </SectionHeader>
 
     <MudDataGrid T="FeatureFlag"
                  Items="_flags"

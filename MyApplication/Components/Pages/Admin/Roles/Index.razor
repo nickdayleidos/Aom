@@ -6,15 +6,16 @@
 @inject SecurityService SecurityService
 
 <MudStack Spacing="4" Class="mb-8">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-        <MudText Typo="Typo.h5">Role Assignments</MudText>
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="OpenAddDialog">
-            Add Assignment
-        </MudButton>
-    </MudStack>
+    <SectionHeader Title="Role Assignments">
+        <Actions>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenAddDialog">
+                Add Assignment
+            </MudButton>
+        </Actions>
+    </SectionHeader>
 
     <MudDataGrid T="RoleAssignmentDto"
                  Items="_assignments"

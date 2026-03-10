@@ -1,4 +1,4 @@
-﻿@page "/training/certifications/upload"
+@page "/training/certifications/upload"
 @inherits AppComponentBase
 @using MyApplication.Common.Time
 @using MyApplication.Components.Model.AOM.Employee
@@ -9,9 +9,9 @@
 <PageTitle>Upload Certification</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-4">Upload New Certification</MudText>
+    <SectionHeader Title="Upload New Certification" />
 
-    <MudPaper Class="p-4">
+    <AppCard>
         <MudForm @ref="_form" @bind-IsValid="_success">
             <MudGrid>
                 <!-- Employee Search -->
@@ -68,7 +68,7 @@
                 </MudItem>
             </MudGrid>
         </MudForm>
-    </MudPaper>
+    </AppCard>
 </MudContainer>
 
 @code {
