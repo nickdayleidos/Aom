@@ -33,6 +33,34 @@
                    OnClick="ManualRefreshAsync" />
 </MudStack>
 
+@* ── KPI stat row ────────────────────────────────────────── *@
+<MudGrid Spacing="3" Class="mb-4">
+    <MudItem xs="6" sm="3">
+        <StatCard Value="@TotalCallsToday.ToString("N0")"
+                  Label="Calls Today"
+                  Icon="@Icons.Material.Filled.Phone"
+                  Color="Color.Primary" />
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <StatCard Value="@AnswerRateToday"
+                  Label="Answer Rate"
+                  Icon="@Icons.Material.Filled.CheckCircle"
+                  Color="Color.Success" />
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <StatCard Value="@AvgAsaToday"
+                  Label="Avg ASA Today"
+                  Icon="@Icons.Material.Filled.Timer"
+                  Color="Color.Info" />
+    </MudItem>
+    <MudItem xs="6" sm="3">
+        <StatCard Value="@OpenOiCount.ToString()"
+                  Label="Open Op Impacts"
+                  Icon="@Icons.Material.Filled.Warning"
+                  Color="@(OpenOiCount > 0 ? Color.Warning : Color.Default)" />
+    </MudItem>
+</MudGrid>
+
 <MudGrid Spacing="3">
 
     @* ── 1. Call Performance — Today and MTD side by side ────────── *@
