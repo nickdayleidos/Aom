@@ -1,0 +1,31 @@
+@* StatCard — KPI summary card for dashboard stat rows.
+   Auto-imported via @using MyApplication.Components.Shared in _Imports.razor.
+
+   Usage:
+       <StatCard Value="1,842" Label="Calls Today"
+                 Icon="@Icons.Material.Filled.Phone" Color="Color.Primary" />
+*@
+
+<MudPaper Elevation="3" Class="stat-card pa-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+        <MudAvatar Color="@Color" Variant="Variant.Filled" Size="Size.Large" Class="rounded-lg">
+            <MudIcon Icon="@Icon" />
+        </MudAvatar>
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h5" Style="font-weight:700;line-height:1.1">@Value</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@Label</MudText>
+            @if (Subtitle is not null)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@Subtitle</MudText>
+            }
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired] public string Value { get; set; } = "";
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public string Icon { get; set; } = "";
+    [Parameter] public Color Color { get; set; } = Color.Primary;
+    [Parameter] public string? Subtitle { get; set; }
+}
