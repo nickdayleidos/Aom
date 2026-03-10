@@ -6,11 +6,11 @@
 @using System.Text.Json
 @inject IWfmService WfmService
 
-<MudText Typo="Typo.h5" Class="mb-4">Break Templates</MudText>
+<SectionHeader Title="Break Templates" />
 
 <MudGrid>
     <MudItem xs="12" md="5">
-        <MudPaper Class="pa-4">
+        <AppCard>
             <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
                 <MudText Typo="Typo.h6">@(_newTemplate.Id == 0 ? "New Template" : "Edit Template")</MudText>
                 @if (_newTemplate.Id != 0)
@@ -95,7 +95,7 @@
                     }
                 </div>
             </MudForm>
-        </MudPaper>
+        </AppCard>
     </MudItem>
 
     <MudItem xs="12" md="7">

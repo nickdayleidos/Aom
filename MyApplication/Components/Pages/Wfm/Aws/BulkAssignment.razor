@@ -10,9 +10,9 @@
 @inject EmployeeListService EmployeeRepo
 
 <MudStack Spacing="4">
-    <MudText Typo="Typo.h5">Bulk Profile Assignment</MudText>
+    <SectionHeader Title="Bulk Profile Assignment" />
 
-    <MudPaper Class="pa-4" Outlined="true">
+    <AppCard>
         <MudGrid>
             <MudItem xs="12" md="4">
                 <MudSelect T="int?" Label="Weekday Profile" @bind-Value="_selectedWeekday" Clearable="true" AnchorOrigin="Origin.BottomCenter">
@@ -40,7 +40,7 @@
                 </MudButton>
             </MudItem>
         </MudGrid>
-    </MudPaper>
+    </AppCard>
 
     <MudTable T="EmployeeListItem"
               ServerData="ServerReload"
