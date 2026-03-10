@@ -10,18 +10,20 @@
 @inject IOperaRepository Repo
 @inject UserProfileService UserProfile
 
-<MudStack Spacing="2">
-    <MudPaper Class="pa-4" Outlined="true">
+<SectionHeader Title="Opera Requests" Subtitle="Operational Requests">
+    <Actions>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Outlined.Add"
+                   OnClick="GoSubmit">
+            New Request
+        </MudButton>
+    </Actions>
+</SectionHeader>
 
-        <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-            <MudText Typo="Typo.h5">Opera Requests</MudText>
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       StartIcon="@Icons.Material.Outlined.Add"
-                       OnClick="GoSubmit">
-                New Request
-            </MudButton>
-        </MudStack>
+<MudStack Spacing="2">
+    <AppCard>
+        <ChildContent>
 
         <MudDivider Class="my-3" />
 
@@ -127,7 +129,8 @@
             </MudItem>
 
         </MudGrid>
-    </MudPaper>
+        </ChildContent>
+    </AppCard>
 
     <MudTabs @bind-ActivePanelIndex="_activeTab" Rounded="true" Elevation="0" Color="Color.Transparent" Class="mt-2">
         <MudTabPanel Text="All Requests" Icon="@Icons.Material.Outlined.List">@TableBlock(AllItems)</MudTabPanel>

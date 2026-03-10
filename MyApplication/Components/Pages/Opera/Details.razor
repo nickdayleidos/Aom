@@ -8,98 +8,85 @@
 @inject IOperaRepository Repo
 @inject UserProfileService UserProfile
 
+<SectionHeader Title="@($"Opera Request #{RequestId}")" Subtitle="@(_item != null ? $"{_item.Employees?.LastName}, {_item.Employees?.FirstName}" : null)">
+    <Actions>
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/opera"))" />
+
+        <MudSelect T="TimeDisplayMode"
+                   @bind-Value="_mode"
+                   Label="Time Display"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense"
+                   Dense="true"
+                   Disabled="@_isEditing"
+                   Style="min-width: 160px;">
+            <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (Site)</MudSelectItem>
+            <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern (ET)</MudSelectItem>
+            <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain (MT)</MudSelectItem>
+        </MudSelect>
+
+        <MudDivider Vertical="true" FlexItem="true" Class="mx-2" />
+
+        @if (_isEditing)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAsync">Save</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="CancelEdit">Cancel</MudButton>
+        }
+        else if (_item != null)
+        {
+            @* --- ACTION BUTTONS --- *@
+
+            @if (_item.OperaStatusId == 1 || _item.OperaStatusId == 6)
+            {
+                @* Approve: OST, WFM, Admin *@
+                @if (_canApprove)
+                {
+                    <MudTooltip Text="Approve">
+                        <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" OnClick="@(() => SetStatusAsync(2))" />
+                    </MudTooltip>
+                }
+
+                @* Reject: WFM, Admin *@
+                @if (_canRejectPending)
+                {
+                    <MudTooltip Text="Reject">
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" OnClick="@(() => SetStatusAsync(5))" />
+                    </MudTooltip>
+                }
+
+                @* PENDING ACTION: WFM, Admin *@
+                @if (_canRejectPending && _item.OperaStatusId == 1)
+                {
+                    <MudTooltip Text="Set Pending">
+                        <MudIconButton Icon="@Icons.Material.Filled.HourglassEmpty" Color="Color.Warning" OnClick="@(() => SetStatusAsync(6))" />
+                    </MudTooltip>
+                }
+
+                @* Cancel: OST, WFM, Admin, Manager, Supervisor *@
+                @if (_canCancel)
+                {
+                    <MudTooltip Text="Cancel Request">
+                        <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Default" OnClick="@(() => SetStatusAsync(4))" />
+                    </MudTooltip>
+                }
+            }
+
+            @* WFM / Admin Specific Actions (Unapprove) *@
+            @if (_canRejectPending)
+            {
+                @if (_item.OperaStatusId == 2)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => SetStatusAsync(1))">Unapprove</MudButton>
+                }
+            }
+
+            @* EDIT Button: Available to all authorized roles *@
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="StartEdit">Edit Request</MudButton>
+        }
+    </Actions>
+</SectionHeader>
+
 <MudStack Spacing="4">
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudGrid>
-            <MudItem xs="12" md="5">
-                <MudStack Row="true" AlignItems="AlignItems.Center">
-                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/opera"))" />
-                    <MudStack Spacing="0">
-                        <MudText Typo="Typo.h5">Opera Request #@RequestId</MudText>
-                        @if (_item != null)
-                        {
-                            <MudText Typo="Typo.body2">@_item.Employees?.LastName, @_item.Employees?.FirstName</MudText>
-                        }
-                    </MudStack>
-                </MudStack>
-            </MudItem>
-
-            <MudItem xs="12" md="7" Class="d-flex justify-end gap-2 align-center">
-
-                <MudSelect T="TimeDisplayMode"
-                           @bind-Value="_mode"
-                           Label="Time Display"
-                           Variant="Variant.Outlined"
-                           Margin="Margin.Dense"
-                           Dense="true"
-                           Disabled="@_isEditing"
-                           Style="min-width: 160px;">
-                    <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (Site)</MudSelectItem>
-                    <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern (ET)</MudSelectItem>
-                    <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain (MT)</MudSelectItem>
-                </MudSelect>
-
-                <MudDivider Vertical="true" FlexItem="true" Class="mx-2" />
-
-                @if (_isEditing)
-                {
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAsync">Save</MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="CancelEdit">Cancel</MudButton>
-                }
-                else if (_item != null)
-                {
-                    @* --- ACTION BUTTONS --- *@
-
-                    @if (_item.OperaStatusId == 1 || _item.OperaStatusId == 6)
-                    {
-                        @* Approve: OST, WFM, Admin *@
-                        @if (_canApprove)
-                        {
-                            <MudTooltip Text="Approve">
-                                <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" OnClick="@(() => SetStatusAsync(2))" />
-                            </MudTooltip>
-                        }
-
-                        @* Reject: WFM, Admin *@
-                        @if (_canRejectPending)
-                        {
-                            <MudTooltip Text="Reject">
-                                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" OnClick="@(() => SetStatusAsync(5))" />
-                            </MudTooltip>
-                        }
-
-                        @* PENDING ACTION: WFM, Admin *@
-                        @if (_canRejectPending && _item.OperaStatusId == 1)
-                        {
-                            <MudTooltip Text="Set Pending">
-                                <MudIconButton Icon="@Icons.Material.Filled.HourglassEmpty" Color="Color.Warning" OnClick="@(() => SetStatusAsync(6))" />
-                            </MudTooltip>
-                        }
-
-                        @* Cancel: OST, WFM, Admin, Manager, Supervisor *@
-                        @if (_canCancel)
-                        {
-                            <MudTooltip Text="Cancel Request">
-                                <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Default" OnClick="@(() => SetStatusAsync(4))" />
-                            </MudTooltip>
-                        }
-                    }
-
-                    @* WFM / Admin Specific Actions (Unapprove) *@
-                    @if (_canRejectPending)
-                    {
-                        @if (_item.OperaStatusId == 2)
-                        {
-                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => SetStatusAsync(1))">Unapprove</MudButton>
-                        }
-                    }
-
-                    @* EDIT Button: Available to all authorized roles *@
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="StartEdit">Edit Request</MudButton>
-                }
-            </MudItem>
-        </MudGrid>
-    </MudPaper>
 
     @if (_item == null)
     {
@@ -109,9 +96,9 @@
     {
         <MudGrid>
             <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4 h-100" Outlined="true">
+                <AppCard Title="Request Details" Class="pa-4 h-100">
+                    <ChildContent>
                     <MudStack Spacing="3">
-                        <MudText Typo="Typo.h6">Request Details</MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2">
                             Times shown in: <b>@_mode</b>
                         </MudText>
@@ -246,14 +233,15 @@
                         }
 
                     </MudStack>
-                </MudPaper>
+                    </ChildContent>
+                </AppCard>
             </MudItem>
 
             @* Schedule Block (unchanged) *@
             <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4 h-100" Outlined="true">
+                <AppCard Title="Weekly Schedule Context" Class="pa-4 h-100">
+                    <ChildContent>
                     <MudStack Spacing="3">
-                        <MudText Typo="Typo.h6">Weekly Schedule Context</MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2">
                             Schedule for the week of the request (@_mode)
                         </MudText>
@@ -279,7 +267,8 @@
                             <NoRecordsContent>No schedule found for this week.</NoRecordsContent>
                         </MudTable>
                     </MudStack>
-                </MudPaper>
+                    </ChildContent>
+                </AppCard>
             </MudItem>
         </MudGrid>
     }

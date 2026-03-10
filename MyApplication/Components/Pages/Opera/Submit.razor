@@ -13,8 +13,10 @@
 @inject AomDbContext Db
 @inject UserProfileService UserProfile
 
-<MudStack Spacing="2">
-    <MudPaper Class="pa-4" Outlined="true">
+<SectionHeader Title="New Opera Requests" Subtitle="Select employees on the left, then fill in the request details on the right." />
+
+<AppCard>
+    <ChildContent>
         @if (!string.IsNullOrWhiteSpace(_lastError))
         {
             <MudAlert Severity="Severity.Error" Dense="true" Class="mb-2">
@@ -22,17 +24,13 @@
             </MudAlert>
         }
         <MudStack Spacing="1">
-            <MudText Typo="Typo.h5">New Opera Requests</MudText>
-            <MudText Typo="Typo.caption">
-                Select employees on the left, then fill in the request details on the right.
-            </MudText>
 
             <MudGrid Spacing="3" Class="mt-2">
                 @* LEFT: Employee Selection *@
                 <MudItem xs="12" md="5">
-                    <MudPaper Class="pa-3 h-100">
+                    <AppCard Title="Employees" Class="pa-3 h-100">
+                        <ChildContent>
                         <MudStack Spacing="1">
-                            <MudText Typo="Typo.subtitle1">Employees</MudText>
 
                             <MudGrid Spacing="1" Class="mt-1">
                                 <MudItem xs="12" md="6">
@@ -76,14 +74,15 @@
                                 </MudItem>
                             </MudGrid>
                         </MudStack>
-                    </MudPaper>
+                        </ChildContent>
+                    </AppCard>
                 </MudItem>
 
                 @* RIGHT: Request Details *@
                 <MudItem xs="12" md="7">
-                    <MudPaper Class="pa-3 h-100">
+                    <AppCard Title="Request details" Class="pa-3 h-100">
+                        <ChildContent>
                         <MudStack Spacing="2">
-                            <MudText Typo="Typo.subtitle1">Request details</MudText>
 
                             <MudGrid Spacing="2">
                                 <MudItem xs="12" md="3">
@@ -206,12 +205,13 @@
                                 <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@(() => Navigation.NavigateTo("/opera"))">CANCEL</MudButton>
                             </MudStack>
                         </MudStack>
-                    </MudPaper>
+                        </ChildContent>
+                    </AppCard>
                 </MudItem>
             </MudGrid>
         </MudStack>
-    </MudPaper>
-</MudStack>
+    </ChildContent>
+</AppCard>
 
 @code {
     private sealed record EmployeeOption(int Id, string Label);
