@@ -13,7 +13,7 @@
 
 <MudStack Spacing="2">
     <!-- Toolbar -->
-    <MudPaper Class="pa-3 d-flex gap-2 align-center" Outlined="true">
+    <AppCard>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PopulateAsync" StartIcon="@Icons.Material.Filled.CloudDownload">Populate</MudButton>
         <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="CopyStatsAsync" StartIcon="@Icons.Material.Filled.ContentCopy">Copy Stats</MudButton>
         <MudButton Variant="Variant.Outlined"
@@ -25,10 +25,10 @@
 
         <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="ClearAsync" StartIcon="@Icons.Material.Filled.LayersClear">Clear</MudButton>
         <MudSpacer />
-    </MudPaper>
+    </AppCard>
 
     <!-- Interval header -->
-    <MudPaper Class="pa-4" Outlined="true">
+    <AppCard>
         <MudGrid Spacing="2">
             <MudItem xs="12" md="2">
                 <MudDatePicker @bind-Date="State.Header.IntervalDate" Label="Date" />
@@ -43,7 +43,7 @@
                 <MudTextField Class="Header" @bind-Value="State.Header.PopulateTime" Format="yyyy-MM-dd HH:mm"  Label="Latest Refresh Time (ET)" />
             </MudItem>
         </MudGrid>
-    </MudPaper>
+    </AppCard>
 
     <!-- Main Content Area: Left (Stats) / Right (Interval Grid) -->
     <MudGrid>
@@ -51,8 +51,7 @@
         <MudItem xs="12" lg="8">
             <MudStack Spacing="2">
                 <!-- Current Day Stats -->
-                <MudPaper Class="pa-4" Outlined="true">
-                    <MudText Typo="Typo.h6">Current Day Stats</MudText>
+                <AppCard Title="Current Day Stats">
                     <MudGrid Spacing="2">
                         <!-- USN -->
                         <MudItem xs="12" md="3"><MudTextField Class="CurrentDay" @bind-Value="State.Current.UsnCallsOffered" Label="SvD/USN Offered" /></MudItem>
@@ -99,11 +98,10 @@
                         <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentEssCount" Label="ESS Ticket Count" /></MudItem>
                         <MudItem xs="12" md="3"><MudTextField Class="Backlog" @bind-Value="State.Current.CurrentEssAgeHours" Label="ESS Ticket Oldest (Hours)" /></MudItem>
                     </MudGrid>
-                </MudPaper>
+                </AppCard>
 
                 <!-- Month To Date -->
-                <MudPaper Class="pa-4" Outlined="true">
-                    <MudText Typo="Typo.h6">Month To Date</MudText>
+                <AppCard Title="Month To Date">
                     <MudGrid Spacing="2">
                         <!-- USN -->
                         <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.UsnCallsOffered" Label="SvD/USN Offered" /></MudItem>
@@ -135,14 +133,13 @@
                         <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.Slr33VmLos1" Label="VM LOS 1" /></MudItem>
                         <MudItem xs="12" md="3"><MudTextField Class="MTD" @bind-Value="State.Mtd.Slr33VmLos2" Label="VM LOS 2" /></MudItem>
                     </MudGrid>
-                </MudPaper>
+                </AppCard>
             </MudStack>
         </MudItem>
-       
+
         <!-- Right Column: Interval Grid -->
         <MudItem xs="12" lg="4">
-            <MudPaper Class="pa-4 h-100" Outlined="true">
-                <MudText Typo="Typo.h6" Class="mb-2">Intervals (Current Day)</MudText>
+            <AppCard Title="Intervals (Current Day)" Class="h-100">
                 <MudTable Items="@State.Intervals" Dense="true" Hover="true" Striped="true" FixedHeader="true" Height="775px">
                     <HeaderContent>
                         <MudTh>Interval</MudTh>
@@ -157,13 +154,12 @@
                         <MudTd DataLabel="ASA">@context.Asa.ToString("F0")</MudTd>
                     </RowTemplate>
                 </MudTable>
-            </MudPaper>
+            </AppCard>
         </MudItem>
     </MudGrid>
 
     <!-- Backlog -->
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6">Backlog</MudText>
+    <AppCard Title="Backlog">
         <MudGrid Spacing="2">
 
             <!-- SRM UA -->
@@ -240,11 +236,10 @@
             <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmNnpiQueue" Label="RDM.NNPI" /></MudItem>
             <MudItem xs="3" md="2"><MudTextField Class="Backlog" @bind-Value="State.Backlog.RdmSiprQueue" Label="RDM.SIPR" /></MudItem>
         </MudGrid>
-    </MudPaper>
+    </AppCard>
 
     <!-- Notes / Comments -->
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6">Notes / Comments</MudText>
+    <AppCard Title="Notes / Comments">
         <MudGrid Spacing="2">
             <MudItem xs="12" md="6">
                 <MudTextField Class="Notes" @bind-Value="State.Notes.NaTodaysFocusArea" Label="Today's Focus Areas" Lines="2" />
@@ -262,5 +257,5 @@
                 <MudTextField Class="Notes" @bind-Value="State.Notes.NaManagementNotes" Label="Management Notes" Lines="3" />
             </MudItem>
         </MudGrid>
-    </MudPaper>
+    </AppCard>
 </MudStack>

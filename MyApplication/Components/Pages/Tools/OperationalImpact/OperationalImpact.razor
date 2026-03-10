@@ -15,12 +15,11 @@
 @using Microsoft.JSInterop;
 @attribute [Authorize(Roles = RoleConstants.AdminOstWfm)]
 <MudStack Spacing="2">
-    <MudPaper Class="pa-3 d-flex gap-2 align-center" Outlined="true">
+    <AppCard>
         <MudButton OnClick="@LoadAsync" StartIcon="@Icons.Material.Filled.Refresh">Refresh</MudButton>
-    </MudPaper>
+    </AppCard>
 
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6">New Operational Impact</MudText>
+    <AppCard Title="New Operational Impact">
         <MudGrid Spacing="2" Class="mt-2">
             <MudItem xs="12" md="6">
                 <MudTextField T="string"
@@ -120,11 +119,9 @@
                 </MudButton>
             </MudItem>
         </MudGrid>
-    </MudPaper>
+    </AppCard>
 
-
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h6">Existing Operational Impact</MudText>
+    <AppCard Title="Existing Operational Impact">
 
         <MudTable T="OiEvent"
                   Items="_rows"
@@ -168,7 +165,7 @@
                 <MudText Class="px-2">No events.</MudText>
             </NoRecordsContent>
         </MudTable>
-    </MudPaper>
+    </AppCard>
 </MudStack>
 
 @code {

@@ -7,10 +7,11 @@
 @inject IOstPassdownService PassdownService
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <div class="d-flex justify-space-between align-center mb-4">
-        <MudText Typo="Typo.h4">OST Passdown</MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="GoToNew">New Passdown</MudButton>
-    </div>
+    <SectionHeader Title="OST Passdown">
+        <Actions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="GoToNew">New Passdown</MudButton>
+        </Actions>
+    </SectionHeader>
 
     <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
         <MudTabPanel Text="Current Passdown">

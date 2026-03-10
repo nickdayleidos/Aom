@@ -7,10 +7,11 @@
 @inject IOstPassdownService PassdownService
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <div class="d-flex align-center mb-4">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack" Color="Color.Inherit" Class="mr-2" />
-        <MudText Typo="Typo.h4">New OST Passdown</MudText>
-    </div>
+    <SectionHeader Title="New OST Passdown">
+        <Actions>
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack" Color="Color.Inherit" />
+        </Actions>
+    </SectionHeader>
 
     @if (_isLoading)
     {
