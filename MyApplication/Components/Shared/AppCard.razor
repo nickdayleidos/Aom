@@ -14,7 +14,7 @@
        <AppCard>content</AppCard>
 *@
 
-<MudPaper Elevation="3" Class="@Class">
+<MudPaper Elevation="3" Class="@Class" Style="@Style">
     @if (!string.IsNullOrEmpty(Title))
     {
         <div class="app-card-header">
@@ -47,4 +47,7 @@
 
     /// <summary>CSS class applied to the root MudPaper. Default = "pa-4".</summary>
     [Parameter] public string Class { get; set; } = "pa-4";
+
+    /// <summary>Inline style applied to the root MudPaper.</summary>
+    [Parameter] public string? Style { get; set; }
 }

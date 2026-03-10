@@ -13,7 +13,7 @@
        </SectionHeader>
 *@
 
-<div class="section-header mb-4">
+<div class="section-header mb-4 @Class">
     <MudStack Row="true" AlignItems="AlignItems.Center">
         <MudStack Spacing="0" Style="flex:1">
             <MudText Typo="Typo.h5">@Title</MudText>
@@ -30,4 +30,5 @@
     [Parameter, EditorRequired] public string Title { get; set; } = "";
     [Parameter] public string? Subtitle { get; set; }
     [Parameter] public RenderFragment? Actions { get; set; }
+    [Parameter] public string? Class { get; set; }
 }
