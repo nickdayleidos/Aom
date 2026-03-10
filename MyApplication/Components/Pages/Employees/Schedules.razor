@@ -161,13 +161,9 @@
 
 <MudStack Spacing="4" Class="mb-8">
 
-    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="d-print-none">
-        <MudStack Row="true" AlignItems="AlignItems.Center">
+    <SectionHeader Title="Daily Schedules" Class="d-print-none">
+        <Actions>
             <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/employees"))" />
-            <MudText Typo="Typo.h5">Daily Schedules</MudText>
-        </MudStack>
-
-        <MudStack Row="true" Spacing="2">
             <MudButton StartIcon="@Icons.Material.Filled.PictureAsPdf"
                        Variant="Variant.Filled"
                        Color="Color.Primary"
@@ -197,10 +193,10 @@
                 <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern</MudSelectItem>
                 <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain</MudSelectItem>
             </MudSelect>
-        </MudStack>
-    </MudStack>
+        </Actions>
+    </SectionHeader>
 
-    <MudPaper Class="pa-4 d-print-none" Outlined="true">
+    <AppCard Class="d-print-none">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4">
             <MudDatePicker Label="Select Date"
                            Date="_date"
@@ -220,8 +216,7 @@
             <MudCheckBox Value="@_hideLoa" ValueChanged="@((bool v) => { _hideLoa = v; _ = LoadAsync(); })" Label="Hide LOA" Dense="true" Color="Color.Primary"></MudCheckBox>
 
         </MudStack>
-
-    </MudPaper>
+    </AppCard>
 
     <MudGrid Class="mb-4 align-center" Spacing="2">
         <MudItem xs="12" sm="6" md="2">
@@ -345,7 +340,7 @@
                 {
                     <MudTabPanel Text="Timeline View" Icon="@Icons.Material.Filled.Timeline">
 
-                        <MudPaper Class="pa-3 mb-3 d-flex flex-wrap align-center" Outlined="true">
+                        <AppCard Class="pa-3 mb-3 d-flex flex-wrap align-center">
                             <MudText Typo="Typo.subtitle2" Class="mr-4">Legend:</MudText>
                             @foreach (var l in _legendItems)
                             {
@@ -354,7 +349,7 @@
                                     <span>@l.Name</span>
                                 </div>
                             }
-                        </MudPaper>
+                        </AppCard>
 
                         @foreach (var site in _vm.Sites)
                         {
@@ -380,7 +375,7 @@
                             int totalHours = (int)Math.Ceiling(totalMinutesToRender / 60.0);
                             int minWidth = 250 + (totalHours * 50);
 
-                            <MudPaper Class="pa-4 mb-4" Outlined="true">
+                            <AppCard Class="mb-4">
                                 <MudText Typo="Typo.h6" Class="mb-4">
                                     @site.SiteName - @_vm.Date.ToString("ddd, MMM d, yyyy")
                                     <span class="mud-typography-caption">(@site.TimeZoneId)</span>
@@ -549,7 +544,7 @@
                                         </div>
                                     }
                                 </div>
-                            </MudPaper>
+                            </AppCard>
                         }
                     </MudTabPanel>
                 }

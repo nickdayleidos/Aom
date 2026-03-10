@@ -3,9 +3,7 @@
 @using MyApplication.Components.Service.Aws
 @inject AwsRoutingService AwsService
 
-<MudPaper Class="pa-4" Outlined="true">
-    <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Tertiary">AWS Routing Assignment</MudText>
-
+<AppCard Title="AWS Routing Assignment">
     @if (IsLoading)
     {
         <LoadingSpinner Size="Size.Small" />
@@ -66,7 +64,7 @@
             </NotAuthorized>
         </AuthorizeView>
     }
-</MudPaper>
+</AppCard>
 
 @code {
     [Parameter] public int EmployeeId { get; set; }

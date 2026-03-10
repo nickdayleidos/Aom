@@ -8,19 +8,17 @@
 @inject EmployeeDetailsService Repository
 
 <MudStack Spacing="4" Class="mb-8">
-    <MudStack Row="true" AlignItems="AlignItems.Center">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/employees"))" />
-        <MudText Typo="Typo.h5">Employee Details</MudText>
-        <MudSpacer />
-        <MudStack Row AlignItems="AlignItems.Center" Spacing="2">
+    <SectionHeader Title="Employee Details">
+        <Actions>
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Navigation.NavigateTo("/employees"))" />
             <MudText Typo="Typo.caption">Time:</MudText>
             <MudSelect T="TimeDisplayMode" Dense="true" Margin="Margin.Dense" @bind-Value="_mode" Variant="Variant.Outlined" Style="min-width:160px">
                 <MudSelectItem Value="TimeDisplayMode.EmployeeLocal">Local (Site)</MudSelectItem>
                 <MudSelectItem Value="TimeDisplayMode.Eastern">Eastern</MudSelectItem>
                 <MudSelectItem Value="TimeDisplayMode.Mountain">Mountain</MudSelectItem>
             </MudSelect>
-        </MudStack>
-    </MudStack>
+        </Actions>
+    </SectionHeader>
 
     @if (IsLoading)
     {
@@ -34,10 +32,8 @@
     {
         <MudGrid>
             <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4 h-100" Outlined="true">
-                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
-                        <MudText Typo="Typo.h6" Color="Color.Primary">Profile</MudText>
-
+                <AppCard Title="Profile" Class="h-100">
+                    <Actions>
                         @* 2. EDIT PROFILE: Allowed for WFM, Manager, Supervisor, Admin *@
                         <AuthorizeView Roles="@RoleConstants.Management">
                             <Authorized>
@@ -47,41 +43,40 @@
                                                OnClick="EditProfileAsync" />
                             </Authorized>
                         </AuthorizeView>
-
-                    </MudStack>
-
-                    <MudSimpleTable Dense="true" Hover="false" Striped="false" Elevation="0">
-                        <tbody>
-                            <tr><td><b>Name</b></td><td>@_vm.LastName, @_vm.FirstName @_vm.MiddleInitial</td></tr>
-                            <tr><td><b>Corp ID</b></td><td>@_vm.CorporateId</td></tr>
-                            <tr><td><b>Domain</b></td><td>@_vm.DomainLoginName</td></tr>
-                            <tr><td><b>Email</b></td><td>@_vm.CorporateEmail</td></tr>
-                            <tr><td><b>NMCI</b></td><td>@_vm.NmciEmail</td></tr>
-                            <tr><td><b>USN IDs</b></td><td>@_vm.UsnOperatorId / @_vm.UsnAdminId</td></tr>
-                            <tr>
-                                <td><b>AWS User</b></td>
-                                <td>
-                                    @if (!string.IsNullOrEmpty(_vm.AwsUsername))
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@_vm.AwsUsername</MudChip>
-                                    }
-                                    else
-                                    {
-                                        <span class="mud-text-secondary">-</span>
-                                    }
-                                </td>
-                            </tr>
-                        </tbody>
-                    </MudSimpleTable>
-                </MudPaper>
+                    </Actions>
+                    <ChildContent>
+                        <MudSimpleTable Dense="true" Hover="false" Striped="false" Elevation="0" Class="table-modern">
+                            <tbody>
+                                <tr><td><b>Name</b></td><td>@_vm.LastName, @_vm.FirstName @_vm.MiddleInitial</td></tr>
+                                <tr><td><b>Corp ID</b></td><td>@_vm.CorporateId</td></tr>
+                                <tr><td><b>Domain</b></td><td>@_vm.DomainLoginName</td></tr>
+                                <tr><td><b>Email</b></td><td>@_vm.CorporateEmail</td></tr>
+                                <tr><td><b>NMCI</b></td><td>@_vm.NmciEmail</td></tr>
+                                <tr><td><b>USN IDs</b></td><td>@_vm.UsnOperatorId / @_vm.UsnAdminId</td></tr>
+                                <tr>
+                                    <td><b>AWS User</b></td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(_vm.AwsUsername))
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@_vm.AwsUsername</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <span class="mud-text-secondary">-</span>
+                                        }
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </MudSimpleTable>
+                    </ChildContent>
+                </AppCard>
             </MudItem>
 
             <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4 h-100" Outlined="true">
-                    <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Primary">Current Assignment</MudText>
+                <AppCard Title="Current Assignment" Class="h-100">
                     @if (_vm.HasHistory)
                     {
-                        <MudSimpleTable Dense="true" Hover="false" Striped="false" Elevation="0">
+                        <MudSimpleTable Dense="true" Hover="false" Striped="false" Elevation="0" Class="table-modern">
                             <tbody>
                                 <tr><td><b>Effective</b></td><td>@_vm.EffectiveDate</td></tr>
                                 <tr><td><b>Employer</b></td><td>@_vm.Employer</td></tr>
@@ -110,12 +105,11 @@
                     {
                         <MudText Color="Color.Secondary">No assignment history found.</MudText>
                     }
-                </MudPaper>
+                </AppCard>
             </MudItem>
         </MudGrid>
 
-        <MudPaper Class="pa-4" Outlined="true">
-            <MudText Typo="Typo.h6" Class="mb-2" Color="Color.Success">Active Skills</MudText>
+        <AppCard Title="Active Skills">
             @if (_vm.Skills.Any())
             {
                 <MudChipSet T="string" ReadOnly="true">
@@ -129,17 +123,15 @@
             {
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">No active skills recorded.</MudText>
             }
-        </MudPaper>
+        </AppCard>
 
         <EmployeeRoutingAssignment EmployeeId="@Id" />
 
         @if (_vm.Schedule != null)
         {
-            <MudPaper Class="pa-4" Outlined="true">
-                <MudText Typo="Typo.h6" Class="mb-2" Color="Color.Primary">Current Schedule</MudText>
-
+            <AppCard Title="Current Schedule">
                 <MudText Typo="Typo.subtitle2" Class="ml-2">Shift 1</MudText>
-                <MudSimpleTable Style="overflow-x: auto;" Dense="true" Class="mb-3">
+                <MudSimpleTable Style="overflow-x: auto;" Dense="true" Class="mb-3 table-modern">
                     <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
                     <tbody>
                         <tr>
@@ -157,7 +149,7 @@
                 @if (_vm.Schedule2 != null)
                 {
                     <MudText Typo="Typo.subtitle2" Class="ml-2 mt-4">Shift 2 (Split)</MudText>
-                    <MudSimpleTable Style="overflow-x: auto;" Dense="true">
+                    <MudSimpleTable Style="overflow-x: auto;" Dense="true" Class="table-modern">
                         <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
                         <tbody>
                             <tr>
@@ -172,14 +164,13 @@
                         </tbody>
                     </MudSimpleTable>
                 }
-            </MudPaper>
+            </AppCard>
         }
 
         @if (_vm.Overtime != null)
         {
-            <MudPaper Class="pa-4" Outlined="true">
-                <MudText Typo="Typo.h6" Class="mb-2" Color="Color.Warning">Overtime Adjustment</MudText>
-                <MudSimpleTable Dense="true">
+            <AppCard Title="Overtime Adjustment">
+                <MudSimpleTable Dense="true" Class="table-modern">
                     <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
                     <tbody>
                         <tr>
@@ -193,14 +184,13 @@
                         </tr>
                     </tbody>
                 </MudSimpleTable>
-            </MudPaper>
+            </AppCard>
         }
 
         @if (_vm.StaticBreaks != null)
         {
-            <MudPaper Class="pa-4" Outlined="true">
-                <MudText Typo="Typo.h6" Class="mb-2" Color="Color.Info">Static Break Schedule</MudText>
-                <MudSimpleTable Dense="true">
+            <AppCard Title="Static Break Schedule">
+                <MudSimpleTable Dense="true" Class="table-modern">
                     <thead><tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr></thead>
                     <tbody>
                         <tr>
@@ -214,11 +204,10 @@
                         </tr>
                     </tbody>
                 </MudSimpleTable>
-            </MudPaper>
+            </AppCard>
         }
 
-        <MudPaper Class="pa-4" Outlined="true">
-            <MudText Typo="Typo.h6" Class="mb-2">History</MudText>
+        <AppCard Title="History">
             <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true">
 
                 <MudTabPanel Text="ACR History">
@@ -266,7 +255,7 @@
                 </MudTabPanel>
 
             </MudTabs>
-        </MudPaper>
+        </AppCard>
     }
 </MudStack>
 
