@@ -8,20 +8,18 @@
 @inject ISkillsService SkillsService
 
 <MudStack Spacing="2">
-    <MudPaper Class="pa-4" Outlined="true">
-
-        <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-            <MudText Typo="Typo.h5">Skills Lookup</MudText>
+    <SectionHeader Title="Skills Lookup">
+        <Actions>
             <MudButton Variant="Variant.Filled"
                        Color="Color.Primary"
                        StartIcon="@Icons.Material.Outlined.Add"
                        OnClick="@(() => Navigation.NavigateTo("/training/skills/new"))">
                 Add Skill
             </MudButton>
-        </MudStack>
+        </Actions>
+    </SectionHeader>
 
-        <MudDivider Class="my-3" />
-
+    <AppCard>
         <MudGrid Spacing="2">
             <MudItem xs="12" md="3">
                 <MudTextField @bind-Value="_employeeSearch"
@@ -173,7 +171,7 @@
             </MudTabPanel>
 
         </MudTabs>
-    </MudPaper>
+    </AppCard>
 </MudStack>
 
 @code {

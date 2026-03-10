@@ -9,10 +9,10 @@
 @inject ISkillsService SkillsService
 
 <MudStack Spacing="2">
-    <MudPaper Class="pa-4" Outlined="true">
-        <MudText Typo="Typo.h5">Add Skills</MudText>
+    <SectionHeader Title="Add Skills" />
 
-        <MudStack Spacing="3" Class="mt-3">
+    <AppCard>
+        <MudStack Spacing="3">
 
             <!-- Employee search + multi-select via chip list -->
             <MudText Typo="Typo.subtitle2">Employees</MudText>
@@ -86,7 +86,7 @@
             </MudStack>
 
         </MudStack>
-    </MudPaper>
+    </AppCard>
 </MudStack>
 
 @code {
@@ -185,4 +185,3 @@
         public bool IsActive { get; set; } = true;
     }
 }
-

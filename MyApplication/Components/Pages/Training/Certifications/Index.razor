@@ -1,4 +1,4 @@
-﻿@page "/training/certifications"
+@page "/training/certifications"
 @inherits AppComponentBase
 @using MyApplication.Components.Model.AOM.Employee
 @using MyApplication.Components.Service.Training.Certifications
@@ -13,15 +13,16 @@
 <AuthorizeView Roles="@RoleConstants.FullAccess" Context="pageAuth">
     <Authorized>
         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
-                <MudText Typo="Typo.h5">Certifications</MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" OnClick="@(() => Navigation.NavigateTo("/training/certifications/upload"))">
-                    Upload Certification
-                </MudButton>
-            </MudStack>
+            <SectionHeader Title="Certifications">
+                <Actions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" OnClick="@(() => Navigation.NavigateTo("/training/certifications/upload"))">
+                        Upload Certification
+                    </MudButton>
+                </Actions>
+            </SectionHeader>
 
             <!-- Filters Section (Top) -->
-            <MudPaper Class="p-4 mb-4" Elevation="2">
+            <AppCard Class="mb-4">
                 <MudGrid Spacing="2">
                     <MudItem xs="12" sm="6" md="2">
                         <MudSwitch T="bool" @bind-Value="_showOnlyActive" Color="Color.Primary" Label="Active Only" />
@@ -62,7 +63,7 @@
                         <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="ResetFilters" Size="Size.Small">Reset Filters</MudButton>
                     </MudItem>
                 </MudGrid>
-            </MudPaper>
+            </AppCard>
 
             <!-- Tabs for Views -->
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
